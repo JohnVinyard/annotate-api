@@ -8,8 +8,7 @@ import os
 path, fn = os.path.split(__file__)
 
 
-class IntegrationTests(unittest2.TestCase):
-
+class BaseTests(object):
     @classmethod
     def startup_executable(cls):
         return os.path.join(path, 'start.sh')
@@ -49,6 +48,16 @@ class IntegrationTests(unittest2.TestCase):
         cls.process = subprocess.Popen(
             [cls.stop_executable()], shell=True)
 
-    def test_can_ping_root(self):
-        resp = requests.get(self.root_resource())
-        self.assertEqual(client.OK, resp.status_code)
+
+class SmokeTests(BaseTests, unittest2.TestCase):
+
+    def setUp(self):
+        self.resp = requests.get(self.root_resource())
+
+    def test_status_code_is_ok(self):
+        self.assertEqual(self.resp.status_code, client.OK)
+
+    def test_includes_sound_and_annotation_counts(self):
+        data = self.resp.json()
+        self.assertIn('totalSounds', data)
+        self.assertIn('totalAnnotations', data)

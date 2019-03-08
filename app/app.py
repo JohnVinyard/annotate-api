@@ -23,6 +23,10 @@ def basic_auth(req, resp, resource, params):
 
 class RootResource(object):
     def on_get(self, req, resp):
+        resp.media = {
+            'totalSounds': 0,
+            'totalAnnotations': 0
+        }
         resp.status = falcon.HTTP_200
 
 
