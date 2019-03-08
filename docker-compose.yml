@@ -1,11 +1,19 @@
 version: '2'
 
 services:
+  mongo:
+    image:
+        mongo
+    restart:
+        always
+
   annotate:
     build:
         context: ./app
     ports:
         - "8000:8000"
+    depends_on:
+        - mongo
 
   nginx:
     build: ./nginx

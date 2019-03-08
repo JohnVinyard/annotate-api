@@ -1,5 +1,6 @@
 import falcon
 import base64
+from data import users_repo, sounds_repo, annotations_repo
 
 
 def basic_auth(req, resp, resource, params):
@@ -22,10 +23,17 @@ def basic_auth(req, resp, resource, params):
 
 
 class RootResource(object):
+
+    def __init__(self, user_repo, sound_repo, annotation_repo):
+        self.annotation_repo = annotation_repo
+        self.sound_repo = sound_repo
+        self.user_repo = user_repo
+
     def on_get(self, req, resp):
         resp.media = {
-            'totalSounds': 0,
-            'totalAnnotations': 0
+            'totalSounds': len(self.sound_repo),
+            'totalAnnotations': len(self.annotation_repo),
+            'totalUsers': len(self.user_repo)
         }
         resp.status = falcon.HTTP_200
 
@@ -36,4 +44,4 @@ class RootResource(object):
 api = application = falcon.API()
 
 # public endpoints
-api.add_route('/', RootResource())
+api.add_route('/', RootResource(users_repo, sounds_repo, annotations_repo))

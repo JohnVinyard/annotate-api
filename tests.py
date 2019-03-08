@@ -61,3 +61,4 @@ class SmokeTests(BaseTests, unittest2.TestCase):
         data = self.resp.json()
         self.assertIn('totalSounds', data)
         self.assertIn('totalAnnotations', data)
+        self.assertIn('totalUsers', data)

@@ -12,7 +12,7 @@ RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh \
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN pip install falcon gunicorn
+RUN pip install falcon gunicorn pymongo
 
 COPY *.py remote/
 
