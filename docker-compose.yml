@@ -1,0 +1,19 @@
+version: '2'
+
+services:
+  annotate:
+    build:
+        context: ./app
+    ports:
+        - "8000:8000"
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - annotate
+    links:
+      - annotate
+
+
