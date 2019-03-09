@@ -26,6 +26,10 @@ class BaseTests(object):
         return cls.url()
 
     @classmethod
+    def delete_all_data(cls):
+        requests.delete(cls.root_resource())
+
+    @classmethod
     def _health_check(cls):
         for i in range(90):
             time.sleep(1)
@@ -44,13 +48,13 @@ class BaseTests(object):
 
     @classmethod
     def tearDownClass(cls):
+        cls.delete_all_data()
         cls.process.terminate()
         cls.process = subprocess.Popen(
             [cls.stop_executable()], shell=True)
 
 
 class SmokeTests(BaseTests, unittest2.TestCase):
-
     def setUp(self):
         self.resp = requests.get(self.root_resource())
 
@@ -62,3 +66,41 @@ class SmokeTests(BaseTests, unittest2.TestCase):
         self.assertIn('totalSounds', data)
         self.assertIn('totalAnnotations', data)
         self.assertIn('totalUsers', data)
+
+
+class UserTests(BaseTests, unittest2.TestCase):
+    def tearDown(self):
+        self.delete_all_data()
+
+    def test_can_create_and_fetch_new_user(self):
+        self.fail()
+
+    def test_validation_error_for_bad_user_type(self):
+        self.fail()
+
+    def test_validation_error_for_bad_user_name(self):
+        self.fail()
+
+    def test_validation_error_for_bad_password(self):
+        self.fail()
+
+    def test_validation_error_for_bad_email(self):
+        self.fail()
+
+    def test_can_list_users(self):
+        self.fail()
+
+    def test_must_authenticate_to_list_users(self):
+        self.fail()
+
+    def test_can_view_all_data_about_self(self):
+        self.fail()
+
+    def test_can_view_limited_data_about_other_user(self):
+        self.fail()
+
+    def test_can_delete_self(self):
+        self.fail()
+
+    def test_cannot_delete_other_user(self):
+        self.fail()

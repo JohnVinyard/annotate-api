@@ -27,6 +27,9 @@ class BaseMongoRepository(object):
     def __len__(self):
         return self.collection.estimated_document_count()
 
+    def delete_all(self):
+        return self.collection.delete_many({})
+
 
 class UserRepository(BaseMongoRepository):
     def __init__(self, collection):
