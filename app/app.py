@@ -1,5 +1,6 @@
 import falcon
 from data import users_repo, sounds_repo, annotations_repo
+from model import UserCreationData
 
 
 class RootResource(object):
@@ -20,7 +21,7 @@ class RootResource(object):
         self.user_repo.delete_all()
         self.sound_repo.delete_all()
         self.annotation_repo.delete_all()
-        resp.status = falcon.HTTP_204
+        resp.status = falcon.HTTP_NO_CONTENT
 
 
 class UsersResource(object):
@@ -31,7 +32,10 @@ class UsersResource(object):
         """
         Create a new user
         """
-        raise NotImplementedError()
+        create_data = UserCreationData(*req.media)
+        users_repo.add_user(create_data)
+        resp.set_header('Location', '/users/{id}'.format(id=create_data.id))
+        resp.status = falcon.HTTP_CREATED
 
     def on_get(self, req, resp):
         """
@@ -48,11 +52,19 @@ class UserResource(object):
         """
         Get an individual user
         """
-        raise NotImplementedError()
+        user_data = users_repo.get_user(user_id)
+        resp.media = user_data.__dict__
+        resp.status = falcon.HTTP_OK
 
     def on_delete(self, req, resp, user_id):
         """
         Delete an individual user
+        """
+        raise NotImplementedError()
+
+    def on_patch(self, req, resp, user_id):
+        """
+        Update a user
         """
         raise NotImplementedError()
 

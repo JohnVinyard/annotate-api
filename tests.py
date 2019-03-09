@@ -26,6 +26,10 @@ class BaseTests(object):
         return cls.url()
 
     @classmethod
+    def users_resource(cls, user_id=''):
+        return cls.url('/users/{user_id}'.format(**locals()))
+
+    @classmethod
     def delete_all_data(cls):
         requests.delete(cls.root_resource())
 
@@ -55,6 +59,9 @@ class BaseTests(object):
 
 
 class SmokeTests(BaseTests, unittest2.TestCase):
+    """
+    Basic tests to ensure that the API is up and responding to requests
+    """
     def setUp(self):
         self.resp = requests.get(self.root_resource())
 
@@ -69,10 +76,48 @@ class SmokeTests(BaseTests, unittest2.TestCase):
 
 
 class UserTests(BaseTests, unittest2.TestCase):
+    """
+    Tests to ensure user CRUD operations, including validation
+    """
     def tearDown(self):
         self.delete_all_data()
 
+    def _user_create_data(
+            self,
+            user_name=None,
+            password=None,
+            user_type=None,
+            email=None,
+            about_me=None):
+
+        return {
+            'user_name': user_name or 'user',
+            'password': password or 'password',
+            'user_type': user_type or 'human',
+            'email': email or 'hal@eta.com',
+            'about_me': about_me or 'Up and coming tennis star'
+        }
+
+    def _get_auth(self, user_create_data):
+        return user_create_data['user_name'], user_create_data['password']
+
     def test_can_create_and_fetch_new_user(self):
+        create_data = self._user_create_data(user_name='HalIncandenza')
+        print(create_data)
+        create_resp = requests.post(self.users_resource(), json=create_data)
+        self.assertEqual(client.CREATED, create_resp.status_code)
+        uri = create_resp.headers['location']
+        user_resp = requests.get(
+            self.url(uri), auth=self._get_auth(create_data))
+        self.assertEqual(client.OK, user_resp.status_code)
+        print(user_resp.json())
+        self.assertEqual(
+            user_resp.json()['user_name'], create_data['user_name'])
+
+    def test_unauthorized_when_attempting_to_list_users_without_creds(self):
+        self.fail()
+
+    def test_unauthorized_when_attempting_to_fetch_single_user_with_creds(self):
         self.fail()
 
     def test_validation_error_for_bad_user_type(self):
@@ -103,4 +148,25 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_cannot_delete_other_user(self):
+        self.fail()
+
+    def test_usernames_must_be_unique(self):
+        self.fail()
+
+    def test_email_addresses_must_be_unique(self):
+        self.fail()
+
+    def test_can_update_about_me_text(self):
+        self.fail()
+
+    def test_invalid_about_me_update_for_featurebot_fails(self):
+        self.fail()
+
+    def test_can_update_password(self):
+        self.fail()
+
+    def test_not_found_for_non_existent_user(self):
+        self.fail()
+
+    def test_unauthorized_when_fetching_non_existent_user_without_creds(self):
         self.fail()

@@ -6,6 +6,8 @@ services:
         mongo
     restart:
         always
+    logging:
+        driver: "none"
 
   annotate:
     build:
@@ -23,5 +25,7 @@ services:
       - annotate
     links:
       - annotate
+    logging:
+        driver: "none"
 
 
