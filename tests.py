@@ -4,6 +4,7 @@ import subprocess
 from http import client
 import time
 import os
+import uuid
 
 path, fn = os.path.split(__file__)
 
@@ -62,6 +63,7 @@ class SmokeTests(BaseTests, unittest2.TestCase):
     """
     Basic tests to ensure that the API is up and responding to requests
     """
+
     def setUp(self):
         self.resp = requests.get(self.root_resource())
 
@@ -79,6 +81,7 @@ class UserTests(BaseTests, unittest2.TestCase):
     """
     Tests to ensure user CRUD operations, including validation
     """
+
     def tearDown(self):
         self.delete_all_data()
 
@@ -89,7 +92,6 @@ class UserTests(BaseTests, unittest2.TestCase):
             user_type=None,
             email=None,
             about_me=None):
-
         return {
             'user_name': user_name or 'user',
             'password': password or 'password',
@@ -101,24 +103,135 @@ class UserTests(BaseTests, unittest2.TestCase):
     def _get_auth(self, user_create_data):
         return user_create_data['user_name'], user_create_data['password']
 
+    def create_user(self, user_type='human', user_name=None):
+        create_data = self._user_create_data(
+            user_name=user_name or uuid.uuid4().hex,
+            password=uuid.uuid4().hex,
+            user_type=user_type,
+            email='{}@example.com'.format(uuid.uuid4().hex),
+            about_me=uuid.uuid4().hex
+        )
+        create_resp = requests.post(self.users_resource(), json=create_data)
+        self.assertEqual(client.CREATED, create_resp.status_code)
+        location = create_resp.headers['location']
+        return create_data, location
+
     def test_can_create_and_fetch_new_user(self):
         create_data = self._user_create_data(user_name='HalIncandenza')
-        print(create_data)
         create_resp = requests.post(self.users_resource(), json=create_data)
         self.assertEqual(client.CREATED, create_resp.status_code)
         uri = create_resp.headers['location']
+        _id = uri.split('/')[-1]
         user_resp = requests.get(
             self.url(uri), auth=self._get_auth(create_data))
         self.assertEqual(client.OK, user_resp.status_code)
-        print(user_resp.json())
         self.assertEqual(
             user_resp.json()['user_name'], create_data['user_name'])
+        self.assertEqual(user_resp.json()['id'], _id)
+
+    def test_can_head_user(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+        resp = requests.head(
+            self.url(user2_location), auth=self._get_auth(user1))
+        self.assertEqual(client.NO_CONTENT, resp.status_code)
+
+    def test_head_returns_not_found_for_non_existent_user(self):
+        user1, user1_location = self.create_user()
+        resp = requests.head(
+            self.users_resource('1234'), auth=self._get_auth(user1))
+        self.assertEqual(client.NOT_FOUND, resp.status_code)
 
     def test_unauthorized_when_attempting_to_list_users_without_creds(self):
+        list_users_resp = requests.get(self.users_resource())
+        self.assertEqual(list_users_resp.status_code, client.UNAUTHORIZED)
+
+    def test_can_page_through_users(self):
+        requesting_user, _ = self.create_user()
+
+        for _ in range(95):
+            self.create_user()
+
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 10},
+            auth=self._get_auth(requesting_user))
+
+        self.assertEqual(client.OK, resp.status_code)
+        resp_data = resp.json()
+        self.assertEqual(10, len(resp_data['items']))
+        self.assertEqual(96, resp_data['total_count'])
+
+        items = [resp_data['items']]
+
+        while 'next' in resp_data:
+            current = requests.get(
+                self.url(resp_data['next']),
+                auth=self._get_auth(requesting_user))
+            resp_data = current.json()
+            items.append(resp_data['items'])
+
+        self.assertEqual(10, len(items))
+        self.assertEqual(6, len(items[-1]))
+        self.assertEqual(96, sum(len(item) for item in items))
+
+    def test_can_page_through_users_and_filter_by_user_type(self):
+        requesting_user, _ = self.create_user()
+
+        for _ in range(10):
+            self.create_user(user_type='human')
+
+        for _ in range(10):
+            self.create_user(user_type='featurebot')
+
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 3, 'user_type': 'featurebot'},
+            auth=self._get_auth(requesting_user))
+
+        self.assertEqual(client.OK, resp.status_code)
+        resp_data = resp.json()
+        self.assertEqual(3, len(resp_data['items']))
+        self.assertEqual(10, resp_data['total_count'])
+
+        items = [resp_data['items']]
+
+        while 'next' in resp_data:
+            current = requests.get(
+                self.url(resp_data['next']),
+                auth=self._get_auth(requesting_user))
+            resp_data = current.json()
+            items.append(resp_data['items'])
+
+        self.assertEqual(4, len(items))
+        self.assertEqual(1, len(items[-1]))
+        self.assertEqual(10, sum(len(item) for item in items))
+
+    def test_bad_request_when_filtering_by_invalid_user_type(self):
+        requesting_user, _ = self.create_user()
+
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 3, 'user_type': 'animal'},
+            auth=self._get_auth(requesting_user))
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_bad_request_when_page_size_is_negative(self):
         self.fail()
 
-    def test_unauthorized_when_attempting_to_fetch_single_user_with_creds(self):
+    def test_bad_request_when_page_size_is_too_large(self):
         self.fail()
+
+    def test_can_view_all_data_about_self(self):
+        self.fail()
+
+    def test_can_view_limited_data_about_other_user(self):
+        self.fail()
+
+    def test_unauthorized_when_fetching_single_user_without_creds(self):
+        user1, user1_location = self.create_user()
+        user_resp = requests.get(self.url(user1_location))
+        self.assertEqual(client.UNAUTHORIZED, user_resp.status_code)
 
     def test_validation_error_for_bad_user_type(self):
         self.fail()
@@ -132,18 +245,6 @@ class UserTests(BaseTests, unittest2.TestCase):
     def test_validation_error_for_bad_email(self):
         self.fail()
 
-    def test_can_list_users(self):
-        self.fail()
-
-    def test_must_authenticate_to_list_users(self):
-        self.fail()
-
-    def test_can_view_all_data_about_self(self):
-        self.fail()
-
-    def test_can_view_limited_data_about_other_user(self):
-        self.fail()
-
     def test_can_delete_self(self):
         self.fail()
 
@@ -151,12 +252,29 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_usernames_must_be_unique(self):
-        self.fail()
+        user1_data = self._user_create_data(
+            user_name='user1', email='user1@example.com')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.CREATED, resp.status_code)
+        user2_data = self._user_create_data(
+            user_name='user1', email='user2@example.com')
+        resp2 = requests.post(self.users_resource(), json=user2_data)
+        self.assertEqual(client.CONFLICT, resp2.status_code)
 
     def test_email_addresses_must_be_unique(self):
-        self.fail()
+        user1_data = self._user_create_data(
+            user_name='user1', email='user1@example.com')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.CREATED, resp.status_code)
+        user2_data = self._user_create_data(
+            user_name='user2', email='user1@example.com')
+        resp2 = requests.post(self.users_resource(), json=user2_data)
+        self.assertEqual(client.CONFLICT, resp2.status_code)
 
     def test_can_update_about_me_text(self):
+        self.fail()
+
+    def test_cannot_update_other_user(self):
         self.fail()
 
     def test_invalid_about_me_update_for_featurebot_fails(self):
@@ -166,7 +284,11 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_not_found_for_non_existent_user(self):
-        self.fail()
+        user1, user1_location = self.create_user()
+        user_resp = requests.get(
+            self.users_resource('1234'), auth=self._get_auth(user1))
+        self.assertEqual(client.NOT_FOUND, user_resp.status_code)
 
     def test_unauthorized_when_fetching_non_existent_user_without_creds(self):
-        self.fail()
+        user_resp = requests.get(self.users_resource('1234'))
+        self.assertEqual(client.UNAUTHORIZED, user_resp.status_code)
