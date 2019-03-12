@@ -4,7 +4,7 @@ from model import UserCreationData
 from httphelper import decode_auth_header
 from customjson import JSONWithDateTimeHandler
 import urllib
-from errors import DuplicateUserException
+from errors import DuplicateUserException, PermissionsError
 
 
 def basic_auth(req, resp, resource, params):
@@ -112,8 +112,9 @@ class UserResource(object):
         Get an individual user
         """
         try:
-            user_data = users_repo.get_user(user_id)
-            resp.media = user_data.__dict__
+            actor = req.context['user']
+            user_data = self.user_repo.get_user(actor, user_id)
+            resp.media = user_data
             resp.status = falcon.HTTP_OK
         except KeyError:
             raise falcon.HTTPNotFound()
@@ -130,7 +131,13 @@ class UserResource(object):
         """
         Delete an individual user
         """
-        raise NotImplementedError()
+        actor = req.context['user']
+        try:
+            self.user_repo.delete_user(actor, user_id)
+        except KeyError:
+            raise falcon.HTTPNotFound()
+        except PermissionsError:
+            raise falcon.HTTPForbidden()
 
     @falcon.before(basic_auth)
     def on_patch(self, req, resp, user_id):

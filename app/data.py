@@ -2,7 +2,7 @@ from pymongo import MongoClient, IndexModel, DESCENDING
 from pymongo.errors import DuplicateKeyError
 from model import UserData, UserType
 from password import password_hasher
-from errors import DuplicateUserException
+from errors import DuplicateUserException, PermissionsError
 
 client = MongoClient('mongo')
 db = client.annotate
@@ -38,18 +38,24 @@ class BaseMongoRepository(object):
         return self.collection.delete_many({})
 
 
+# TODO: Get rid of any hard-coded property names in this class, instead relying
+# on metadata from the models
 class UserRepository(BaseMongoRepository):
     def __init__(self, collection):
         super().__init__(collection)
 
-    def get_user(self, user_id):
-        user_data = self.collection.find_one({'_id': user_id})
+    def _user_query(self, user_id, **kwargs):
+        base_query = {'_id': user_id, 'deleted': False}
+        return {**base_query, **kwargs}
+
+    def get_user(self, actor, user_id):
+        user_data = self.collection.find_one(self._user_query(user_id))
         if user_data is None:
             raise KeyError(user_id)
-        return UserData(**user_data)
+        return actor.view(UserData(**user_data))
 
     def user_exists(self, user_id):
-        return self.collection.count_documents({'_id': user_id}) == 1
+        return self.collection.count_documents(self._user_query(user_id)) == 1
 
     def add_user(self, user_create_data):
         insert_data = dict(user_create_data.__dict__)
@@ -60,10 +66,21 @@ class UserRepository(BaseMongoRepository):
         except DuplicateKeyError:
             raise DuplicateUserException()
 
+    def delete_user(self, actor, user_id):
+        # TODO: This method crystallizes all the current problems:
+        #   - There's business logic here in the repo.  It should be part of User
+        #   - In order to apply the business logic, I'd have to fetch the other user
+        #   - It's much more efficient to perform the update in this way, directly using the database
+        #   - There are hard-coded property names being referenced
+        delete_target = UserData(_id=user_id)
+        actor.delete_user(delete_target)
+        self.collection.find_and_modify(
+            self._user_query(user_id), {'deleted': True})
+
     def authenticate(self, user_name, password):
         password = password_hasher(password)
         user_data = self.collection.find_one(
-            {'user_name': user_name, 'password': password})
+            {'user_name': user_name, 'password': password, 'deleted': False})
         if user_data is None:
             raise ValueError('user_name and password combination is not valid')
         return UserData(**user_data)
@@ -74,6 +91,14 @@ class UserRepository(BaseMongoRepository):
             page_size=25,
             page_number=0):
 
+        page_size_min = 1
+        page_size_max = 500
+
+        if page_size < page_size_min or page_size > page_size_max:
+            raise ValueError(
+                f'Page size must be between '
+                f'{page_size_min} and {page_size_max}')
+
         query = {}
 
         if user_type:
@@ -83,8 +108,8 @@ class UserRepository(BaseMongoRepository):
         total_count = self.collection.count_documents(query)
 
         results = self.collection.find(
-            query, sort=[('date_created', DESCENDING)])\
-            .skip(page_number * page_size)\
+            query, sort=[('date_created', DESCENDING)]) \
+            .skip(page_number * page_size) \
             .limit(page_size)
 
         results = list(map(lambda x: UserData(**x), results))

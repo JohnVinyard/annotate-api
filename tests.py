@@ -103,12 +103,13 @@ class UserTests(BaseTests, unittest2.TestCase):
     def _get_auth(self, user_create_data):
         return user_create_data['user_name'], user_create_data['password']
 
-    def create_user(self, user_type='human', user_name=None):
+    def create_user(self, user_type='human', user_name=None, email=None):
+
         create_data = self._user_create_data(
             user_name=user_name or uuid.uuid4().hex,
             password=uuid.uuid4().hex,
             user_type=user_type,
-            email='{}@example.com'.format(uuid.uuid4().hex),
+            email=email or '{}@example.com'.format(uuid.uuid4().hex),
             about_me=uuid.uuid4().hex
         )
         create_resp = requests.post(self.users_resource(), json=create_data)
@@ -217,16 +218,80 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_bad_request_when_page_size_is_negative(self):
-        self.fail()
+        requesting_user, _ = self.create_user()
+
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': -3, 'user_type': 'human'},
+            auth=self._get_auth(requesting_user))
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_bad_request_when_page_size_is_too_large(self):
-        self.fail()
+        requesting_user, _ = self.create_user()
 
-    def test_can_view_all_data_about_self(self):
-        self.fail()
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 10000, 'user_type': 'human'},
+            auth=self._get_auth(requesting_user))
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_can_view_most_data_about_self(self):
+        user1, user1_location = self.create_user()
+        resp = requests.get(
+            self.url(user1_location), auth=self._get_auth(user1))
+        self.assertIn('email', resp.json())
+        self.assertNotIn('password', resp.json())
 
     def test_can_view_limited_data_about_other_user(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+        resp = requests.get(
+            self.url(user1_location), auth=self._get_auth(user2))
+        self.assertNotIn('email', resp.json())
+        self.assertNotIn('password', resp.json())
+
+    def test_can_view_most_data_about_self_when_listing_users(self):
         self.fail()
+
+    def test_can_view_limited_data_about_other_user_when_listing_users(self):
+        self.fail()
+
+    def test_can_delete_self(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+
+        auth = self._get_auth(user1)
+        uri = self.url(user1_location)
+
+        resp = requests.get(uri, auth=auth)
+        self.assertEqual(user1['email'], resp.json()['email'])
+        delete_resp = requests.delete(uri, auth=auth)
+        self.assertEqual(client.OK, delete_resp.status_code)
+
+        get_resp = requests.get(uri, auth=self._get_auth(user2))
+        self.assertEqual(client.NOT_FOUND, get_resp.status_code)
+
+    def test_cannot_delete_other_user(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+
+        auth = self._get_auth(user1)
+        uri = self.url(user1_location)
+
+        resp = requests.get(uri, auth=auth)
+        self.assertEqual(user1['email'], resp.json()['email'])
+        delete_resp = requests.delete(uri, auth=self._get_auth(user2))
+        self.assertEqual(client.FORBIDDEN, delete_resp.status_code)
+
+    def test_not_found_when_deleting_non_existent_user(self):
+        user1, user1_location = self.create_user()
+        delete_resp = requests.delete(
+            self.users_resource('1234'), auth=self._get_auth(user1))
+        self.assertEqual(client.NOT_FOUND, delete_resp.status_code)
+
+    def test_unauthorized_when_deleting_user_without_creds(self):
+        delete_resp = requests.delete(self.users_resource('1234'))
+        self.assertEqual(client.UNAUTHORIZED, delete_resp.status_code)
 
     def test_unauthorized_when_fetching_single_user_without_creds(self):
         user1, user1_location = self.create_user()
@@ -243,12 +308,6 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_validation_error_for_bad_email(self):
-        self.fail()
-
-    def test_can_delete_self(self):
-        self.fail()
-
-    def test_cannot_delete_other_user(self):
         self.fail()
 
     def test_usernames_must_be_unique(self):
@@ -278,6 +337,9 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_invalid_about_me_update_for_featurebot_fails(self):
+        self.fail()
+
+    def test_invalid_about_me_update_for_dataset_fails(self):
         self.fail()
 
     def test_can_update_password(self):
