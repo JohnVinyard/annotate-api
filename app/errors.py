@@ -6,3 +6,8 @@ class DuplicateUserException(Exception):
 class PermissionsError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class ImmutableError(Exception):
+    def __init__(self, key):
+        super().__init__(f'{key} is immutable')

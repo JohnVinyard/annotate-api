@@ -287,7 +287,10 @@ class UserTests(BaseTests, unittest2.TestCase):
         user1, user1_location = self.create_user()
         delete_resp = requests.delete(
             self.users_resource('1234'), auth=self._get_auth(user1))
-        self.assertEqual(client.NOT_FOUND, delete_resp.status_code)
+        # For now, the API will return forbidden when attempting to delete
+        # any user that isn't the requesting user, rather than the arguably
+        # more appropriate 404 Not Found error.
+        self.assertEqual(client.FORBIDDEN, delete_resp.status_code)
 
     def test_unauthorized_when_deleting_user_without_creds(self):
         delete_resp = requests.delete(self.users_resource('1234'))
@@ -308,6 +311,9 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_validation_error_for_bad_email(self):
+        self.fail()
+
+    def test_validation_error_has_information_about_multiple_problems(self):
         self.fail()
 
     def test_usernames_must_be_unique(self):

@@ -102,6 +102,7 @@ class UserRepository(BaseMongoRepository):
         query = {}
 
         if user_type:
+            # TODO: validation code in the repo
             user_type = UserType(user_type)
             query['user_type'] = user_type.value
 
