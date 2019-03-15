@@ -6,25 +6,53 @@ from model import UserType
 
 
 class BaseRepository(object):
+    # TODO: for data, two-way property name mapping
+    # TODO: query syntax
     def __init__(self):
         super().__init__()
 
-    def __getitem__(self, _id):
+    def upsert(self, item):
         raise NotImplemented()
 
-    def __setitem__(self, _id, value):
+    def filter(self, predicate, page_size=100, page_number=0):
         raise NotImplemented()
 
-    def __delitem__(self, _id):
-        raise NotImplemented()
-
-    def filter(self, predicate, page_size, page_number):
+    def count(self, predicate):
         raise NotImplemented()
 
 
-# TODO: for data, two-way property name mapping
-# TODO: materialized view of event log
-# TODO: query syntax
+class InMemoryRepository(BaseRepository):
+    def __init__(self):
+        super().__init__()
+        self._data = {}
+
+    def upsert(self, item):
+        # TODO: How to transform the item to a "raw" format suitable for
+        #  storage?
+        try:
+            existing = self._data[item.id]
+            existing.update(item)
+        except KeyError:
+            existing[item.id] = item
+
+    def filter(self, predicate):
+        # TODO: What do queries look like?
+        raise NotImplemented()
+
+    def count(self, predicate):
+        raise NotImplemented()
+
+
+class Session(object):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # TODO: Check for entities in the session
+        # TODO: Create materialized views of events for each entity
+        # TODO: validate any entities that will be created or updated
+        # TODO: Perform updates
+        pass
 
 
 class BaseDescriptor(object):
@@ -132,6 +160,10 @@ class BaseEntity(object, metaclass=MetaEntity):
         obj._events = []
         return obj
 
+    @classmethod
+    def create(cls, **kwargs):
+        return cls(**kwargs)
+
     @property
     def events(self):
         return tuple(self._events)
@@ -177,10 +209,9 @@ class User(BaseEntity):
     about_me = AboutMe()
 
 
-if __name__ == '__main__':
-
+def test_event_log_and_validation():
     print('New ' + '*' * 100)
-    c = User(
+    c = User.create(
         name='John',
         password='password',
         email='hal@eta.com',
@@ -204,10 +235,27 @@ if __name__ == '__main__':
         print(error)
 
     print('VISIBILITY ' + '*' * 100)
-    c3 = User(
+    c3 = User.create(
         name='John',
         password='password',
         email='hal@eta.com',
         user_type='human',
         about_me='I got problems')
     print(c3.view(c))
+
+
+if __name__ == '__main__':
+
+    test_event_log_and_validation()
+    
+    user_id1 = None
+    user_id2 = None
+
+    with Session() as s:
+        c = User.create(
+            name='John',
+            password='password',
+            email='hal@eta.com',
+            user_type='human',
+            about_me='I got problems')
+        user_id1 = c
