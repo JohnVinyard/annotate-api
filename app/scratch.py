@@ -26,13 +26,17 @@ class BaseRepository(object):
 # TODO: materialized view of event log
 # TODO: query syntax
 
-# TODO: property visibility
-# TODO: required fields and/or easier-to-implement validtors
-
 
 class BaseDescriptor(object):
-    def __init__(self, name=None, default_value=None, required=False):
+    def __init__(
+            self,
+            name=None,
+            default_value=None,
+            required=False,
+            visible=None):
+
         super().__init__()
+        self._visible = visible
         self.required = required
         self.default_value = default_value
         self.name = name
@@ -51,6 +55,12 @@ class BaseDescriptor(object):
 
         if not instance._data.get(self.name, None):
             raise ValueError(f'{self.name} is required')
+
+    def visible(self, instance, context):
+        try:
+            return self._visible(instance, context)
+        except TypeError:
+            return True
 
 
 class Transform(BaseDescriptor):
@@ -112,6 +122,11 @@ class BaseEntity(object, metaclass=MetaEntity):
 
     @classmethod
     def hydrate(cls, **kwargs):
+        """
+        Build an instance, bypassing validation, setter logic, etc., likely when
+        pulling back from a database.  Property name mapping/translation should
+        happen *before* this.
+        """
         obj = cls.__new__(cls)
         obj._data = kwargs
         obj._events = []
@@ -128,49 +143,71 @@ class BaseEntity(object, metaclass=MetaEntity):
             except Exception as e:
                 yield field.name, e
 
+    def view(self, context):
+        return \
+            {k: getattr(self, k) for k, v
+             in self._metafields.items() if v.visible(self, context)}
+
     def __repr__(self):
         return '{cls}({data})'.format(
             cls=self.__class__.__name__, data=self._data)
 
 
-class Concrete(BaseEntity):
+class User(BaseEntity):
     id = BaseDescriptor(default_value=user_id_generator)
+
     date_created = BaseDescriptor(
         default_value=lambda: datetime.datetime.utcnow())
-    deleted = BaseDescriptor(default_value=False)
+
+    deleted = BaseDescriptor(
+        default_value=False,
+        visible=lambda instance, context: False)
 
     name = BaseDescriptor(required=True)
-    password = Transform(password_hasher)
+
+    password = Transform(
+        password_hasher,
+        visible=lambda instance, context: False)
+
     user_type = Transform(UserType)
-    email = Immutable()
+
+    email = Immutable(
+        visible=lambda instance, context: instance.id == context.id)
+
     about_me = AboutMe()
 
+
 if __name__ == '__main__':
-    '''
-    Events should be added when
-    - setting properties (ALWAYS)
-    - constructing a user for the very first time (ALWAYS)
-    - pulling a user back from the database and constructing it (NEVER)
-    '''
 
     print('New ' + '*' * 100)
-    c = Concrete(
+    c = User(
         name='John',
         password='password',
         email='hal@eta.com',
         user_type='human',
         about_me='I got problems')
     print(c)
+    print('VIEW', c.view(c))
     print('EVENTS', c.events)
 
     print('DB ' + '*' * 100)
-    c = Concrete.hydrate(**c._data)
-    print(c)
-    print('EVENTS', c.events)
-    c.user_type = UserType.FEATUREBOT
-    c.about_me = ''
-    c.name = None
+    c2 = User.hydrate(**c._data)
+    print(c2)
+    print('VIEW', c2.view(c))
+    print('EVENTS', c2.events)
+    c2.user_type = UserType.FEATUREBOT
+    c2.about_me = ''
+    c2.name = None
 
     print('ERRORS ' + '*' * 100)
-    for error in c.validate():
+    for error in c2.validate():
         print(error)
+
+    print('VISIBILITY ' + '*' * 100)
+    c3 = User(
+        name='John',
+        password='password',
+        email='hal@eta.com',
+        user_type='human',
+        about_me='I got problems')
+    print(c3.view(c))
