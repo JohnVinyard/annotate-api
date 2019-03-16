@@ -6,29 +6,27 @@ from model import UserType
 
 
 class BaseRepository(object):
-    # TODO: for data, two-way property name mapping
     # TODO: query syntax
-    def __init__(self):
+    def __init__(self, cls):
         super().__init__()
+        self.cls = cls
 
     def upsert(self, item):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def filter(self, predicate, page_size=100, page_number=0):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def count(self, predicate):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 class InMemoryRepository(BaseRepository):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, cls):
+        super().__init__(cls)
         self._data = {}
 
     def upsert(self, item):
-        # TODO: How to transform the item to a "raw" format suitable for
-        #  storage?
         try:
             existing = self._data[item.id]
             existing.update(item)
@@ -55,6 +53,36 @@ class Session(object):
         pass
 
 
+class BaseMapping(object):
+    def __init__(
+            self,
+            field,
+            storage_name=None,
+            to_storage_format=None,
+            from_storage_format=None):
+        super().__init__()
+        self.from_storage_format = from_storage_format
+        self.to_storage_format = to_storage_format
+        self.storage_name = storage_name
+        self.field = field
+
+    def to_storage(self, instance):
+        value = self.field.__get__(instance, instance.__class__)
+        try:
+            value = self.to_storage_format(value)
+        except TypeError:
+            pass
+        return self.storage_name, value
+
+    def from_storage(self, storage_data):
+        value = storage_data[self.storage_name]
+        try:
+            value = self.from_storage_format(value)
+        except TypeError:
+            pass
+        return self.field.name, value
+
+
 class BaseDescriptor(object):
     def __init__(
             self,
@@ -69,7 +97,15 @@ class BaseDescriptor(object):
         self.default_value = default_value
         self.name = name
 
+    def __eq__(self, other):
+        raise NotImplementedError('TODO: Query builder')
+
+    def __ne__(self, other):
+        raise NotImplementedError('TODO: Query builder')
+
     def __get__(self, instance, owner):
+        if instance is None:
+            return self
         value = instance._data[self.name]
         return value
 
@@ -121,6 +157,34 @@ class Immutable(BaseDescriptor):
                 raise ImmutableError(self.name)
         except KeyError:
             super().__set__(instance, value)
+
+
+class MetaMapper(type):
+    def __init__(cls, name, bases, attrs):
+        cls._mapped_fields = dict()
+        for key, value in attrs.items():
+            if isinstance(value, BaseMapping):
+                value.storage_name = key
+                cls._mapped_fields[key] = value
+        super(MetaMapper, cls).__init__(name, bases, attrs)
+
+
+class BaseMapper(object, metaclass=MetaMapper):
+    def __init__(self):
+        super().__init__()
+
+    @classmethod
+    def to_storage(cls, entity):
+        return dict(
+            mapping.to_storage(entity)
+            for mapping in cls._mapped_fields.values())
+
+    @classmethod
+    def from_storage(cls, data):
+        transformed = dict(
+            mapping.from_storage(data)
+            for mapping in cls._mapped_fields.values())
+        return cls.entity_class.hydrate(**transformed)
 
 
 class MetaEntity(type):
@@ -209,6 +273,24 @@ class User(BaseEntity):
     about_me = AboutMe()
 
 
+class UserMapper(BaseMapper):
+
+    # TODO: Better, more formal way to specify mapper's target class than this
+    entity_class = User
+
+    _id = BaseMapping(User.id)
+    date_created = BaseMapping(User.date_created)
+    deleted = BaseMapping(User.deleted)
+    name = BaseMapping(User.name)
+    password = BaseMapping(User.password)
+    user_type = BaseMapping(
+        User.user_type,
+        to_storage_format=lambda instance: instance.value,
+        from_storage_format=lambda value: UserType(value))
+    email = BaseMapping(User.email)
+    about_me = BaseMapping(User.about_me)
+
+
 def test_event_log_and_validation():
     print('New ' + '*' * 100)
     c = User.create(
@@ -245,17 +327,32 @@ def test_event_log_and_validation():
 
 
 if __name__ == '__main__':
+    # test_event_log_and_validation()
 
-    test_event_log_and_validation()
-    
-    user_id1 = None
-    user_id2 = None
+    c = User.create(
+        name='John',
+        password='password',
+        email='hal@eta.com',
+        user_type='human',
+        about_me='I got problems')
+    print(c)
 
-    with Session() as s:
-        c = User.create(
-            name='John',
-            password='password',
-            email='hal@eta.com',
-            user_type='human',
-            about_me='I got problems')
-        user_id1 = c
+    data = UserMapper.to_storage(c)
+    print(data)
+
+    c2 = UserMapper.from_storage(data)
+    print(c2)
+
+    print(User.id == 'blah')
+
+    # user_id1 = None
+    # user_id2 = None
+    #
+    # with Session() as s:
+    #     c = User.create(
+    #         name='John',
+    #         password='password',
+    #         email='hal@eta.com',
+    #         user_type='human',
+    #         about_me='I got problems')
+    #     user_id1 = c
