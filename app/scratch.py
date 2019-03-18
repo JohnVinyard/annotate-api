@@ -3,12 +3,15 @@ from identifier import user_id_generator
 from password import password_hasher
 import datetime
 from model import UserType
+import threading
+
+thread_local = threading.local()
 
 
 class BaseRepository(object):
-    # TODO: query syntax
-    def __init__(self, cls):
+    def __init__(self, cls, mapper):
         super().__init__()
+        self.mapper = mapper
         self.cls = cls
 
     def upsert(self, item):
@@ -22,11 +25,12 @@ class BaseRepository(object):
 
 
 class InMemoryRepository(BaseRepository):
-    def __init__(self, cls):
-        super().__init__(cls)
+    def __init__(self, cls, mapper):
+        super().__init__(cls, mapper)
         self._data = {}
 
     def upsert(self, item):
+        # TODO: transform item into storage format
         try:
             existing = self._data[item.id]
             existing.update(item)
@@ -34,15 +38,31 @@ class InMemoryRepository(BaseRepository):
             existing[item.id] = item
 
     def filter(self, predicate):
-        # TODO: What do queries look like?
+        # TODO: transform query
+        # TODO: transform raw results into class instances
         raise NotImplemented()
 
     def count(self, predicate):
-        raise NotImplemented()
+        return len(tuple(self.filter(predicate)))
 
 
 class Session(object):
+    def __init__(self):
+        super().__init__()
+        self.__entities = []
+
+    def track(self, entity):
+        self.__entities.append(entity)
+
+    def filter(self, query):
+        raise NotImplementedError()
+
+    def count(self, query):
+        # TODO: transform query
+        raise NotImplementedError()
+
     def __enter__(self):
+        thread_local.session = self
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -50,7 +70,7 @@ class Session(object):
         # TODO: Create materialized views of events for each entity
         # TODO: validate any entities that will be created or updated
         # TODO: Perform updates
-        pass
+        thread_local.session = None
 
 
 class BaseMapping(object):
@@ -83,6 +103,30 @@ class BaseMapping(object):
         return self.field.name, value
 
 
+class Query(object):
+    def __init__(self, lhs, rhs, op):
+        super().__init__()
+        self.op = op
+        self.rhs = rhs
+        self.lhs = lhs
+
+    def __and__(self, other):
+        return Query(self, other, 'and')
+
+    def __or__(self, other):
+        return Query(self, other, 'or')
+
+    def __repr__(self):
+        return '({lhs} {op} {rhs})'.format(**self.__dict__)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def to_lambda(self, mapper):
+        # TODO: transform the structured query into a callable python object
+        raise NotImplementedError()
+
+
 class BaseDescriptor(object):
     def __init__(
             self,
@@ -98,10 +142,10 @@ class BaseDescriptor(object):
         self.name = name
 
     def __eq__(self, other):
-        raise NotImplementedError('TODO: Query builder')
+        return Query(self, other, '==')
 
     def __ne__(self, other):
-        raise NotImplementedError('TODO: Query builder')
+        return Query(self, other, '!=')
 
     def __get__(self, instance, owner):
         if instance is None:
@@ -125,6 +169,9 @@ class BaseDescriptor(object):
             return self._visible(instance, context)
         except TypeError:
             return True
+
+    def __repr__(self):
+        return 'Descriptor({name})'.format(**self.__dict__)
 
 
 class Transform(BaseDescriptor):
@@ -212,6 +259,11 @@ class BaseEntity(object, metaclass=MetaEntity):
                 except TypeError:
                     self._data[k] = v.default_value
 
+        try:
+            thread_local.session.track(self)
+        except AttributeError:
+            pass
+
     @classmethod
     def hydrate(cls, **kwargs):
         """
@@ -274,7 +326,6 @@ class User(BaseEntity):
 
 
 class UserMapper(BaseMapper):
-
     # TODO: Better, more formal way to specify mapper's target class than this
     entity_class = User
 
@@ -343,7 +394,7 @@ if __name__ == '__main__':
     c2 = UserMapper.from_storage(data)
     print(c2)
 
-    print(User.id == 'blah')
+    print((User.id == 'blah') & (User.deleted == False))
 
     # user_id1 = None
     # user_id2 = None
