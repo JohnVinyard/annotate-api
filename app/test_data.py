@@ -170,6 +170,16 @@ class DataTests(unittest2.TestCase):
             c2 = next(self.repo.filter(query))
             self.assertEqual(hashed_password, c2.password)
 
+    def test_reference_equality_when_fetching_same_entities_in_session(self):
+        with self._session():
+            c = User.create(**user1())
+            user_id = c.id
+
+        with self._session():
+            c2 = next(self.repo.filter(User.id == user_id))
+            c3 = next(self.repo.filter(User.id == user_id))
+            self.assertIs(c2, c3)
+
     def test_cannot_perform_invalid_update_with_two_different_instances(self):
         with self._session():
             c = User.create(**user1())

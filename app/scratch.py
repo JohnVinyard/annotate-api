@@ -106,12 +106,6 @@ class Session(object):
     def track(self, entity):
         self.__entities.append(entity)
 
-    def filter(self, query):
-        raise NotImplementedError()
-
-    def count(self, query):
-        raise NotImplementedError()
-
     def __enter__(self):
         thread_local.session = self
         return self
@@ -127,7 +121,6 @@ class Session(object):
 
         if not self.__entities:
             # no entities were created in the session so we're done
-            print('No entities in session')
             return
 
         # TODO: What about multiple Python instances that point to the same
@@ -141,7 +134,6 @@ class Session(object):
         if not updates:
             # there were entities in the session, but no updates or inserts need
             # be performed
-            print('No updates in session')
             return
 
         # validate any entities that will be created or updated
