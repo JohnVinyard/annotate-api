@@ -14,6 +14,18 @@ def identity(x):
     return x
 
 
+def never(*args, **kwargs):
+    return False
+
+
+def always(*args, **kwargs):
+    return True
+
+
+def is_me(instance, context):
+    return instance.id == context.id
+
+
 class BaseRepository(object):
     def __init__(self, cls, mapper):
         super().__init__()
@@ -27,6 +39,20 @@ class BaseRepository(object):
         raise NotImplementedError()
 
     def count(self, predicate):
+        raise NotImplementedError()
+
+
+class MongoRepository(BaseRepository):
+    def __init__(self, cls, mapper):
+        super().__init__(cls, mapper)
+
+    def upsert(self, *updates):
+        raise NotImplementedError()
+
+    def filter(self, query):
+        raise NotImplementedError()
+
+    def count(self, query):
         raise NotImplementedError()
 
 
@@ -268,13 +294,9 @@ class BaseDescriptor(object):
             evaluate_context=None):
 
         super().__init__()
-
-        def always_ok(instance, context):
-            return True
-
-        self.evaluate_context = evaluate_context or always_ok
+        self.evaluate_context = evaluate_context or always
         self.value_transform = value_transform or identity
-        self._visible = visible or always_ok
+        self._visible = visible or always
         self.required = required
         self.default_value = default_value
         self.name = name
@@ -299,11 +321,11 @@ class BaseDescriptor(object):
             if not self.evaluate_context(instance, value.context):
                 raise PermissionsError(
                     'Cannot set field "{name}" with context {context}'
-                    .format(name=self.name, context=value.context))
+                        .format(name=self.name, context=value.context))
         except AttributeError:
             raise ValueError(
                 'You must supply a context when setting field "{name}"'
-                .format(name=self.name))
+                    .format(name=self.name))
 
         value = value.value
         value = self.value_transform(value)
@@ -332,7 +354,8 @@ class AboutMe(BaseDescriptor):
 
         if not instance.get(self.name):
             raise ValueError(
-                'About me must be specified for datasets and featurebots')
+                'Field "{name}" must be specified for datasets and featurebots'
+                    .format(name=self.name))
 
 
 class Immutable(BaseDescriptor):
@@ -405,24 +428,34 @@ class MetaEntity(type):
 
 
 class BaseEntity(object, metaclass=MetaEntity):
-    def __init__(self, **kwargs):
+    def __init__(self, creator=None, **kwargs):
         super().__init__()
         self._events = []
         self._data = {}
-        for k, v in kwargs.items():
-            contextual_value = ContextualValue(self, v)
-            self.__setattr__(k, contextual_value)
 
+        creator = creator or self
+
+        # filter any missing values
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+        # set default values if values weren't provided to __init_
         for k, v in self._metafields.items():
-            if v.default_value is not None and k not in self._data:
+            if v.default_value is not None and k not in kwargs:
                 try:
-                    contextual_value = ContextualValue(self, v.default_value())
+                    contextual_value = ContextualValue(
+                        creator, v.default_value())
                     self.__setattr__(k, contextual_value)
                 except TypeError:
-                    contextual_value = ContextualValue(self, v.default_value)
+                    contextual_value = ContextualValue(creator, v.default_value)
                     self.__setattr__(k, contextual_value)
-        self._track()
+
+        # set values explicitly provided to __init__
+        for k, v in kwargs.items():
+            contextual_value = ContextualValue(creator, v)
+            self.__setattr__(k, contextual_value)
+
         self.raise_for_errors()
+        self._track()
 
     @classmethod
     def hydrate(cls, **kwargs):
@@ -483,26 +516,26 @@ class BaseEntity(object, metaclass=MetaEntity):
 class User(BaseEntity):
     id = BaseDescriptor(default_value=user_id_generator)
 
-    date_created = BaseDescriptor(
-        default_value=lambda: datetime.datetime.utcnow())
+    date_created = Immutable(default_value=lambda: datetime.datetime.utcnow())
 
     deleted = BaseDescriptor(
         default_value=False,
-        visible=lambda instance, context: False,
-        evaluate_context=lambda instance, context: instance.id == context.id)
+        visible=never,
+        evaluate_context=is_me)
 
-    name = BaseDescriptor(required=True)
+    name = Immutable(required=True)
 
     password = BaseDescriptor(
-        visible=lambda instance, context: False,
-        value_transform=password_hasher)
+        visible=never,
+        value_transform=password_hasher,
+        required=True,
+        evaluate_context=is_me)
 
-    user_type = BaseDescriptor(value_transform=UserType)
+    user_type = BaseDescriptor(value_transform=UserType, evaluate_context=is_me)
 
-    email = Email(
-        visible=lambda instance, context: instance.id == context.id)
+    email = Email(visible=is_me, evaluate_context=is_me)
 
-    about_me = AboutMe()
+    about_me = AboutMe(evaluate_context=is_me)
 
     @property
     def identity_query(self):
@@ -526,43 +559,7 @@ class UserMapper(BaseMapper):
     about_me = BaseMapping(User.about_me)
 
 
-def test_event_log_and_validation():
-    print('New ' + '*' * 100)
-    c = User.create(
-        name='John',
-        password='password',
-        email='hal@eta.com',
-        user_type='human',
-        about_me='I got problems')
-    print(c)
-    print('VIEW', c.view(c))
-    print('EVENTS', c.events)
-
-    print('DB ' + '*' * 100)
-    c2 = User.hydrate(**c._data)
-    print(c2)
-    print('VIEW', c2.view(c))
-    print('EVENTS', c2.events)
-    c2.user_type = UserType.FEATUREBOT
-    c2.about_me = ''
-    c2.name = None
-
-    print('ERRORS ' + '*' * 100)
-    for error in c2.validate():
-        print(error)
-
-    print('VISIBILITY ' + '*' * 100)
-    c3 = User.create(
-        name='John',
-        password='password',
-        email='hal@eta.com',
-        user_type='human',
-        about_me='I got problems')
-    print(c3.view(c))
-
-
 if __name__ == '__main__':
-    # test_event_log_and_validation()
 
     repo = InMemoryRepository(User, UserMapper)
 
@@ -618,7 +615,7 @@ if __name__ == '__main__':
     # TODO: Good update to existing user
     with Session(repo) as s:
         c = next(repo.filter(User.id == user_id2))
-        c.about_me = 'Here is my updated about me text'
+        c.about_me = ContextualValue(c, 'Here is my updated about me text')
 
     # TODO: view business logic
     with Session(repo) as s:
@@ -626,7 +623,6 @@ if __name__ == '__main__':
         c2 = next(repo.filter(User.id == user_id2))
         print(c1.view(c1))
         print(c1.view(c2))
-    print(repo._data)
 
     # TODO: authentication (query that includes password)
     with Session(repo) as s:
@@ -634,7 +630,6 @@ if __name__ == '__main__':
         query = (User.id == user_id1) & (User.password == 'password')
         print(query.to_lambda('x', UserMapper, raw=True))
         c = next(repo.filter(query))
-        print(c)
 
     # TODO: delete business logic
     with Session(repo) as s:
@@ -642,9 +637,13 @@ if __name__ == '__main__':
         c2 = next(repo.filter(User.id == user_id2))
         c1.deleted = ContextualValue(c1, True)
 
+    # TODO: multiple instances pointing to the same record
+    with Session(repo) as s:
+        c1 = next(repo.filter(User.id == user_id1))
+        c2 = next(repo.filter(User.id == user_id1))
+        c1.about_me = ContextualValue(c1, '')
+        c2.user_type = ContextualValue(c2, UserType.FEATUREBOT)
     print(repo._data)
 
-
-    # TODO: multiple instances pointing to the same record
     # TODO: multiple users created in a session
     # TODO: one user created and one user updated in a session
