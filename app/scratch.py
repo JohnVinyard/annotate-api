@@ -95,22 +95,31 @@ class InMemoryRepository(BaseRepository):
 class Session(object):
     def __init__(self, *repositories):
         super().__init__()
-        self.__entities = []
+        self.__entities = {}
         self._repositories = {r.cls: r for r in repositories}
 
-    def report(self):
-        total = len(self.__entities)
-        modified = len(tuple(filter(lambda e: e._events, self.__entities)))
-        return f'Entities: {total}, Modified: {modified}'
-
     def track(self, entity):
-        self.__entities.append(entity)
+        self.__entities.setdefault(entity.storage_key, entity)
+
+    def filter(self, query):
+        # TODO: This mechanism allows me to get rid of the thread_local storage
+        # I think, if I add an explicit save() method
+
+        # TODO: Should mapping from the storage format happen here as well?
+
+        repo = self._repositories[query.entity_class]
+        return map(lambda e: self.__entities[e.storage_key], repo.filter(query))
+
+    def count(self, query):
+        repo = self._repositories[query.entity_class]
+        return repo.count(query)
 
     def __enter__(self):
         thread_local.session = self
         return self
 
-    def _flatten_updates(self, entity):
+    @staticmethod
+    def _flatten_updates(entity):
         # this exists primarily to discard multiple writes to the same field,
         # the last of which always wins
         return \
@@ -123,13 +132,11 @@ class Session(object):
             # no entities were created in the session so we're done
             return
 
-        # TODO: What about multiple Python instances that point to the same
-        # persisted record?
         # create a flattened, materialized view of all the updates that have
         # happened during this session
         updates = {
             e: self._flatten_updates(e)
-            for e in self.__entities if e._events}
+            for e in self.__entities.values() if e._events}
 
         if not updates:
             # there were entities in the session, but no updates or inserts need
@@ -190,6 +197,7 @@ class Query(object):
                 return isinstance(x, BaseDescriptor)
 
             self.field = next(filter(descriptor_criteria, self.operands))
+            self._entity_cls = self.field.owner_cls
         except StopIteration:
             pass
 
@@ -209,6 +217,30 @@ class Query(object):
             self.rhs = self.literal_value
         except AttributeError:
             pass
+
+    @property
+    def entity_class(self):
+        classes = set()
+        stack = [self.lhs, self.rhs]
+        while stack:
+            node = stack.pop()
+            try:
+                classes.add(node.owner_cls)
+            except AttributeError:
+                pass
+
+            try:
+                stack.extend([node.lhs, node.rhs])
+            except AttributeError:
+                pass
+
+        if not classes:
+            raise ValueError('No entity class criteria in query')
+
+        if len(classes) > 1:
+            raise ValueError('Multi-class queries are not currently supported')
+
+        return next(iter(classes))
 
     def __and__(self, other):
         return Query(self, other, 'and')
@@ -292,6 +324,7 @@ class BaseDescriptor(object):
         self.required = required
         self.default_value = default_value
         self.name = name
+        self.owner_cls = None
 
     def __eq__(self, other):
         return Query(self, other, '==')
@@ -415,6 +448,7 @@ class MetaEntity(type):
         for key, value in attrs.items():
             if isinstance(value, BaseDescriptor):
                 value.name = key
+                value.owner_cls = cls
                 cls._metafields[key] = value
         super(MetaEntity, cls).__init__(name, bases, attrs)
 
@@ -532,6 +566,11 @@ class User(BaseEntity):
     @property
     def identity_query(self):
         return User.id == self.id
+
+    @property
+    def storage_key(self):
+        # TODO: Can this be derived solely from the identity_query?
+        return self.__class__, self.id
 
 
 class UserMapper(BaseMapper):

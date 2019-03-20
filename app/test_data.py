@@ -108,8 +108,8 @@ class DataTests(unittest2.TestCase):
             c = User.create(**user1())
             user_id = c.id
 
-        with self._session():
-            c2 = next(self.repo.filter(User.id == user_id))
+        with self._session() as s:
+            c2 = next(s.filter(User.id == user_id))
             self.assertEqual(c2.email, c.email)
 
     def test_cannot_store_new_user_with_invalid_data(self):
@@ -131,15 +131,15 @@ class DataTests(unittest2.TestCase):
             user_id = c.id
 
         def f():
-            with self._session():
-                c2 = next(self.repo.filter(User.id == user_id))
+            with self._session() as s:
+                c2 = next(s.filter(User.id == user_id))
                 c2.user_type = UserType.DATASET
                 c2.about_me = ''
 
         self.assertRaises(ValueError, f)
 
-        with self._session():
-            c3 = next(self.repo.filter(User.id == user_id))
+        with self._session() as s:
+            c3 = next(s.filter(User.id == user_id))
             self.assertEqual(original_about_me, c3.about_me)
             self.assertEqual(original_user_type, c3.user_type)
 
@@ -148,8 +148,8 @@ class DataTests(unittest2.TestCase):
             c = User.create(**user1())
             user_id = c.id
 
-        with self._session():
-            c2 = next(self.repo.filter(User.id == user_id))
+        with self._session() as s:
+            c2 = next(s.filter(User.id == user_id))
             c2.user_type = ContextualValue(c2, UserType.DATASET)
             c2.about_me = ContextualValue(c2, 'modified')
 
@@ -165,9 +165,9 @@ class DataTests(unittest2.TestCase):
             user_id = c.id
             hashed_password = c.password
 
-        with self._session():
+        with self._session() as s:
             query = (User.id == user_id) & (User.password == password)
-            c2 = next(self.repo.filter(query))
+            c2 = next(s.filter(query))
             self.assertEqual(hashed_password, c2.password)
 
     def test_reference_equality_when_fetching_same_entities_in_session(self):
@@ -175,9 +175,10 @@ class DataTests(unittest2.TestCase):
             c = User.create(**user1())
             user_id = c.id
 
-        with self._session():
-            c2 = next(self.repo.filter(User.id == user_id))
-            c3 = next(self.repo.filter(User.id == user_id))
+        with self._session() as s:
+            query = (User.id == user_id)
+            c2 = next(s.filter(query))
+            c3 = next(s.filter(query))
             self.assertIs(c2, c3)
 
     def test_cannot_perform_invalid_update_with_two_different_instances(self):
@@ -188,9 +189,9 @@ class DataTests(unittest2.TestCase):
             original_about_me = c.about_me
 
         def f():
-            with self._session():
-                c2 = next(self.repo.filter(User.id == user_id))
-                c3 = next(self.repo.filter(User.id == user_id))
+            with self._session() as s:
+                c2 = next(s.filter(User.id == user_id))
+                c3 = next(s.filter(User.id == user_id))
                 c2.user_type = ContextualValue(c2, UserType.FEATUREBOT)
                 c3.about_me = ContextualValue(c3, '')
 
