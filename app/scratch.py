@@ -73,23 +73,19 @@ class InMemoryRepository(BaseRepository):
                     storage_data.to_storage_format(value)
 
             try:
-                data = next(self._filter(query))
+                data = next(self.filter(query))
                 data.update(**storage_updates)
                 # this is an existing document. update it
             except StopIteration:
                 # this is a new document.  insert it
                 self._data[query.literal_value] = storage_updates
 
-    def _filter(self, query):
+    def filter(self, query):
         f = query.to_lambda('item', self.mapper)
         return filter(f, self._data.values())
 
-    def filter(self, query):
-        return map(self.mapper.from_storage, self._filter(query))
-
     def count(self, query):
-        # No need to transform results into entity classes just to count them
-        return len(tuple(self._filter(query)))
+        return len(tuple(self.filter(query)))
 
 
 class Session(object):
@@ -102,13 +98,10 @@ class Session(object):
         self.__entities.setdefault(entity.storage_key, entity)
 
     def filter(self, query):
-        # TODO: This mechanism allows me to get rid of the thread_local storage
-        # I think, if I add an explicit save() method
-
-        # TODO: Should mapping from the storage format happen here as well?
-
         repo = self._repositories[query.entity_class]
-        return map(lambda e: self.__entities[e.storage_key], repo.filter(query))
+        for item in repo.filter(query):
+            e = repo.mapper.from_storage(item)
+            yield self.__entities[e.storage_key]
 
     def count(self, query):
         repo = self._repositories[query.entity_class]
