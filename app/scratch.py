@@ -42,9 +42,161 @@ class BaseRepository(object):
         raise NotImplementedError()
 
 
+class Query(object):
+    OR = 'or'
+    AND = 'and'
+    EQUAL_TO = '=='
+    NOT_EQUAL_TO = '!='
+
+    def __init__(self, lhs, rhs, op):
+        super().__init__()
+        self.op = op
+        self.rhs = rhs
+        self.lhs = lhs
+
+        self.operands = (self.lhs, self.rhs)
+
+        # TODO: This code is pretty ugly.  Take another stab at refactoring this
+        try:
+            def descriptor_criteria(x):
+                return isinstance(x, BaseDescriptor)
+
+            self.field = next(filter(descriptor_criteria, self.operands))
+            self._entity_cls = self.field.owner_cls
+        except StopIteration:
+            pass
+
+        try:
+            def criteria(x):
+                return \
+                    not isinstance(x, BaseDescriptor) \
+                    and not isinstance(x, Query)
+
+            self.literal_value = next(filter(criteria, self.operands))
+        except StopIteration:
+            pass
+
+        try:
+            self.literal_value = self.field.value_transform(self.literal_value)
+            self.lhs = self.field
+            self.rhs = self.literal_value
+        except AttributeError:
+            pass
+
+    @property
+    def entity_class(self):
+        classes = set()
+        stack = [self.lhs, self.rhs]
+        while stack:
+            node = stack.pop()
+            try:
+                classes.add(node.owner_cls)
+            except AttributeError:
+                pass
+
+            try:
+                stack.extend([node.lhs, node.rhs])
+            except AttributeError:
+                pass
+
+        if not classes:
+            raise ValueError('No entity class criteria in query')
+
+        if len(classes) > 1:
+            raise ValueError('Multi-class queries are not currently supported')
+
+        return next(iter(classes))
+
+    def __and__(self, other):
+        return Query(self, other, Query.AND)
+
+    def __or__(self, other):
+        return Query(self, other, Query.OR)
+
+    def __repr__(self):
+        return '({lhs} {op} {rhs})'.format(**self.__dict__)
+
+    def __str__(self):
+        return self.__repr__()
+
+    @staticmethod
+    def _transform_operand(operand, varname, mapper, other_operand):
+        try:
+            # the operand is another query
+            return operand._to_lambda(varname, mapper)
+        except AttributeError:
+            pass
+
+        try:
+            # the operand is a descriptor.
+            storage_name = mapper.storage_data(operand).storage_name
+            return f'{varname}["{storage_name}"]'
+        except (AttributeError, KeyError):
+            pass
+
+        try:
+            operand = mapper \
+                .storage_data(other_operand).to_storage_format(operand)
+        except (AttributeError, KeyError):
+            pass
+
+        # the operand is a literal value
+        return repr(operand)
+
+    def _to_lambda(self, varname, mapper):
+        # KLUDGE: This is just temporary, and is for testing against the
+        # in-memory repository
+        lhs = self._transform_operand(
+            self.lhs, varname, mapper, self.rhs)
+        rhs = self._transform_operand(
+            self.rhs, varname, mapper, self.lhs)
+        op = self.op
+        return f'{lhs} {op} {rhs}'
+
+    def to_lambda(self, varname, mapper, raw=False):
+        import ast
+        expr = self._to_lambda(varname, mapper)
+        l = f'lambda {varname}: {expr}'
+
+        if raw:
+            return l
+
+        tree = ast.parse(l, filename='<ast>', mode='eval')
+        return eval(compile(tree, filename='<ast>', mode='eval'))
+
+
 class MongoRepository(BaseRepository):
+    OPERATOR_MAPPING = {
+        Query.AND: '$and',
+        Query.OR: '$or',
+        Query.EQUAL_TO: '$eq',
+        Query.NOT_EQUAL_TO: '$ne'
+    }
+
+    BOOLEAN_OPS = {Query.AND, Query.OR}
+    COMPARISON_OPS = {Query.EQUAL_TO, Query.NOT_EQUAL_TO}
+
     def __init__(self, cls, mapper):
         super().__init__(cls, mapper)
+
+    def _transform_query(self, query):
+        mongo_op = MongoRepository.OPERATOR_MAPPING[query.op]
+        if query.op in MongoRepository.BOOLEAN_OPS:
+            criteria = map(self._transform_query, (query.lhs, query.rhs))
+            conditions = []
+            for criterion in criteria:
+                if mongo_op in criterion:
+                    conditions.extend(criterion[mongo_op])
+                else:
+                    conditions.append(criterion)
+            return {mongo_op: conditions}
+        elif query.op in MongoRepository.COMPARISON_OPS:
+            storage_data = self.mapper.storage_data(query.field)
+            storage_name = storage_data.storage_name
+            storage_value = storage_data.to_storage_format(query.literal_value)
+            return {storage_name: {mongo_op: storage_value}}
+        else:
+            raise ValueError(f'Op "{query.op}" is not currently supported')
 
     def upsert(self, *updates):
         raise NotImplementedError()
@@ -63,14 +215,7 @@ class InMemoryRepository(BaseRepository):
 
     def upsert(self, *updates):
         for query, update in updates:
-
-            # TODO: This needs to be factored out into BaseMapper
-            storage_updates = {}
-            for name, update_data in update.items():
-                field, value = update_data
-                storage_data = self.mapper.storage_data(field)
-                storage_updates[storage_data.storage_name] = \
-                    storage_data.to_storage_format(value)
+            storage_updates = self.mapper.transform_updates(update.values())
 
             try:
                 data = next(self.filter(query))
@@ -97,6 +242,7 @@ class Session(object):
     def track(self, entity):
         self.__entities.setdefault(entity.storage_key, entity)
 
+    # TODO: Support limits, paging, etc.
     def filter(self, query):
         repo = self._repositories[query.entity_class]
         for item in repo.filter(query):
@@ -175,124 +321,6 @@ class BaseMapping(object):
         return self.field.name, value
 
 
-class Query(object):
-    def __init__(self, lhs, rhs, op):
-        super().__init__()
-        self.op = op
-        self.rhs = rhs
-        self.lhs = lhs
-
-        self.operands = (self.lhs, self.rhs)
-
-        # TODO: This code is pretty ugly.  Take another stab at refactoring this
-        try:
-            def descriptor_criteria(x):
-                return isinstance(x, BaseDescriptor)
-
-            self.field = next(filter(descriptor_criteria, self.operands))
-            self._entity_cls = self.field.owner_cls
-        except StopIteration:
-            pass
-
-        try:
-            def criteria(x):
-                return \
-                    not isinstance(x, BaseDescriptor) \
-                    and not isinstance(x, Query)
-
-            self.literal_value = next(filter(criteria, self.operands))
-        except StopIteration:
-            pass
-
-        try:
-            self.literal_value = self.field.value_transform(self.literal_value)
-            self.lhs = self.field
-            self.rhs = self.literal_value
-        except AttributeError:
-            pass
-
-    @property
-    def entity_class(self):
-        classes = set()
-        stack = [self.lhs, self.rhs]
-        while stack:
-            node = stack.pop()
-            try:
-                classes.add(node.owner_cls)
-            except AttributeError:
-                pass
-
-            try:
-                stack.extend([node.lhs, node.rhs])
-            except AttributeError:
-                pass
-
-        if not classes:
-            raise ValueError('No entity class criteria in query')
-
-        if len(classes) > 1:
-            raise ValueError('Multi-class queries are not currently supported')
-
-        return next(iter(classes))
-
-    def __and__(self, other):
-        return Query(self, other, 'and')
-
-    def __or__(self, other):
-        return Query(self, other, 'or')
-
-    def __repr__(self):
-        return '({lhs} {op} {rhs})'.format(**self.__dict__)
-
-    def __str__(self):
-        return self.__repr__()
-
-    @staticmethod
-    def _transform_operand(operand, varname, mapper, other_operand):
-        try:
-            # the operand is another query
-            return operand._to_lambda(varname, mapper)
-        except AttributeError:
-            pass
-
-        try:
-            # the operand is a descriptor.
-            storage_name = mapper.storage_data(operand).storage_name
-            return f'{varname}["{storage_name}"]'
-        except (AttributeError, KeyError):
-            pass
-
-        try:
-            operand = mapper \
-                .storage_data(other_operand).to_storage_format(operand)
-        except (AttributeError, KeyError):
-            pass
-
-        # the operand is a literal value
-        return repr(operand)
-
-    def _to_lambda(self, varname, mapper):
-        # KLUDGE: This is just temporary, and is for testing against the
-        # in-memory repository
-        lhs = self._transform_operand(
-            self.lhs, varname, mapper, self.rhs)
-        rhs = self._transform_operand(
-            self.rhs, varname, mapper, self.lhs)
-        op = self.op
-        return f'{lhs} {op} {rhs}'
-
-    def to_lambda(self, varname, mapper, raw=False):
-        import ast
-        expr = self._to_lambda(varname, mapper)
-        l = f'lambda {varname}: {expr}'
-
-        if raw:
-            return l
-
-        tree = ast.parse(l, filename='<ast>', mode='eval')
-        return eval(compile(tree, filename='<ast>', mode='eval'))
-
-
 class ContextualValue(object):
     def __init__(self, context, value):
         self.value = value
@@ -320,10 +348,10 @@ class BaseDescriptor(object):
         self.owner_cls = None
 
     def __eq__(self, other):
-        return Query(self, other, '==')
+        return Query(self, other, Query.EQUAL_TO)
 
     def __ne__(self, other):
-        return Query(self, other, '!=')
+        return Query(self, other, Query.NOT_EQUAL_TO)
 
     def __get__(self, instance, owner):
         if instance is None:
@@ -420,6 +448,16 @@ class BaseMapper(object, metaclass=MetaMapper):
     @classmethod
     def storage_data(cls, field):
         return cls._inverse_mapped_fields[field.name]
+
+    @classmethod
+    def transform_updates(cls, updates):
+        storage_updates = {}
+        for update_data in updates:
+            field, value = update_data
+            storage_data = cls.storage_data(field)
+            storage_updates[storage_data.storage_name] = \
+                storage_data.to_storage_format(value)
+        return storage_updates
 
     @classmethod
     def to_storage(cls, entity):
@@ -581,3 +619,6 @@ class UserMapper(BaseMapper):
         from_storage_format=lambda value: UserType(value))
     email = BaseMapping(User.email)
     about_me = BaseMapping(User.about_me)
+
+
+
