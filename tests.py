@@ -176,7 +176,6 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(6, len(items[-1]))
         self.assertEqual(96, sum(len(item) for item in items))
 
-
     def test_can_page_through_users_and_filter_by_user_type(self):
         requesting_user, _ = self.create_user()
 
@@ -209,34 +208,32 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(1, len(items[-1]))
         self.assertEqual(10, sum(len(item) for item in items))
 
-    #
-    # def test_bad_request_when_filtering_by_invalid_user_type(self):
-    #     requesting_user, _ = self.create_user()
-    #
-    #     resp = requests.get(
-    #         self.users_resource(),
-    #         params={'page_size': 3, 'user_type': 'animal'},
-    #         auth=self._get_auth(requesting_user))
-    #     self.assertEqual(client.BAD_REQUEST, resp.status_code)
-    #
-    # def test_bad_request_when_page_size_is_negative(self):
-    #     requesting_user, _ = self.create_user()
-    #
-    #     resp = requests.get(
-    #         self.users_resource(),
-    #         params={'page_size': -3, 'user_type': 'human'},
-    #         auth=self._get_auth(requesting_user))
-    #     self.assertEqual(client.BAD_REQUEST, resp.status_code)
-    #
-    # def test_bad_request_when_page_size_is_too_large(self):
-    #     requesting_user, _ = self.create_user()
-    #
-    #     resp = requests.get(
-    #         self.users_resource(),
-    #         params={'page_size': 10000, 'user_type': 'human'},
-    #         auth=self._get_auth(requesting_user))
-    #     self.assertEqual(client.BAD_REQUEST, resp.status_code)
-    #
+    def test_bad_request_when_filtering_by_invalid_user_type(self):
+        requesting_user, _ = self.create_user()
+
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 3, 'user_type': 'animal'},
+            auth=self._get_auth(requesting_user))
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_bad_request_when_page_size_is_negative(self):
+        requesting_user, _ = self.create_user()
+
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': -3, 'user_type': 'human'},
+            auth=self._get_auth(requesting_user))
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_bad_request_when_page_size_is_too_large(self):
+        requesting_user, _ = self.create_user()
+
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 10000, 'user_type': 'human'},
+            auth=self._get_auth(requesting_user))
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_can_view_most_data_about_self(self):
         user1, user1_location = self.create_user()
@@ -252,6 +249,7 @@ class UserTests(BaseTests, unittest2.TestCase):
             self.url(user1_location), auth=self._get_auth(user2))
         self.assertNotIn('email', resp.json())
         self.assertNotIn('password', resp.json())
+
     #
     # def test_can_view_most_data_about_self_when_listing_users(self):
     #     self.fail()
@@ -304,6 +302,7 @@ class UserTests(BaseTests, unittest2.TestCase):
         user1, user1_location = self.create_user()
         user_resp = requests.get(self.url(user1_location))
         self.assertEqual(client.UNAUTHORIZED, user_resp.status_code)
+
     #
     # def test_validation_error_for_bad_user_type(self):
     #     self.fail()

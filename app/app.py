@@ -83,7 +83,20 @@ class UsersResource(object):
         page_number = req.get_param_as_int('page_number') or 0
         user_type = req.get_param('user_type')
 
-        query = (User.user_type == user_type) if user_type else NoCriteria(User)
+        page_size_min = 1
+        page_size_max = 500
+
+        if page_size < page_size_min or page_size > page_size_max:
+            raise falcon.HTTPBadRequest(
+                f'Page size must be between '
+                f'{page_size_min} and {page_size_max}')
+
+        try:
+            query = \
+                (User.user_type == user_type) \
+                    if user_type else NoCriteria(User)
+        except ValueError as e:
+            raise falcon.HTTPBadRequest(e.args[0])
 
         session = req.context['session']
         query_result = session.filter(

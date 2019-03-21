@@ -7,7 +7,6 @@ import re
 from collections import defaultdict
 from pymongo import UpdateOne, ASCENDING, DESCENDING
 from enum import Enum
-import logging
 
 thread_local = threading.local()
 
@@ -410,7 +409,6 @@ class Session(object):
             for e in self.__entities.values() if e._events}
 
         if not updates:
-            logging.error('No updates')
             # there were entities in the session, but no updates or inserts need
             # be performed
             return
@@ -419,18 +417,14 @@ class Session(object):
         for entity in updates.keys():
             entity.raise_for_errors()
 
-        logging.error('No errors, great!')
-
         # Divide updates up according to repository and pass them in batch
         updates_by_entity = defaultdict(list)
         for entity, update in updates.items():
             updates_by_entity[entity.__class__].append(
                 (entity.identity_query, update))
-        logging.error(updates_by_entity)
 
         for entity_cls, updates in updates_by_entity.items():
             repo = self._repositories[entity_cls]
-            logging.error(updates)
             repo.upsert(*updates)
 
     def __enter__(self):

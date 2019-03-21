@@ -1,7 +1,6 @@
 import base64
 from scratch import Session
 import falcon
-import logging
 
 
 def decode_auth_header(auth):
@@ -18,11 +17,9 @@ class SessionMiddleware(object):
     def process_resource(self, req, resp, resource, params):
         session = Session(*self.repositories).open()
         req.context['session'] = session
-        logging.error(session)
 
     def process_response(self, req, resp, resource, req_succeeded):
         session = req.context['session']
-        logging.error(session)
 
         if not req_succeeded:
             session.abort()
@@ -31,8 +28,7 @@ class SessionMiddleware(object):
         try:
             # commit any changes to backing data stores
             session.close()
-        except Exception as e:
-            logging.error(e)
+        except:
             # there were one or more problems with the entities in the session
             # don't commit any updates and return an HTTP error
             # TODO: Translate specific exceptions into appropriate HTTP errors
