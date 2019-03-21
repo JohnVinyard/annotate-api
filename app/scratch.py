@@ -2,12 +2,19 @@ from errors import PermissionsError, ImmutableError
 from identifier import user_id_generator
 from password import password_hasher
 import datetime
-from model import UserType
 import threading
 import re
 from collections import defaultdict
+from pymongo import UpdateOne, ASCENDING, DESCENDING
+from enum import Enum
 
 thread_local = threading.local()
+
+
+class UserType(Enum):
+    HUMAN = 'human'
+    FEATUREBOT = 'featurebot'
+    DATASET = 'dataset'
 
 
 def identity(x):
@@ -35,11 +42,28 @@ class BaseRepository(object):
     def upsert(self, item):
         raise NotImplementedError()
 
-    def filter(self, predicate, page_size=100, page_number=0):
+    def filter(self, predicate, page_size=100, page_number=0, sort=None):
         raise NotImplementedError()
 
     def count(self, predicate):
         raise NotImplementedError()
+
+    def __len__(self):
+        raise NotImplementedError()
+
+
+class SortOrder(Enum):
+    ASCENDING = 'ascending'
+    DESCENDING = 'descending'
+
+
+class SortedField(object):
+    def __init__(self, field, order):
+        self.order = order
+        self.field = field
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.field}, {self.order})'
 
 
 class Query(object):
@@ -165,6 +189,18 @@ class Query(object):
         return eval(compile(tree, filename='<ast>', mode='eval'))
 
 
+class QueryResult(object):
+    def __init__(self, total_count, results, page_number, page_size):
+        self.total_count = total_count
+        self.results = results
+        current_pos = (page_number * page_size) + len(results)
+        self.next_page = page_number + 1 if current_pos < total_count else None
+
+    def __iter__(self):
+        return iter(self.results)
+
+
+# TODO: Does BaseRepository need cls and mapper arguments anymore?
 class MongoRepository(BaseRepository):
     OPERATOR_MAPPING = {
         Query.AND: '$and',
@@ -176,8 +212,14 @@ class MongoRepository(BaseRepository):
     BOOLEAN_OPS = {Query.AND, Query.OR}
     COMPARISON_OPS = {Query.EQUAL_TO, Query.NOT_EQUAL_TO}
 
-    def __init__(self, cls, mapper):
+    SORT_ORDER_MAPPING = {
+        SortOrder.ASCENDING: ASCENDING,
+        SortOrder.DESCENDING: DESCENDING
+    }
+
+    def __init__(self, cls, mapper, collection):
         super().__init__(cls, mapper)
+        self.collection = collection
 
     def _transform_query(self, query):
         mongo_op = MongoRepository.OPERATOR_MAPPING[query.op]
@@ -198,20 +240,54 @@ class MongoRepository(BaseRepository):
         else:
             raise ValueError(f'Op "{query.op}" is not currently supported')
 
-    def upsert(self, *updates):
-        raise NotImplementedError()
+    def _transform_sort(self, sort_order):
+        if sort_order is None:
+            return sort_order
+        storage_data = self.mapper.storage_data(sort_order.field)
+        storage_name = storage_data.storage_name
+        order = MongoRepository.SORT_ORDER_MAPPING[sort_order.order]
+        return [(storage_name, order)]
 
-    def filter(self, query):
-        raise NotImplementedError()
+    def upsert(self, *updates):
+        # TODO: These first two lines are exactly what's in InMemoryRepository
+        # and should be factored out into Session. Session transforms to the
+        # correct entity class on the way out, so why not transform to the
+        # underlying storage format before passing along here?
+        updates = []
+        for query, update in updates:
+            storage_updates = self.mapper.transform_updates(update.values())
+            updates.append(UpdateOne(
+                self._transform_query(query), storage_updates, upsert=True))
+        self.collection.bulk_write(updates)
+
+    def filter(self, query, page_size=100, page_number=0, sort=None):
+        mongo_query = self._transform_query(query)
+        sort = self._transform_sort(sort)
+        total_count = self._count(mongo_query)
+        results = self.collection \
+            .find(mongo_query, sort=sort) \
+            .skip(page_number * page_size) \
+            .limit(page_size)
+        return QueryResult(total_count, results, page_number, page_size)
+
+    def _count(self, mongo_query):
+        return self.collection.count_documents(mongo_query)
 
     def count(self, query):
-        raise NotImplementedError()
+        mongo_query = self._transform_query(query)
+        return self._count(mongo_query)
+
+    def __len__(self):
+        return self.collection.estimated_document_count()
 
 
 class InMemoryRepository(BaseRepository):
     def __init__(self, cls, mapper):
         super().__init__(cls, mapper)
         self._data = {}
+
+    def __len__(self):
+        return len(self._data)
 
     def upsert(self, *updates):
         for query, update in updates:
@@ -225,9 +301,22 @@ class InMemoryRepository(BaseRepository):
                 # this is a new document.  insert it
                 self._data[query.literal_value] = storage_updates
 
-    def filter(self, query):
+    def filter(self, query, page_size=100, page_number=0, sort=None):
         f = query.to_lambda('item', self.mapper)
-        return filter(f, self._data.values())
+        results = list(filter(f, self._data.values()))
+
+        if sort:
+            storage_data = self.mapper.storage_data[sort.field]
+            storage_name = storage_data.storage_name
+            results = sorted(
+                results,
+                key=lambda x: x[storage_name],
+                reverse=sort.order == SortOrder.DESCENDING)
+
+        total_count = len(results)
+        start_pos = page_number * page_size
+        page = results[start_pos: start_pos + page_size]
+        return QueryResult(total_count, page, page_number, page_size)
 
     def count(self, query):
         return len(tuple(self.filter(query)))
@@ -253,18 +342,14 @@ class Session(object):
         repo = self._repositories[query.entity_class]
         return repo.count(query)
 
-    def __enter__(self):
+    def open(self):
         thread_local.session = self
         return self
 
-    @staticmethod
-    def _flatten_updates(entity):
-        # this exists primarily to discard multiple writes to the same field,
-        # the last of which always wins
-        return \
-            {field.name: (field, value) for _, field, value in entity._events}
+    def abort(self):
+        thread_local.session = None
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def close(self):
         thread_local.session = None
 
         if not self.__entities:
@@ -295,6 +380,19 @@ class Session(object):
         for entity_cls, updates in updates_by_entity.items():
             repo = self._repositories[entity_cls]
             repo.upsert(*updates)
+
+    def __enter__(self):
+        return self.open()
+
+    @staticmethod
+    def _flatten_updates(entity):
+        # this exists primarily to discard multiple writes to the same field,
+        # the last of which always wins
+        return \
+            {field.name: (field, value) for _, field, value in entity._events}
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self.close()
 
 
 class BaseMapping(object):
@@ -346,6 +444,12 @@ class BaseDescriptor(object):
         self.default_value = default_value
         self.name = name
         self.owner_cls = None
+
+    def ascending(self):
+        return SortedField(self, SortOrder.ASCENDING)
+
+    def descending(self):
+        return SortedField(self, SortOrder.DESCENDING)
 
     def __eq__(self, other):
         return Query(self, other, Query.EQUAL_TO)
@@ -621,4 +725,6 @@ class UserMapper(BaseMapper):
     about_me = BaseMapping(User.about_me)
 
 
-
+if __name__ == '__main__':
+    ordered = User.date_created.descending()
+    print(ordered)

@@ -1,7 +1,7 @@
 import falcon
 from data import users_repo, sounds_repo, annotations_repo
-from model import UserCreationData
-from httphelper import decode_auth_header
+from model import User
+from httphelper import decode_auth_header, SessionMiddleware
 from customjson import JSONWithDateTimeHandler
 import urllib
 from errors import DuplicateUserException, PermissionsError
@@ -54,14 +54,15 @@ class UsersResource(object):
         """
         Create a new user
         """
-        create_data = UserCreationData(**req.media)
+        # create_data = UserCreationData(**req.media)
+        #
+        # try:
+        #     users_repo.add_user(create_data)
+        # except DuplicateUserException:
+        #     raise falcon.HTTPConflict()
 
-        try:
-            users_repo.add_user(create_data)
-        except DuplicateUserException:
-            raise falcon.HTTPConflict()
-
-        resp.set_header('Location', '/users/{id}'.format(id=create_data.id))
+        user = User.create(**req.media)
+        resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
 
     @falcon.before(basic_auth)
@@ -151,7 +152,9 @@ extra_handlers = falcon.media.Handlers({
     'application/json': JSONWithDateTimeHandler(),
 })
 
-api = application = falcon.API()
+api = application = falcon.API(middleware=[
+    SessionMiddleware(users_repo)
+])
 api.resp_options.media_handlers = extra_handlers
 
 # public endpoints
