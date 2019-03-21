@@ -7,6 +7,7 @@ import re
 from collections import defaultdict
 from pymongo import UpdateOne, ASCENDING, DESCENDING
 from enum import Enum
+import logging
 
 thread_local = threading.local()
 
@@ -48,6 +49,8 @@ class BaseRepository(object):
     def count(self, predicate):
         raise NotImplementedError()
 
+    # TODO: Perhaps count() should just accept a query with no criteria, which
+    # would keep the interface simpler
     def __len__(self):
         raise NotImplementedError()
 
@@ -253,12 +256,15 @@ class MongoRepository(BaseRepository):
         # and should be factored out into Session. Session transforms to the
         # correct entity class on the way out, so why not transform to the
         # underlying storage format before passing along here?
-        updates = []
+        mongo_updates = []
         for query, update in updates:
             storage_updates = self.mapper.transform_updates(update.values())
-            updates.append(UpdateOne(
-                self._transform_query(query), storage_updates, upsert=True))
-        self.collection.bulk_write(updates)
+            mongo_update = UpdateOne(
+                self._transform_query(query),
+                {'$set': storage_updates},
+                upsert=True)
+            mongo_updates.append(mongo_update)
+        self.collection.bulk_write(mongo_updates)
 
     def filter(self, query, page_size=100, page_number=0, sort=None):
         mongo_query = self._transform_query(query)
@@ -268,6 +274,7 @@ class MongoRepository(BaseRepository):
             .find(mongo_query, sort=sort) \
             .skip(page_number * page_size) \
             .limit(page_size)
+        results = list(results)
         return QueryResult(total_count, results, page_number, page_size)
 
     def _count(self, mongo_query):
@@ -279,6 +286,9 @@ class MongoRepository(BaseRepository):
 
     def __len__(self):
         return self.collection.estimated_document_count()
+
+    def delete_all(self):
+        return self.collection.delete_many({})
 
 
 class InMemoryRepository(BaseRepository):
@@ -331,10 +341,11 @@ class Session(object):
     def track(self, entity):
         self.__entities.setdefault(entity.storage_key, entity)
 
-    # TODO: Support limits, paging, etc.
-    def filter(self, query):
+    def filter(self, query, page_size=100, page_number=0, sort=None):
         repo = self._repositories[query.entity_class]
-        for item in repo.filter(query):
+        results = repo.filter(
+            query, page_size=page_size, page_number=page_number, sort=sort)
+        for item in results:
             e = repo.mapper.from_storage(item)
             yield self.__entities[e.storage_key]
 
@@ -363,6 +374,7 @@ class Session(object):
             for e in self.__entities.values() if e._events}
 
         if not updates:
+            logging.error('No updates')
             # there were entities in the session, but no updates or inserts need
             # be performed
             return
@@ -371,14 +383,18 @@ class Session(object):
         for entity in updates.keys():
             entity.raise_for_errors()
 
+        logging.error('No errors, great!')
+
         # Divide updates up according to repository and pass them in batch
         updates_by_entity = defaultdict(list)
         for entity, update in updates.items():
             updates_by_entity[entity.__class__].append(
                 (entity.identity_query, update))
+        logging.error(updates_by_entity)
 
         for entity_cls, updates in updates_by_entity.items():
             repo = self._repositories[entity_cls]
+            logging.error(updates)
             repo.upsert(*updates)
 
     def __enter__(self):
@@ -684,7 +700,7 @@ class User(BaseEntity):
         visible=never,
         evaluate_context=is_me)
 
-    name = Immutable(required=True)
+    user_name = Immutable(required=True)
 
     password = BaseDescriptor(
         visible=never,
@@ -715,7 +731,7 @@ class UserMapper(BaseMapper):
     _id = BaseMapping(User.id)
     date_created = BaseMapping(User.date_created)
     deleted = BaseMapping(User.deleted)
-    name = BaseMapping(User.name)
+    user_name = BaseMapping(User.user_name)
     password = BaseMapping(User.password)
     user_type = BaseMapping(
         User.user_type,

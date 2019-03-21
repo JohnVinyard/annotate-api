@@ -1,8 +1,9 @@
 import falcon
+import logging
 from data import users_repo, sounds_repo, annotations_repo
 from model import User
 from httphelper import decode_auth_header, SessionMiddleware
-from customjson import JSONWithDateTimeHandler
+from customjson import JSONHandler
 import urllib
 from errors import DuplicateUserException, PermissionsError
 
@@ -17,12 +18,20 @@ def basic_auth(req, resp, resource, params):
     except TypeError:
         raise falcon.HTTPUnauthorized()
 
-    try:
-        user = users_repo.authenticate(username, password)
-    except ValueError:
-        raise falcon.HTTPUnauthorized()
+    session = req.context['session']
 
-    req.context['user'] = user
+    # This just about constitutes business logic, so it should be put in a
+    # collection of queries somewhere, maybe
+    query = \
+        (User.user_name == username) \
+        & (User.password == password) \
+        & (User.deleted == False)
+
+    try:
+        user = next(session.filter(query=query, page_size=1, page_number=0))
+        req.context['user'] = user
+    except StopIteration:
+        raise falcon.HTTPUnauthorized()
 
 
 class RootResource(object):
@@ -114,18 +123,28 @@ class UserResource(object):
         """
         try:
             actor = req.context['user']
-            user_data = self.user_repo.get_user(actor, user_id)
-            resp.media = user_data
+            session = req.context['session']
+            user_data = next(
+                session.filter(User.id == user_id, page_size=1, page_number=0))
+            user_view = user_data.view(actor)
+            resp.media = user_view
             resp.status = falcon.HTTP_OK
-        except KeyError:
+        except StopIteration:
             raise falcon.HTTPNotFound()
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id):
-        if self.user_repo.user_exists(user_id):
+        session = req.context['session']
+        count = session.count(User.id == user_id)
+        if count == 1:
             resp.status = falcon.HTTP_NO_CONTENT
         else:
             raise falcon.HTTPNotFound()
+
+        # if self.user_repo.user_exists(user_id):
+        #     resp.status = falcon.HTTP_NO_CONTENT
+        # else:
+        #     raise falcon.HTTPNotFound()
 
     @falcon.before(basic_auth)
     def on_delete(self, req, resp, user_id):
@@ -149,7 +168,7 @@ class UserResource(object):
 
 
 extra_handlers = falcon.media.Handlers({
-    'application/json': JSONWithDateTimeHandler(),
+    'application/json': JSONHandler(),
 })
 
 api = application = falcon.API(middleware=[
