@@ -1,6 +1,6 @@
 import falcon
 import logging
-from data import users_repo, sounds_repo, annotations_repo
+from data import users_repo, sounds_repo, annotations_repo, NoCriteria
 from model import User
 from httphelper import decode_auth_header, SessionMiddleware
 from customjson import JSONHandler
@@ -83,30 +83,30 @@ class UsersResource(object):
         page_number = req.get_param_as_int('page_number') or 0
         user_type = req.get_param('user_type')
 
-        try:
-            total_count, users, next_page = self.user_repo.list_users(
-                page_size=page_size,
-                page_number=page_number,
-                user_type=user_type)
-        except ValueError:
-            raise falcon.HTTPBadRequest()
+        query = (User.user_type == user_type) if user_type else NoCriteria(User)
 
-        users = list(map(lambda x: x.__dict__, users))
+        session = req.context['session']
+        query_result = session.filter(
+            query,
+            page_size,
+            page_number,
+            User.date_created.descending())
 
+        actor = req.context['user']
         results = {
-            'items': users,
-            'total_count': total_count
+            'items': [r.view(actor) for r in query_result.results],
+            'total_count': query_result.total_count
         }
 
-        if next_page is not None:
+        if query_result.next_page is not None:
             query_params = {
                 'page_size': page_size,
-                'page_number': next_page,
+                'page_number': query_result.next_page,
                 'user_type': user_type
             }
             query_params = {k: v for k, v in query_params.items() if v}
-            results['next'] = '/users?{query}'.format(
-                query=urllib.parse.urlencode(query_params))
+            encoded_params = urllib.parse.urlencode(query_params)
+            results['next'] = f'/users?{encoded_params}'
 
         resp.media = results
         resp.status = falcon.HTTP_OK

@@ -2,7 +2,7 @@ from pymongo import MongoClient, IndexModel, DESCENDING
 from pymongo.errors import DuplicateKeyError
 from password import password_hasher
 from errors import DuplicateUserException, PermissionsError
-from scratch import MongoRepository, UserMapper
+from scratch import MongoRepository, UserMapper, NoCriteria
 from model import User
 
 

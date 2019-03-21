@@ -69,6 +69,23 @@ class SortedField(object):
         return f'{self.__class__.__name__}({self.field}, {self.order})'
 
 
+class NoCriteria(object):
+    def __init__(self, cls):
+        self._entity_cls = cls
+
+    def to_lambda(self, varname, mapper, raw=False):
+        import ast
+        l = f'lambda {varname}: True'
+        if raw:
+            return l
+        tree = ast.parse(l, filename='<ast>', mode='eval')
+        return eval(compile(tree, filename='<ast>', mode='eval'))
+
+    @property
+    def entity_class(self):
+        return self._entity_cls
+
+
 class Query(object):
     OR = 'or'
     AND = 'and'
@@ -198,9 +215,18 @@ class QueryResult(object):
         self.results = results
         current_pos = (page_number * page_size) + len(results)
         self.next_page = page_number + 1 if current_pos < total_count else None
+        self.pos = 0
 
     def __iter__(self):
         return iter(self.results)
+
+    def __next__(self):
+        try:
+            item = self.results[self.pos]
+            self.pos += 1
+            return item
+        except IndexError:
+            raise StopIteration()
 
 
 # TODO: Does BaseRepository need cls and mapper arguments anymore?
@@ -225,6 +251,9 @@ class MongoRepository(BaseRepository):
         self.collection = collection
 
     def _transform_query(self, query):
+        if isinstance(query, NoCriteria):
+            return {}
+
         mongo_op = MongoRepository.OPERATOR_MAPPING[query.op]
         if query.op in MongoRepository.BOOLEAN_OPS:
             criteria = map(self._transform_query, (query.lhs, query.rhs))
@@ -343,11 +372,18 @@ class Session(object):
 
     def filter(self, query, page_size=100, page_number=0, sort=None):
         repo = self._repositories[query.entity_class]
-        results = repo.filter(
+        query_result = repo.filter(
             query, page_size=page_size, page_number=page_number, sort=sort)
-        for item in results:
-            e = repo.mapper.from_storage(item)
-            yield self.__entities[e.storage_key]
+        transformed_results = []
+        for result in query_result.results:
+            result = repo.mapper.from_storage(result)
+            result = self.__entities[result.storage_key]
+            transformed_results.append(result)
+        query_result.results = transformed_results
+        return query_result
+        # for item in results:
+        #     e = repo.mapper.from_storage(item)
+        #     yield self.__entities[e.storage_key]
 
     def count(self, query):
         repo = self._repositories[query.entity_class]
@@ -742,5 +778,7 @@ class UserMapper(BaseMapper):
 
 
 if __name__ == '__main__':
-    ordered = User.date_created.descending()
-    print(ordered)
+    q = Query()
+    # qr = QueryResult(100, list(range(10)), 0, 100)
+    # for i in range(100):
+    #     print(next(qr))
