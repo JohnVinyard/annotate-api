@@ -93,10 +93,10 @@ class UserTests(BaseTests, unittest2.TestCase):
             email=None,
             about_me=None):
         return {
-            'user_name': user_name or 'user',
-            'password': password or 'password',
+            'user_name': 'user' if user_name is None else user_name,
+            'password': 'password' if password is None else password,
             'user_type': user_type or 'human',
-            'email': email or 'hal@eta.com',
+            'email': 'hal@eta.com' if email is None else email,
             'about_me': about_me or 'Up and coming tennis star'
         }
 
@@ -250,49 +250,44 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertNotIn('email', resp.json())
         self.assertNotIn('password', resp.json())
 
-    #
-    # def test_can_view_most_data_about_self_when_listing_users(self):
-    #     self.fail()
-    #
-    # def test_can_view_limited_data_about_other_user_when_listing_users(self):
-    #     self.fail()
-    #
-    # def test_can_delete_self(self):
-    #     user1, user1_location = self.create_user()
-    #     user2, user2_location = self.create_user()
-    #
-    #     auth = self._get_auth(user1)
-    #     uri = self.url(user1_location)
-    #
-    #     resp = requests.get(uri, auth=auth)
-    #     self.assertEqual(user1['email'], resp.json()['email'])
-    #     delete_resp = requests.delete(uri, auth=auth)
-    #     self.assertEqual(client.OK, delete_resp.status_code)
-    #
-    #     get_resp = requests.get(uri, auth=self._get_auth(user2))
-    #     self.assertEqual(client.NOT_FOUND, get_resp.status_code)
-    #
-    # def test_cannot_delete_other_user(self):
-    #     user1, user1_location = self.create_user()
-    #     user2, user2_location = self.create_user()
-    #
-    #     auth = self._get_auth(user1)
-    #     uri = self.url(user1_location)
-    #
-    #     resp = requests.get(uri, auth=auth)
-    #     self.assertEqual(user1['email'], resp.json()['email'])
-    #     delete_resp = requests.delete(uri, auth=self._get_auth(user2))
-    #     self.assertEqual(client.FORBIDDEN, delete_resp.status_code)
-    #
-    # def test_not_found_when_deleting_non_existent_user(self):
-    #     user1, user1_location = self.create_user()
-    #     delete_resp = requests.delete(
-    #         self.users_resource('1234'), auth=self._get_auth(user1))
-    #     # For now, the API will return forbidden when attempting to delete
-    #     # any user that isn't the requesting user, rather than the arguably
-    #     # more appropriate 404 Not Found error.
-    #     self.assertEqual(client.FORBIDDEN, delete_resp.status_code)
-    #
+    def test_can_view_most_data_about_self_when_listing_users(self):
+        self.fail()
+
+    def test_can_view_limited_data_about_other_user_when_listing_users(self):
+        self.fail()
+
+    def test_can_delete_self(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+
+        auth = self._get_auth(user1)
+        uri = self.url(user1_location)
+
+        resp = requests.get(uri, auth=auth)
+        self.assertEqual(user1['email'], resp.json()['email'])
+        delete_resp = requests.delete(uri, auth=auth)
+        self.assertEqual(client.OK, delete_resp.status_code)
+
+        get_resp = requests.get(uri, auth=self._get_auth(user2))
+        self.assertEqual(client.NOT_FOUND, get_resp.status_code)
+
+    def test_cannot_delete_other_user(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+
+        auth = self._get_auth(user1)
+        uri = self.url(user1_location)
+
+        resp = requests.get(uri, auth=auth)
+        self.assertEqual(user1['email'], resp.json()['email'])
+        delete_resp = requests.delete(uri, auth=self._get_auth(user2))
+        self.assertEqual(client.FORBIDDEN, delete_resp.status_code)
+
+    def test_not_found_when_deleting_non_existent_user(self):
+        user1, user1_location = self.create_user()
+        delete_resp = requests.delete(
+            self.users_resource('1234'), auth=self._get_auth(user1))
+        self.assertEqual(client.NOT_FOUND, delete_resp.status_code)
 
     def test_unauthorized_when_deleting_user_without_creds(self):
         delete_resp = requests.delete(self.users_resource('1234'))
@@ -303,57 +298,80 @@ class UserTests(BaseTests, unittest2.TestCase):
         user_resp = requests.get(self.url(user1_location))
         self.assertEqual(client.UNAUTHORIZED, user_resp.status_code)
 
-    #
-    # def test_validation_error_for_bad_user_type(self):
-    #     self.fail()
-    #
-    # def test_validation_error_for_bad_user_name(self):
-    #     self.fail()
-    #
-    # def test_validation_error_for_bad_password(self):
-    #     self.fail()
-    #
-    # def test_validation_error_for_bad_email(self):
-    #     self.fail()
-    #
-    # def test_validation_error_has_information_about_multiple_problems(self):
-    #     self.fail()
-    #
-    # def test_usernames_must_be_unique(self):
-    #     user1_data = self._user_create_data(
-    #         user_name='user1', email='user1@example.com')
-    #     resp = requests.post(self.users_resource(), json=user1_data)
-    #     self.assertEqual(client.CREATED, resp.status_code)
-    #     user2_data = self._user_create_data(
-    #         user_name='user1', email='user2@example.com')
-    #     resp2 = requests.post(self.users_resource(), json=user2_data)
-    #     self.assertEqual(client.CONFLICT, resp2.status_code)
-    #
-    # def test_email_addresses_must_be_unique(self):
-    #     user1_data = self._user_create_data(
-    #         user_name='user1', email='user1@example.com')
-    #     resp = requests.post(self.users_resource(), json=user1_data)
-    #     self.assertEqual(client.CREATED, resp.status_code)
-    #     user2_data = self._user_create_data(
-    #         user_name='user2', email='user1@example.com')
-    #     resp2 = requests.post(self.users_resource(), json=user2_data)
-    #     self.assertEqual(client.CONFLICT, resp2.status_code)
-    #
-    # def test_can_update_about_me_text(self):
-    #     self.fail()
-    #
-    # def test_cannot_update_other_user(self):
-    #     self.fail()
-    #
-    # def test_invalid_about_me_update_for_featurebot_fails(self):
-    #     self.fail()
-    #
-    # def test_invalid_about_me_update_for_dataset_fails(self):
-    #     self.fail()
-    #
-    # def test_can_update_password(self):
-    #     self.fail()
-    #
+    def test_validation_error_for_bad_user_type(self):
+        user1_data = self._user_create_data(user_type='animal')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+        print(resp.content)
+        self.fail()
+
+    def test_validation_error_for_bad_user_name(self):
+        user1_data = self._user_create_data(user_name='')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+        desc = resp.json()['description']
+        self.assertEqual(1, len(desc))
+        self.assertEqual('user_name', desc[0][0])
+
+    def test_validation_error_for_bad_password(self):
+        user1_data = self._user_create_data(password='')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+        print(resp.content)
+        self.fail()
+
+    def test_validation_error_for_bad_email(self):
+        user1_data = self._user_create_data(email='')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+        desc = resp.json()['description']
+        self.assertEqual(1, len(desc))
+        self.assertEqual('email', desc[0][0])
+
+    def test_validation_error_has_information_about_multiple_problems(self):
+        user1_data = self._user_create_data(user_name='', email='')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+        desc = resp.json()['description']
+        self.assertEqual(2, len(desc))
+        fields = set(d[0] for d in desc)
+        self.assertIn('user_name', fields)
+        self.assertIn('email', fields)
+
+    def test_usernames_must_be_unique(self):
+        user1_data = self._user_create_data(
+            user_name='user1', email='user1@example.com')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.CREATED, resp.status_code)
+        user2_data = self._user_create_data(
+            user_name='user1', email='user2@example.com')
+        resp2 = requests.post(self.users_resource(), json=user2_data)
+        self.assertEqual(client.CONFLICT, resp2.status_code)
+
+    def test_email_addresses_must_be_unique(self):
+        user1_data = self._user_create_data(
+            user_name='user1', email='user1@example.com')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.CREATED, resp.status_code)
+        user2_data = self._user_create_data(
+            user_name='user2', email='user1@example.com')
+        resp2 = requests.post(self.users_resource(), json=user2_data)
+        self.assertEqual(client.CONFLICT, resp2.status_code)
+
+    def test_can_update_about_me_text(self):
+        self.fail()
+
+    def test_cannot_update_other_user(self):
+        self.fail()
+
+    def test_invalid_about_me_update_for_featurebot_fails(self):
+        self.fail()
+
+    def test_invalid_about_me_update_for_dataset_fails(self):
+        self.fail()
+
+    def test_can_update_password(self):
+        self.fail()
 
     def test_not_found_for_non_existent_user(self):
         user1, user1_location = self.create_user()

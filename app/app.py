@@ -1,7 +1,7 @@
 import falcon
 import logging
 from data import users_repo, sounds_repo, annotations_repo, NoCriteria
-from model import User
+from model import User, ContextualValue
 from httphelper import decode_auth_header, SessionMiddleware
 from customjson import JSONHandler
 import urllib
@@ -63,14 +63,11 @@ class UsersResource(object):
         """
         Create a new user
         """
-        # create_data = UserCreationData(**req.media)
-        #
-        # try:
-        #     users_repo.add_user(create_data)
-        # except DuplicateUserException:
-        #     raise falcon.HTTPConflict()
-
-        user = User.create(**req.media)
+        try:
+            user = User.create(**req.media)
+        except ValueError as e:
+            desc = [(err[0], err[1].args[0]) for err in e.args]
+            raise falcon.HTTPBadRequest(description=desc)
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
 
@@ -134,16 +131,18 @@ class UserResource(object):
         """
         Get an individual user
         """
+        actor = req.context['user']
+        session = req.context['session']
+
+        query = (User.id == user_id) & (User.deleted == False)
         try:
-            actor = req.context['user']
-            session = req.context['session']
-            user_data = next(
-                session.filter(User.id == user_id, page_size=1, page_number=0))
-            user_view = user_data.view(actor)
-            resp.media = user_view
-            resp.status = falcon.HTTP_OK
+            user_data = next(session.filter(query, page_size=1, page_number=0))
         except StopIteration:
             raise falcon.HTTPNotFound()
+
+        user_view = user_data.view(actor)
+        resp.media = user_view
+        resp.status = falcon.HTTP_OK
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id):
@@ -154,21 +153,25 @@ class UserResource(object):
         else:
             raise falcon.HTTPNotFound()
 
-        # if self.user_repo.user_exists(user_id):
-        #     resp.status = falcon.HTTP_NO_CONTENT
-        # else:
-        #     raise falcon.HTTPNotFound()
-
     @falcon.before(basic_auth)
     def on_delete(self, req, resp, user_id):
         """
         Delete an individual user
         """
+
+        # TODO: Business rules that make data needed to evaluate the rule
+        # explicit, so that only that data need be fetched.  In this case,
+        # the rule about who may delete whom only requires user id, which we
+        # already have in this scenario.
         actor = req.context['user']
+        session = req.context['session']
         try:
-            self.user_repo.delete_user(actor, user_id)
-        except KeyError:
+            to_delete = next(session.filter(User.id == user_id))
+        except StopIteration:
             raise falcon.HTTPNotFound()
+
+        try:
+            to_delete.deleted = ContextualValue(actor, True)
         except PermissionsError:
             raise falcon.HTTPForbidden()
 

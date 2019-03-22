@@ -2,7 +2,7 @@ import datetime
 from password import password_hasher
 from identifier import user_id_generator
 from errors import PermissionsError
-from scratch import UserType, User
+from scratch import UserType, User, ContextualValue
 
 
 

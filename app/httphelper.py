@@ -1,6 +1,8 @@
 import base64
 from scratch import Session
 import falcon
+import logging
+from errors import DuplicateUserException, PermissionsError, ImmutableError
 
 
 def decode_auth_header(auth):
@@ -28,8 +30,13 @@ class SessionMiddleware(object):
         try:
             # commit any changes to backing data stores
             session.close()
-        except:
-            # there were one or more problems with the entities in the session
-            # don't commit any updates and return an HTTP error
-            # TODO: Translate specific exceptions into appropriate HTTP errors
-            raise falcon.HTTPBadRequest()
+        except Exception as e:
+            if isinstance(e, DuplicateUserException):
+                raise falcon.HTTPConflict()
+            elif isinstance(e, PermissionsError):
+                raise falcon.HTTPForbidden()
+            elif isinstance(e, ImmutableError):
+                raise falcon.HTTPBadRequest()
+            else:
+                logging.error(e)
+                raise

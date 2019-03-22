@@ -1,4 +1,4 @@
-from errors import PermissionsError, ImmutableError
+from errors import PermissionsError, ImmutableError, DuplicateUserException
 from identifier import user_id_generator
 from password import password_hasher
 import datetime
@@ -6,7 +6,9 @@ import threading
 import re
 from collections import defaultdict
 from pymongo import UpdateOne, ASCENDING, DESCENDING
+from pymongo.errors import DuplicateKeyError, BulkWriteError
 from enum import Enum
+import logging
 
 thread_local = threading.local()
 
@@ -292,7 +294,16 @@ class MongoRepository(BaseRepository):
                 {'$set': storage_updates},
                 upsert=True)
             mongo_updates.append(mongo_update)
-        self.collection.bulk_write(mongo_updates)
+        try:
+            self.collection.bulk_write(mongo_updates, ordered=False)
+        except BulkWriteError as e:
+            write_errors = e.details['writeErrors']
+            if any('duplicate' in we['errmsg'] for we in write_errors):
+                # TODO: This is a user-specific message in a base/generic
+                # repository
+                raise DuplicateUserException()
+            else:
+                raise
 
     def filter(self, query, page_size=100, page_number=0, sort=None):
         mongo_query = self._transform_query(query)
@@ -657,11 +668,15 @@ class BaseEntity(object, metaclass=MetaEntity):
                     self.__setattr__(k, contextual_value)
 
         # set values explicitly provided to __init__
+        errors = []
         for k, v in kwargs.items():
             contextual_value = ContextualValue(creator, v)
-            self.__setattr__(k, contextual_value)
+            try:
+                self.__setattr__(k, contextual_value)
+            except ValueError as e:
+                errors.append((k, e))
 
-        self.raise_for_errors()
+        self.raise_for_errors(*errors)
         self._track()
 
     @classmethod
@@ -705,10 +720,10 @@ class BaseEntity(object, metaclass=MetaEntity):
             except Exception as e:
                 yield field.name, e
 
-    def raise_for_errors(self):
-        errors = tuple(self.validate())
+    def raise_for_errors(self, *errors):
+        errors = tuple(self.validate()) + errors
         if errors:
-            raise ValueError(errors)
+            raise ValueError(*errors)
 
     def view(self, context):
         return \
@@ -769,10 +784,3 @@ class UserMapper(BaseMapper):
         from_storage_format=lambda value: UserType(value))
     email = BaseMapping(User.email)
     about_me = BaseMapping(User.about_me)
-
-
-if __name__ == '__main__':
-    q = Query()
-    # qr = QueryResult(100, list(range(10)), 0, 100)
-    # for i in range(100):
-    #     print(next(qr))
