@@ -555,14 +555,23 @@ class BaseDescriptor(object):
 
 class AboutMe(BaseDescriptor):
     def validate(self, instance):
+        value = instance.get(self.name)
 
-        if instance.user_type == UserType.HUMAN:
+        if value:
             return
 
-        if not instance.get(self.name):
+        try:
+            if instance.user_type == UserType.HUMAN:
+                return
+        except AttributeError:
             raise ValueError(
-                'Field "{name}" must be specified for datasets and featurebots'
-                    .format(name=self.name))
+                f'Empty "{self.name}" is only valid for {UserType.HUMAN} '
+                f'but no user_type was specified')
+
+        if not value:
+            raise ValueError(
+                f'Field "{self.name}" must be specified '
+                f'for datasets and featurebots')
 
 
 class Immutable(BaseDescriptor):
@@ -668,16 +677,18 @@ class BaseEntity(object, metaclass=MetaEntity):
                     self.__setattr__(k, contextual_value)
 
         # set values explicitly provided to __init__
+        self.update(creator, **kwargs)
+        self._track()
+
+    def update(self, actor, **kwargs):
         errors = []
         for k, v in kwargs.items():
-            contextual_value = ContextualValue(creator, v)
+            contextual_value = ContextualValue(actor, v)
             try:
                 self.__setattr__(k, contextual_value)
             except ValueError as e:
                 errors.append((k, e))
-
         self.raise_for_errors(*errors)
-        self._track()
 
     @classmethod
     def hydrate(cls, **kwargs):
@@ -753,7 +764,7 @@ class User(BaseEntity):
         required=True,
         evaluate_context=is_me)
 
-    user_type = BaseDescriptor(value_transform=UserType, evaluate_context=is_me)
+    user_type = Immutable(value_transform=UserType, evaluate_context=is_me)
 
     email = Email(visible=is_me, evaluate_context=is_me)
 

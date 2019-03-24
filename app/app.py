@@ -180,7 +180,14 @@ class UserResource(object):
         """
         Update a user
         """
-        raise NotImplementedError()
+        actor = req.context['user']
+        session = req.context['session']
+        query = (User.id == user_id) & (User.deleted == False)
+        try:
+            to_update = next(session.filter(query, page_size=1))
+        except StopIteration:
+            raise falcon.HTTPNotFound()
+        to_update.update(actor, **req.media)
 
 
 extra_handlers = falcon.media.Handlers({

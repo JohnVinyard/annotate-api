@@ -103,14 +103,19 @@ class UserTests(BaseTests, unittest2.TestCase):
     def _get_auth(self, user_create_data):
         return user_create_data['user_name'], user_create_data['password']
 
-    def create_user(self, user_type='human', user_name=None, email=None):
+    def create_user(
+            self,
+            user_type='human',
+            user_name=None,
+            email=None,
+            about_me=None):
 
         create_data = self._user_create_data(
             user_name=user_name or uuid.uuid4().hex,
             password=uuid.uuid4().hex,
             user_type=user_type,
             email=email or '{}@example.com'.format(uuid.uuid4().hex),
-            about_me=uuid.uuid4().hex
+            about_me=about_me or uuid.uuid4().hex
         )
         create_resp = requests.post(self.users_resource(), json=create_data)
         self.assertEqual(client.CREATED, create_resp.status_code)
@@ -208,6 +213,34 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(1, len(items[-1]))
         self.assertEqual(10, sum(len(item) for item in items))
 
+    def test_can_view_most_data_about_self_when_listing_users(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+        requesting_user_auth = self._get_auth(user1)
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 3},
+            auth=requesting_user_auth)
+        self.assertEqual(client.OK, resp.status_code)
+        resp_data = resp.json()
+        self.assertEqual(2, resp_data['total_count'])
+        self.assertEqual(2, len(resp_data['items']))
+        self.assertEqual(user1['email'], resp_data['items'][1]['email'])
+
+    def test_can_view_limited_data_about_other_user_when_listing_users(self):
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+        requesting_user_auth = self._get_auth(user1)
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 3},
+            auth=requesting_user_auth)
+        self.assertEqual(client.OK, resp.status_code)
+        resp_data = resp.json()
+        self.assertEqual(2, resp_data['total_count'])
+        self.assertEqual(2, len(resp_data['items']))
+        self.assertNotIn('email', resp_data['items'][0])
+
     def test_bad_request_when_filtering_by_invalid_user_type(self):
         requesting_user, _ = self.create_user()
 
@@ -249,12 +282,6 @@ class UserTests(BaseTests, unittest2.TestCase):
             self.url(user1_location), auth=self._get_auth(user2))
         self.assertNotIn('email', resp.json())
         self.assertNotIn('password', resp.json())
-
-    def test_can_view_most_data_about_self_when_listing_users(self):
-        self.fail()
-
-    def test_can_view_limited_data_about_other_user_when_listing_users(self):
-        self.fail()
 
     def test_can_delete_self(self):
         user1, user1_location = self.create_user()
@@ -302,8 +329,8 @@ class UserTests(BaseTests, unittest2.TestCase):
         user1_data = self._user_create_data(user_type='animal')
         resp = requests.post(self.users_resource(), json=user1_data)
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
-        print(resp.content)
-        self.fail()
+        desc = resp.json()['description']
+        self.assertEqual('user_type', desc[0][0])
 
     def test_validation_error_for_bad_user_name(self):
         user1_data = self._user_create_data(user_name='')
@@ -317,8 +344,9 @@ class UserTests(BaseTests, unittest2.TestCase):
         user1_data = self._user_create_data(password='')
         resp = requests.post(self.users_resource(), json=user1_data)
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
-        print(resp.content)
-        self.fail()
+        desc = resp.json()['description']
+        self.assertEqual(1, len(desc))
+        self.assertEqual('password', desc[0][0])
 
     def test_validation_error_for_bad_email(self):
         user1_data = self._user_create_data(email='')
@@ -359,7 +387,15 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(client.CONFLICT, resp2.status_code)
 
     def test_can_update_about_me_text(self):
-        self.fail()
+        user1, user1_location = self.create_user(
+            user_type='human', about_me='original')
+        auth = self._get_auth(user1)
+        resp = requests.patch(
+            self.url(user1_location), json={'about_me': 'modified'}, auth=auth)
+        self.assertEqual(client.OK, resp.status_code)
+        resp = requests.get(
+            self.url(user1_location), auth=auth)
+        self.assertEqual('modified', resp.json()['about_me'])
 
     def test_cannot_update_other_user(self):
         self.fail()
@@ -371,7 +407,37 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_can_update_password(self):
-        self.fail()
+        user1, user1_location = self.create_user(
+            user_type='human', about_me='original')
+        auth = self._get_auth(user1)
+        resp = requests.patch(
+            self.url(user1_location), json={'password': 'modified'}, auth=auth)
+        self.assertEqual(client.OK, resp.status_code)
+        # using the original password
+        resp = requests.get(
+            self.url(user1_location), auth=auth)
+        self.assertEqual(client.UNAUTHORIZED, resp.status_code)
+
+        # using the new password
+        new_auth = (user1['user_name'], 'modified')
+        resp = requests.get(
+            self.url(user1_location), auth=new_auth)
+        self.assertEqual(client.OK, resp.status_code)
+        self.assertEqual(user1['email'], resp.json()['email'])
+
+    def test_cannot_update_username(self):
+        user1, user1_location = self.create_user()
+        auth = self._get_auth(user1)
+        resp = requests.patch(
+            self.url(user1_location), json={'user_name': 'modified'}, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_cannot_update_email(self):
+        user1, user1_location = self.create_user()
+        auth = self._get_auth(user1)
+        resp = requests.patch(
+            self.url(user1_location), json={'email': 'modified'}, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_not_found_for_non_existent_user(self):
         user1, user1_location = self.create_user()
