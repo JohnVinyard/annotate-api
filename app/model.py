@@ -50,7 +50,7 @@ class Email(Immutable):
 class User(BaseEntity):
     id = BaseDescriptor(default_value=user_id_generator)
 
-    date_created = Immutable(default_value=lambda: datetime.datetime.utcnow())
+    date_created = Immutable(default_value=datetime.datetime.utcnow)
 
     deleted = BaseDescriptor(
         default_value=False,
@@ -79,3 +79,29 @@ class User(BaseEntity):
     def storage_key(self):
         # TODO: Can this be derived solely from the identity_query?
         return self.__class__, self.id
+
+
+class LicenseType(Enum):
+    pass
+
+
+class Sound(BaseEntity):
+    id = Immutable(default_value=user_id_generator)
+    date_created = Immutable(default_value=datetime.datetime.utcnow)
+    created_by = Immutable(required=True)
+    info_url = Immutable(required=True)
+    audio_url = Immutable(required=True)
+    license_type = Immutable(value_transform=LicenseType, required=True)
+    title = Immutable(required=True)
+    duration_seconds = Immutable(required=True)
+
+
+class Annotation(BaseEntity):
+    id = Immutable(default_value=user_id_generator)
+    date_created = Immutable(default_value=datetime.datetime.utcnow)
+    created_by = Immutable(required=True)
+    sound_url = Immutable(required=True)
+    start_seconds = Immutable(required=True)
+    duration_seconds = Immutable(required=True)
+    tags = Immutable()
+    data_url = Immutable()

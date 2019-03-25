@@ -3,9 +3,9 @@ from pymongo.errors import BulkWriteError
 from scratch import \
     NoCriteria, BaseMapper, BaseMapping, QueryResult, BaseRepository, Query, \
     SortOrder
-from model import User, UserType
+from model import User, UserType, Sound, Annotation
 from errors import DuplicateUserException
-from mapping import UserMapper
+from mapping import UserMapper, SoundMapper, AnnotationMapper
 
 client = MongoClient('mongo')
 db = client.annotate
@@ -130,30 +130,29 @@ class MongoRepository(BaseRepository):
         return self.collection.delete_many({})
 
 
-class BaseMongoRepository(object):
-    def __init__(self, collection):
-        self.collection = collection
-
-    def __len__(self):
-        return self.collection.estimated_document_count()
-
-    def delete_all(self):
-        return self.collection.delete_many({})
-
-
 class UserRepository(MongoRepository):
     def __init__(self, collection):
         super().__init__(User, UserMapper, collection)
 
 
-class SoundRepository(BaseMongoRepository):
+class SoundRepository(MongoRepository):
     def __init__(self, collection):
-        super().__init__(collection)
+        super().__init__(Sound, SoundMapper, collection)
 
 
-class AnnotationRepository(BaseMongoRepository):
+class AnnotationRepository(MongoRepository):
     def __init__(self, collection):
-        super().__init__(collection)
+        super().__init__(Annotation, AnnotationMapper, collection)
+
+
+# class SoundRepository(BaseMongoRepository):
+#     def __init__(self, collection):
+#         super().__init__(collection)
+#
+#
+# class AnnotationRepository(BaseMongoRepository):
+#     def __init__(self, collection):
+#         super().__init__(collection)
 
 
 users_repo = UserRepository(users_db)

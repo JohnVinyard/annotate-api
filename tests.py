@@ -464,3 +464,22 @@ class UserTests(BaseTests, unittest2.TestCase):
     def test_unauthorized_when_fetching_non_existent_user_without_creds(self):
         user_resp = requests.get(self.users_resource('1234'))
         self.assertEqual(client.UNAUTHORIZED, user_resp.status_code)
+
+
+class SoundTests(BaseTests, unittest2.TestCase):
+    def test_dataset_can_create_sound(self):
+        self.fail()
+
+    def test_featurebot_cannot_create_sound(self):
+        self.fail()
+
+
+class AnnotationTests(BaseTests, unittest2.TestCase):
+    def test_human_can_create_annotation(self):
+        self.fail()
+
+    def test_featurebot_can_create_annotation(self):
+        self.fail()
+
+    def test_dataset_can_create_annotation(self):
+        self.fail()
