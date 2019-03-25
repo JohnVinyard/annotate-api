@@ -1,71 +1,81 @@
 import datetime
 from password import password_hasher
 from identifier import user_id_generator
-from errors import PermissionsError
-from scratch import UserType, User, ContextualValue
+from scratch import ContextualValue, BaseEntity, BaseDescriptor, Immutable, \
+    never, always
+from enum import Enum
+import re
 
 
+def is_me(instance, context):
+    return instance.id == context.id
 
 
-# class UserData(object):
-#     def __init__(
-#             self,
-#             _id=None,
-#             user_name=None,
-#             email=None,
-#             user_type=None,
-#             about_me=None,
-#             date_created=None,
-#             deleted=None,
-#             **kwargs):
-#
-#         self.deleted = deleted
-#         self.date_created = date_created
-#         self.id = _id
-#         self.about_me = about_me
-#         self.user_type = user_type
-#         self.email = email
-#         self.user_name = user_name
-#
-#     @property
-#     def is_anonymous(self):
-#         return self.id is None
-#
-#     def create_user(self, **kwargs):
-#         if not self.is_anonymous:
-#             raise PermissionsError('only anonymous users may create new users')
-#         return UserData(**kwargs)
-#
-#     def delete_user(self, user):
-#         if self.id != user.id:
-#             raise PermissionsError('You many not delete another user')
-#         user.deleted = True
-#
-#     def view(self, user):
-#         data = dict(user.__dict__)
-#         del data['deleted']
-#
-#         if self.id == user.id:
-#             return data
-#         else:
-#             del data['email']
-#             return data
-#
-#
-# class UserCreationData(object):
-#     def __init__(self, user_name, password, email, user_type, about_me):
-#         self.id = user_id_generator()
-#         self.password = password_hasher(password)
-#         self.date_created = datetime.datetime.utcnow()
-#         self.deleted = False
-#
-#         self.about_me = about_me
-#         self.user_name = user_name
-#         self.email = email
-#         self.user_type = user_type
-#
-#
-# class UserUpdateData(object):
-#     def __init__(self, password=None, about_me=None):
-#         self.about_me = about_me
-#         self.password = password
+class UserType(Enum):
+    HUMAN = 'human'
+    FEATUREBOT = 'featurebot'
+    DATASET = 'dataset'
+
+
+class AboutMe(BaseDescriptor):
+    def validate(self, instance):
+        value = instance.get(self.name)
+
+        if value:
+            return
+
+        try:
+            if instance.user_type == UserType.HUMAN:
+                return
+        except AttributeError:
+            raise ValueError(
+                f'Empty "{self.name}" is only valid for {UserType.HUMAN} '
+                f'but no user_type was specified')
+
+        if not value:
+            raise ValueError(
+                f'Field "{self.name}" must be specified '
+                f'for datasets and featurebots')
+
+
+class Email(Immutable):
+    BASIC_EMAIL_PATTERN = re.compile(r'[^@]+@[^@]+\.[^@]+')
+
+    def validate(self, instance):
+        value = instance.get(self.name)
+        if not re.fullmatch(Email.BASIC_EMAIL_PATTERN, value):
+            raise ValueError(f'{value} is not a valid email address')
+
+
+class User(BaseEntity):
+    id = BaseDescriptor(default_value=user_id_generator)
+
+    date_created = Immutable(default_value=lambda: datetime.datetime.utcnow())
+
+    deleted = BaseDescriptor(
+        default_value=False,
+        visible=never,
+        evaluate_context=is_me)
+
+    user_name = Immutable(required=True)
+
+    password = BaseDescriptor(
+        visible=never,
+        value_transform=password_hasher,
+        required=True,
+        evaluate_context=is_me)
+
+    user_type = Immutable(value_transform=UserType, evaluate_context=is_me)
+
+    email = Email(visible=is_me, evaluate_context=is_me)
+
+    about_me = AboutMe(evaluate_context=is_me)
+
+    @property
+    def identity_query(self):
+        return User.id == self.id
+
+    @property
+    def storage_key(self):
+        # TODO: Can this be derived solely from the identity_query?
+        return self.__class__, self.id

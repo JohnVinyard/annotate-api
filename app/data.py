@@ -1,10 +1,11 @@
-from pymongo import MongoClient, IndexModel, DESCENDING
-from pymongo.errors import DuplicateKeyError
-from password import password_hasher
-from errors import DuplicateUserException, PermissionsError
-from scratch import MongoRepository, UserMapper, NoCriteria
-from model import User
-
+from pymongo import MongoClient, IndexModel, ASCENDING, DESCENDING, UpdateOne
+from pymongo.errors import BulkWriteError
+from scratch import \
+    NoCriteria, BaseMapper, BaseMapping, QueryResult, BaseRepository, Query, \
+    SortOrder
+from model import User, UserType
+from errors import DuplicateUserException
+from mapping import UserMapper
 
 client = MongoClient('mongo')
 db = client.annotate
@@ -29,6 +30,106 @@ sounds_db = db.sounds
 annotations_db = db.annotations
 
 
+# TODO: Does BaseRepository need cls and mapper arguments anymore?
+class MongoRepository(BaseRepository):
+    OPERATOR_MAPPING = {
+        Query.AND: '$and',
+        Query.OR: '$or',
+        Query.EQUAL_TO: '$eq',
+        Query.NOT_EQUAL_TO: '$ne'
+    }
+
+    BOOLEAN_OPS = {Query.AND, Query.OR}
+    COMPARISON_OPS = {Query.EQUAL_TO, Query.NOT_EQUAL_TO}
+
+    SORT_ORDER_MAPPING = {
+        SortOrder.ASCENDING: ASCENDING,
+        SortOrder.DESCENDING: DESCENDING
+    }
+
+    def __init__(self, cls, mapper, collection):
+        super().__init__(cls, mapper)
+        self.collection = collection
+
+    def _transform_query(self, query):
+        if isinstance(query, NoCriteria):
+            return {}
+
+        mongo_op = MongoRepository.OPERATOR_MAPPING[query.op]
+        if query.op in MongoRepository.BOOLEAN_OPS:
+            criteria = map(self._transform_query, (query.lhs, query.rhs))
+            conditions = []
+            for criterion in criteria:
+                if mongo_op in criterion:
+                    conditions.extend(criterion[mongo_op])
+                else:
+                    conditions.append(criterion)
+            return {mongo_op: conditions}
+        elif query.op in MongoRepository.COMPARISON_OPS:
+            storage_data = self.mapper.storage_data(query.field)
+            storage_name = storage_data.storage_name
+            storage_value = storage_data.to_storage_format(query.literal_value)
+            return {storage_name: {mongo_op: storage_value}}
+        else:
+            raise ValueError(f'Op "{query.op}" is not currently supported')
+
+    def _transform_sort(self, sort_order):
+        if sort_order is None:
+            return sort_order
+        storage_data = self.mapper.storage_data(sort_order.field)
+        storage_name = storage_data.storage_name
+        order = MongoRepository.SORT_ORDER_MAPPING[sort_order.order]
+        return [(storage_name, order)]
+
+    def upsert(self, *updates):
+        # TODO: These first two lines are exactly what's in InMemoryRepository
+        # and should be factored out into Session. Session transforms to the
+        # correct entity class on the way out, so why not transform to the
+        # underlying storage format before passing along here?
+        mongo_updates = []
+        for query, update in updates:
+            storage_updates = self.mapper.transform_updates(update.values())
+            mongo_update = UpdateOne(
+                self._transform_query(query),
+                {'$set': storage_updates},
+                upsert=True)
+            mongo_updates.append(mongo_update)
+        try:
+            self.collection.bulk_write(mongo_updates, ordered=False)
+        except BulkWriteError as e:
+            write_errors = e.details['writeErrors']
+            if any('duplicate' in we['errmsg'] for we in write_errors):
+                # TODO: This is a user-specific message in a base/generic
+                # repository
+                raise DuplicateUserException()
+            else:
+                raise
+
+    def filter(self, query, page_size=100, page_number=0, sort=None):
+        mongo_query = self._transform_query(query)
+        sort = self._transform_sort(sort)
+        total_count = self._count(mongo_query)
+        results = self.collection \
+            .find(mongo_query, sort=sort) \
+            .skip(page_number * page_size) \
+            .limit(page_size)
+        results = list(results)
+        return QueryResult(total_count, results, page_number, page_size)
+
+    def _count(self, mongo_query):
+        return self.collection.count_documents(mongo_query)
+
+    def count(self, query):
+        mongo_query = self._transform_query(query)
+        return self._count(mongo_query)
+
+    def __len__(self):
+        return self.collection.estimated_document_count()
+
+    def delete_all(self):
+        return self.collection.delete_many({})
+
+
 class BaseMongoRepository(object):
     def __init__(self, collection):
         self.collection = collection
@@ -43,89 +144,6 @@ class BaseMongoRepository(object):
 class UserRepository(MongoRepository):
     def __init__(self, collection):
         super().__init__(User, UserMapper, collection)
-
-# # TODO: Get rid of any hard-coded property names in this class, instead relying
-# # on metadata from the models
-# class UserRepository(BaseMongoRepository):
-#     def __init__(self, collection):
-#         super().__init__(collection)
-#
-#     def _user_query(self, user_id, **kwargs):
-#         base_query = {'_id': user_id, 'deleted': False}
-#         return {**base_query, **kwargs}
-#
-#     def get_user(self, actor, user_id):
-#         user_data = self.collection.find_one(self._user_query(user_id))
-#         if user_data is None:
-#             raise KeyError(user_id)
-#         return actor.view(UserData(**user_data))
-#
-#     def user_exists(self, user_id):
-#         return self.collection.count_documents(self._user_query(user_id)) == 1
-#
-#     def add_user(self, user_create_data):
-#         insert_data = dict(user_create_data.__dict__)
-#         insert_data['_id'] = insert_data['id']
-#         del insert_data['id']
-#         try:
-#             self.collection.insert_one(insert_data)
-#         except DuplicateKeyError:
-#             raise DuplicateUserException()
-#
-#     def delete_user(self, actor, user_id):
-#         # TODO: This method crystallizes all the current problems:
-#         #   - There's business logic here in the repo.  It should be part of User
-#         #   - In order to apply the business logic, I'd have to fetch the other user
-#         #   - It's much more efficient to perform the update in this way, directly using the database
-#         #   - There are hard-coded property names being referenced
-#         delete_target = UserData(_id=user_id)
-#         actor.delete_user(delete_target)
-#         self.collection.find_and_modify(
-#             self._user_query(user_id), {'deleted': True})
-#
-#     def authenticate(self, user_name, password):
-#         password = password_hasher(password)
-#         user_data = self.collection.find_one(
-#             {'user_name': user_name, 'password': password, 'deleted': False})
-#         if user_data is None:
-#             raise ValueError('user_name and password combination is not valid')
-#         return UserData(**user_data)
-#
-#     def list_users(
-#             self,
-#             user_type=None,
-#             page_size=25,
-#             page_number=0):
-#
-#         page_size_min = 1
-#         page_size_max = 500
-#
-#         if page_size < page_size_min or page_size > page_size_max:
-#             raise ValueError(
-#                 f'Page size must be between '
-#                 f'{page_size_min} and {page_size_max}')
-#
-#         query = {}
-#
-#         if user_type:
-#             # TODO: validation code in the repo
-#             user_type = UserType(user_type)
-#             query['user_type'] = user_type.value
-#
-#         total_count = self.collection.count_documents(query)
-#
-#         results = self.collection.find(
-#             query, sort=[('date_created', DESCENDING)]) \
-#             .skip(page_number * page_size) \
-#             .limit(page_size)
-#
-#         results = list(map(lambda x: UserData(**x), results))
-#         current_pos = (page_number * page_size) + len(results)
-#         next_page = page_number + 1 if current_pos < total_count else None
-#         return total_count, results, next_page
-#
-#     def update_user(self, user_id, user_update_data):
-#         raise NotImplementedError()
 
 
 class SoundRepository(BaseMongoRepository):

@@ -1,5 +1,4 @@
 import falcon
-import logging
 from data import users_repo, sounds_repo, annotations_repo, NoCriteria
 from model import User, ContextualValue
 from httphelper import decode_auth_header, SessionMiddleware
@@ -192,7 +191,7 @@ class UserResource(object):
             to_update.update(actor, **req.media)
         except ValueError as e:
             # TODO: This code for transforming exceptions also appears in
-            # POST /users and should be factored into a common location 
+            # POST /users and should be factored into a common location
             desc = [(err[0], err[1].args[0]) for err in e.args]
             raise falcon.HTTPBadRequest(description=desc)
         except PermissionsError:

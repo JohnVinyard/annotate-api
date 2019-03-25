@@ -345,6 +345,7 @@ class UserTests(BaseTests, unittest2.TestCase):
         resp = requests.post(self.users_resource(), json=user1_data)
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
         desc = resp.json()['description']
+        print(resp.json())
         self.assertEqual(1, len(desc))
         self.assertEqual('password', desc[0][0])
 

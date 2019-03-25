@@ -1,26 +1,9 @@
 from errors import PermissionsError, ImmutableError, DuplicateUserException
-from identifier import user_id_generator
-from password import password_hasher
-import datetime
 import threading
-import re
 from collections import defaultdict
-from pymongo import UpdateOne, ASCENDING, DESCENDING
-from pymongo.errors import DuplicateKeyError, BulkWriteError
 from enum import Enum
-import logging
 
 thread_local = threading.local()
-
-
-class UserType(Enum):
-    HUMAN = 'human'
-    FEATUREBOT = 'featurebot'
-    DATASET = 'dataset'
-
-
-def identity(x):
-    return x
 
 
 def never(*args, **kwargs):
@@ -31,8 +14,8 @@ def always(*args, **kwargs):
     return True
 
 
-def is_me(instance, context):
-    return instance.id == context.id
+def identity(x):
+    return x
 
 
 class BaseRepository(object):
@@ -230,147 +213,6 @@ class QueryResult(object):
             raise StopIteration()
 
 
-# TODO: Does BaseRepository need cls and mapper arguments anymore?
-class MongoRepository(BaseRepository):
-    OPERATOR_MAPPING = {
-        Query.AND: '$and',
-        Query.OR: '$or',
-        Query.EQUAL_TO: '$eq',
-        Query.NOT_EQUAL_TO: '$ne'
-    }
-
-    BOOLEAN_OPS = {Query.AND, Query.OR}
-    COMPARISON_OPS = {Query.EQUAL_TO, Query.NOT_EQUAL_TO}
-
-    SORT_ORDER_MAPPING = {
-        SortOrder.ASCENDING: ASCENDING,
-        SortOrder.DESCENDING: DESCENDING
-    }
-
-    def __init__(self, cls, mapper, collection):
-        super().__init__(cls, mapper)
-        self.collection = collection
-
-    def _transform_query(self, query):
-        if isinstance(query, NoCriteria):
-            return {}
-
-        mongo_op = MongoRepository.OPERATOR_MAPPING[query.op]
-        if query.op in MongoRepository.BOOLEAN_OPS:
-            criteria = map(self._transform_query, (query.lhs, query.rhs))
-            conditions = []
-            for criterion in criteria:
-                if mongo_op in criterion:
-                    conditions.extend(criterion[mongo_op])
-                else:
-                    conditions.append(criterion)
-            return {mongo_op: conditions}
-        elif query.op in MongoRepository.COMPARISON_OPS:
-            storage_data = self.mapper.storage_data(query.field)
-            storage_name = storage_data.storage_name
-            storage_value = storage_data.to_storage_format(query.literal_value)
-            return {storage_name: {mongo_op: storage_value}}
-        else:
-            raise ValueError(f'Op "{query.op}" is not currently supported')
-
-    def _transform_sort(self, sort_order):
-        if sort_order is None:
-            return sort_order
-        storage_data = self.mapper.storage_data(sort_order.field)
-        storage_name = storage_data.storage_name
-        order = MongoRepository.SORT_ORDER_MAPPING[sort_order.order]
-        return [(storage_name, order)]
-
-    def upsert(self, *updates):
-        # TODO: These first two lines are exactly what's in InMemoryRepository
-        # and should be factored out into Session. Session transforms to the
-        # correct entity class on the way out, so why not transform to the
-        # underlying storage format before passing along here?
-        mongo_updates = []
-        for query, update in updates:
-            storage_updates = self.mapper.transform_updates(update.values())
-            mongo_update = UpdateOne(
-                self._transform_query(query),
-                {'$set': storage_updates},
-                upsert=True)
-            mongo_updates.append(mongo_update)
-        try:
-            self.collection.bulk_write(mongo_updates, ordered=False)
-        except BulkWriteError as e:
-            write_errors = e.details['writeErrors']
-            if any('duplicate' in we['errmsg'] for we in write_errors):
-                # TODO: This is a user-specific message in a base/generic
-                # repository
-                raise DuplicateUserException()
-            else:
-                raise
-
-    def filter(self, query, page_size=100, page_number=0, sort=None):
-        mongo_query = self._transform_query(query)
-        sort = self._transform_sort(sort)
-        total_count = self._count(mongo_query)
-        results = self.collection \
-            .find(mongo_query, sort=sort) \
-            .skip(page_number * page_size) \
-            .limit(page_size)
-        results = list(results)
-        return QueryResult(total_count, results, page_number, page_size)
-
-    def _count(self, mongo_query):
-        return self.collection.count_documents(mongo_query)
-
-    def count(self, query):
-        mongo_query = self._transform_query(query)
-        return self._count(mongo_query)
-
-    def __len__(self):
-        return self.collection.estimated_document_count()
-
-    def delete_all(self):
-        return self.collection.delete_many({})
-
-
-class InMemoryRepository(BaseRepository):
-    def __init__(self, cls, mapper):
-        super().__init__(cls, mapper)
-        self._data = {}
-
-    def __len__(self):
-        return len(self._data)
-
-    def upsert(self, *updates):
-        for query, update in updates:
-            storage_updates = self.mapper.transform_updates(update.values())
-
-            try:
-                data = next(self.filter(query))
-                data.update(**storage_updates)
-                # this is an existing document. update it
-            except StopIteration:
-                # this is a new document.  insert it
-                self._data[query.literal_value] = storage_updates
-
-    def filter(self, query, page_size=100, page_number=0, sort=None):
-        f = query.to_lambda('item', self.mapper)
-        results = list(filter(f, self._data.values()))
-
-        if sort:
-            storage_data = self.mapper.storage_data[sort.field]
-            storage_name = storage_data.storage_name
-            results = sorted(
-                results,
-                key=lambda x: x[storage_name],
-                reverse=sort.order == SortOrder.DESCENDING)
-
-        total_count = len(results)
-        start_pos = page_number * page_size
-        page = results[start_pos: start_pos + page_size]
-        return QueryResult(total_count, page, page_number, page_size)
-
-    def count(self, query):
-        return len(tuple(self.filter(query)))
-
-
 class Session(object):
     def __init__(self, *repositories):
         super().__init__()
@@ -391,9 +233,6 @@ class Session(object):
             transformed_results.append(result)
         query_result.results = transformed_results
         return query_result
-        # for item in results:
-        #     e = repo.mapper.from_storage(item)
-        #     yield self.__entities[e.storage_key]
 
     def count(self, query):
         repo = self._repositories[query.entity_class]
@@ -553,27 +392,6 @@ class BaseDescriptor(object):
         return 'Descriptor({name})'.format(**self.__dict__)
 
 
-class AboutMe(BaseDescriptor):
-    def validate(self, instance):
-        value = instance.get(self.name)
-
-        if value:
-            return
-
-        try:
-            if instance.user_type == UserType.HUMAN:
-                return
-        except AttributeError:
-            raise ValueError(
-                f'Empty "{self.name}" is only valid for {UserType.HUMAN} '
-                f'but no user_type was specified')
-
-        if not value:
-            raise ValueError(
-                f'Field "{self.name}" must be specified '
-                f'for datasets and featurebots')
-
-
 class Immutable(BaseDescriptor):
     def __set__(self, instance, value):
         try:
@@ -584,15 +402,6 @@ class Immutable(BaseDescriptor):
                 raise ImmutableError(self.name)
         except KeyError:
             super().__set__(instance, value)
-
-
-class Email(Immutable):
-    BASIC_EMAIL_PATTERN = re.compile(r'[^@]+@[^@]+\.[^@]+')
-
-    def validate(self, instance):
-        value = instance.get(self.name)
-        if not re.fullmatch(Email.BASIC_EMAIL_PATTERN, value):
-            raise ValueError(f'{value} is not a valid email address')
 
 
 class MetaMapper(type):
@@ -744,54 +553,3 @@ class BaseEntity(object, metaclass=MetaEntity):
     def __repr__(self):
         return '{cls}({data})'.format(
             cls=self.__class__.__name__, data=self._data)
-
-
-class User(BaseEntity):
-    id = BaseDescriptor(default_value=user_id_generator)
-
-    date_created = Immutable(default_value=lambda: datetime.datetime.utcnow())
-
-    deleted = BaseDescriptor(
-        default_value=False,
-        visible=never,
-        evaluate_context=is_me)
-
-    user_name = Immutable(required=True)
-
-    password = BaseDescriptor(
-        visible=never,
-        value_transform=password_hasher,
-        required=True,
-        evaluate_context=is_me)
-
-    user_type = Immutable(value_transform=UserType, evaluate_context=is_me)
-
-    email = Email(visible=is_me, evaluate_context=is_me)
-
-    about_me = AboutMe(evaluate_context=is_me)
-
-    @property
-    def identity_query(self):
-        return User.id == self.id
-
-    @property
-    def storage_key(self):
-        # TODO: Can this be derived solely from the identity_query?
-        return self.__class__, self.id
-
-
-class UserMapper(BaseMapper):
-    # TODO: Better, more formal way to specify mapper's target class than this
-    entity_class = User
-
-    _id = BaseMapping(User.id)
-    date_created = BaseMapping(User.date_created)
-    deleted = BaseMapping(User.deleted)
-    user_name = BaseMapping(User.user_name)
-    password = BaseMapping(User.password)
-    user_type = BaseMapping(
-        User.user_type,
-        to_storage_format=lambda instance: instance.value,
-        from_storage_format=lambda value: UserType(value))
-    email = BaseMapping(User.email)
-    about_me = BaseMapping(User.about_me)

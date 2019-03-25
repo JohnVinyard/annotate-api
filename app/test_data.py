@@ -1,21 +1,64 @@
 import unittest2
+from model import User, UserType
+from mapping import UserMapper
 from scratch import \
-    User, UserType, UserMapper, InMemoryRepository, Session, ContextualValue
+    Session, ContextualValue, BaseRepository, SortOrder, QueryResult
 from errors import PermissionsError
 
 
-def user1():
+class InMemoryRepository(BaseRepository):
+    def __init__(self, cls, mapper):
+        super().__init__(cls, mapper)
+        self._data = {}
+
+    def __len__(self):
+        return len(self._data)
+
+    def upsert(self, *updates):
+        for query, update in updates:
+            storage_updates = self.mapper.transform_updates(update.values())
+
+            try:
+                data = next(self.filter(query))
+                data.update(**storage_updates)
+                # this is an existing document. update it
+            except StopIteration:
+                # this is a new document.  insert it
+                self._data[query.literal_value] = storage_updates
+
+    def filter(self, query, page_size=100, page_number=0, sort=None):
+        f = query.to_lambda('item', self.mapper)
+        results = list(filter(f, self._data.values()))
+
+        if sort:
+            storage_data = self.mapper.storage_data[sort.field]
+            storage_name = storage_data.storage_name
+            results = sorted(
+                results,
+                key=lambda x: x[storage_name],
+                reverse=sort.order == SortOrder.DESCENDING)
+
+        total_count = len(results)
+        start_pos = page_number * page_size
+        page = results[start_pos: start_pos + page_size]
+        return QueryResult(total_count, page, page_number, page_size)
+
+    def count(self, query):
+        return len(tuple(self.filter(query)))
+
+
+def user1(user_type=None):
     return dict(
-        name='Hal',
+        user_name='Hal',
         password='halation',
         email='hal@eta.com',
-        user_type=UserType.HUMAN,
+        user_type=user_type or UserType.HUMAN,
         about_me='Tennis 4 Life')
 
 
 def user2():
     return dict(
-        name='Mike',
+        user_name='Mike',
         password='peemster',
         email='peemster@eta.com',
         user_type=UserType.HUMAN,
@@ -25,7 +68,7 @@ def user2():
 class EntityTests(unittest2.TestCase):
     def test_can_create_new_user(self):
         c = User.create(**user1())
-        self.assertEqual('Hal', c.name)
+        self.assertEqual('Hal', c.user_name)
 
     def test_computed_values_are_populated(self):
         c = User.create(**user1())
@@ -39,7 +82,7 @@ class EntityTests(unittest2.TestCase):
 
     def test_validation_errors_when_creating_with_invalid_username(self):
         data = user1()
-        data['name'] = ''
+        data['user_name'] = ''
         self.assertRaises(ValueError, lambda: User.create(**data))
 
     def test_validation_errors_when_creating_with_invalid_password(self):
@@ -59,8 +102,7 @@ class EntityTests(unittest2.TestCase):
         self.assertRaises(ValueError, lambda: User.create(**data))
 
     def test_validation_errors_when_modifying_user_with_bad_values(self):
-        c = User.create(**user1())
-        c.user_type = ContextualValue(c, UserType.FEATUREBOT)
+        c = User.create(**user1(user_type=UserType.DATASET))
         c.about_me = ContextualValue(c, '')
         self.assertRaises(ValueError, lambda: c.raise_for_errors())
 
@@ -125,7 +167,7 @@ class DataTests(unittest2.TestCase):
 
     def test_cannot_modify_and_store_existing_user_with_bad_values(self):
         with self._session():
-            c = User.create(**user1())
+            c = User.create(**user1(user_type=UserType.DATASET))
             original_user_type = c.user_type
             original_about_me = c.about_me
             user_id = c.id
@@ -133,7 +175,6 @@ class DataTests(unittest2.TestCase):
         def f():
             with self._session() as s:
                 c2 = next(s.filter(User.id == user_id))
-                c2.user_type = UserType.DATASET
                 c2.about_me = ''
 
         self.assertRaises(ValueError, f)
@@ -150,11 +191,9 @@ class DataTests(unittest2.TestCase):
 
         with self._session() as s:
             c2 = next(s.filter(User.id == user_id))
-            c2.user_type = ContextualValue(c2, UserType.DATASET)
             c2.about_me = ContextualValue(c2, 'modified')
 
         raw_data = self.repo._data[user_id]
-        self.assertEqual('dataset', raw_data['user_type'])
         self.assertEqual('modified', raw_data['about_me'])
 
     def test_can_perform_a_query_with_transformed_values(self):
@@ -180,22 +219,3 @@ class DataTests(unittest2.TestCase):
             c2 = next(s.filter(query))
             c3 = next(s.filter(query))
             self.assertIs(c2, c3)
-
-    def test_cannot_perform_invalid_update_with_two_different_instances(self):
-        with self._session():
-            c = User.create(**user1())
-            user_id = c.id
-            original_user_type = c.user_type.value
-            original_about_me = c.about_me
-
-        def f():
-            with self._session() as s:
-                c2 = next(s.filter(User.id == user_id))
-                c3 = next(s.filter(User.id == user_id))
-                c2.user_type = ContextualValue(c2, UserType.FEATUREBOT)
-                c3.about_me = ContextualValue(c3, '')
-
-        self.assertRaises(ValueError, f)
-        data = self.repo._data[user_id]
-        self.assertEqual(original_user_type, data['user_type'])
-        self.assertEqual(original_about_me, data['about_me'])
