@@ -5,7 +5,7 @@ from model import User, ContextualValue
 from httphelper import decode_auth_header, SessionMiddleware
 from customjson import JSONHandler
 import urllib
-from errors import DuplicateUserException, PermissionsError
+from errors import DuplicateUserException, PermissionsError, ImmutableError
 
 
 def basic_auth(req, resp, resource, params):
@@ -187,7 +187,16 @@ class UserResource(object):
             to_update = next(session.filter(query, page_size=1))
         except StopIteration:
             raise falcon.HTTPNotFound()
-        to_update.update(actor, **req.media)
+
+        try:
+            to_update.update(actor, **req.media)
+        except ValueError as e:
+            # TODO: This code for transforming exceptions also appears in
+            # POST /users and should be factored into a common location 
+            desc = [(err[0], err[1].args[0]) for err in e.args]
+            raise falcon.HTTPBadRequest(description=desc)
+        except PermissionsError:
+            raise falcon.HTTPForbidden()
 
 
 extra_handlers = falcon.media.Handlers({

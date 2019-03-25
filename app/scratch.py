@@ -686,7 +686,7 @@ class BaseEntity(object, metaclass=MetaEntity):
             contextual_value = ContextualValue(actor, v)
             try:
                 self.__setattr__(k, contextual_value)
-            except ValueError as e:
+            except (ValueError, ImmutableError) as e:
                 errors.append((k, e))
         self.raise_for_errors(*errors)
 

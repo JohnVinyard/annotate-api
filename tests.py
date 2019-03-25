@@ -398,13 +398,28 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual('modified', resp.json()['about_me'])
 
     def test_cannot_update_other_user(self):
-        self.fail()
+        user1, user1_location = self.create_user()
+        user2, user2_location = self.create_user()
+        auth = self._get_auth(user1)
+        resp = requests.patch(
+            self.url(user2_location), json={'about_me': 'modified'}, auth=auth)
+        self.assertEqual(client.FORBIDDEN, resp.status_code)
 
     def test_invalid_about_me_update_for_featurebot_fails(self):
-        self.fail()
+        user1, user1_location = self.create_user(
+            user_type='dataset', about_me='original')
+        auth = self._get_auth(user1)
+        resp = requests.patch(
+            self.url(user1_location), json={'about_me': ''}, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_invalid_about_me_update_for_dataset_fails(self):
-        self.fail()
+        user1, user1_location = self.create_user(
+            user_type='featurebot', about_me='original')
+        auth = self._get_auth(user1)
+        resp = requests.patch(
+            self.url(user1_location), json={'about_me': ''}, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_can_update_password(self):
         user1, user1_location = self.create_user(
