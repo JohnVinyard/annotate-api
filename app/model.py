@@ -83,22 +83,45 @@ class User(BaseAppEntity):
 
 
 class LicenseType(Enum):
-    pass
+    BY = 'https://creativecommons.org/licenses/by/4.0'
+    BY_SA = 'https://creativecommons.org/licenses/by-sa/4.0'
+    BY_ND = 'https://creativecommons.org/licenses/by-nd/4.0'
+    BY_NC = 'https://creativecommons.org/licenses/by-nc/4.0'
+    BY_NC_SA = 'https://creativecommons.org/licenses/by-nc-sa/4.0'
+    BY_NC_ND = 'https://creativecommons.org/licenses/by-nc-nd/4.0'
+
+
+class SoundCreatedBy(Immutable):
+    def validate(self, instance):
+        user = instance.get(self.name)
+        if user.user_type == UserType.FEATUREBOT:
+            raise ValueError(f'{user.user_type} users may not create sounds')
 
 
 class Sound(BaseAppEntity):
-    created_by = Immutable(required=True)
+    # TODO: This should be a stored user
+    # TODO: The user should not be a featurebot
+    # TODO: It should be set with a user, but stored as an id
+    # TODO: It should be returned in the output as a link
+    created_by = SoundCreatedBy(required=True)
+    # TODO: This should be a valid url
     info_url = Immutable(required=True)
+    # TODO: This should be a valid url
     audio_url = Immutable(required=True)
     license_type = Immutable(value_transform=LicenseType, required=True)
     title = Immutable(required=True)
-    duration_seconds = Immutable(required=True)
+    duration_seconds = Immutable(required=True, value_transform=float)
 
 
 class Annotation(BaseAppEntity):
+    # TODO: This should be a stored user
+    # TODO: It should be set with a user, but stored as an id
+    # TODO: It should be returned in the output as a link
     created_by = Immutable(required=True)
-    sound_url = Immutable(required=True)
-    start_seconds = Immutable(required=True)
-    duration_seconds = Immutable(required=True)
-    tags = Immutable()
+    # TODO: This should be set with a stored sound entity
+    sound_id = Immutable(required=True)
+    start_seconds = Immutable(required=True, value_transform=float)
+    duration_seconds = Immutable(required=True, value_transform=float)
+    tags = Immutable(value_transform=tuple)
+    # TODO: This should be null, or be a valid URL
     data_url = Immutable()

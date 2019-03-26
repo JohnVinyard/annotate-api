@@ -473,6 +473,30 @@ class SoundTests(BaseTests, unittest2.TestCase):
     def test_featurebot_cannot_create_sound(self):
         self.fail()
 
+    def test_unauthorized_when_creating_sound_anonymously(self):
+        self.fail()
+
+    def test_forbidden_when_creating_sound_as_featurebot(self):
+        self.fail()
+
+    def test_bad_request_for_bad_info_url(self):
+        self.fail()
+
+    def test_bad_request_for_bad_audio_url(self):
+        self.fail()
+
+    def test_bad_request_for_bad_license_type(self):
+        self.fail()
+
+    def test_bad_request_for_missing_title(self):
+        self.fail()
+
+    def test_bad_request_for_missing_duration(self):
+        self.fail()
+
+    def test_explicit_created_by_is_ignored(self):
+        self.fail()
+
 
 class AnnotationTests(BaseTests, unittest2.TestCase):
     def test_human_can_create_annotation(self):

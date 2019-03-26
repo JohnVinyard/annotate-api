@@ -38,7 +38,7 @@ class AnnotationMapper(BaseMapper):
     _id = BaseMapping(Annotation.id)
     date_created = BaseMapping(Annotation.date_created)
     created_by = BaseMapping(Annotation.created_by)
-    sound_url = BaseMapping(Annotation.sound_url)
+    sound_id = BaseMapping(Annotation.sound_id)
     start_seconds = BaseMapping(Annotation.start_seconds)
     duration_seconds = BaseMapping(Annotation.duration_seconds)
     tags = BaseMapping(Annotation.tags)

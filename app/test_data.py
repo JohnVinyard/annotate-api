@@ -1,5 +1,5 @@
 import unittest2
-from model import User, UserType
+from model import User, UserType, Sound, LicenseType
 from mapping import UserMapper
 from scratch import \
     Session, ContextualValue, BaseRepository, SortOrder, QueryResult, \
@@ -159,6 +159,51 @@ class EntityTests(unittest2.TestCase):
         c = User.create(**user1())
         c.deleted = ContextualValue(c, True)
         self.assertTrue(c.deleted)
+
+
+class SoundTests(unittest2.TestCase):
+
+    def sound(self, creator):
+        return Sound(
+            created_by=creator,
+            info_url='https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
+            audio_url='https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
+            license_type=LicenseType.BY,
+            title='Abdication Address - King Edward VIII',
+            duration_seconds=(6 * 60) + 42
+        )
+
+    def test_can_create_sound(self):
+        user = User.create(**user1())
+        snd = self.sound(user)
+        self.assertEqual(snd.created_by, user)
+
+    def test_validation_error_when_creator_is_featurebot(self):
+        user = User.create(**user1(user_type=UserType.FEATUREBOT))
+        self.assertRaises(ValueError, lambda: self.sound(user))
+
+    def test_validation_error_when_info_url_is_invalid(self):
+        self.fail()
+
+    def test_validation_error_when_audio_url_is_invalid(self):
+        self.fail()
+
+    def test_validation_error_when_license_type_is_invalid(self):
+        self.fail()
+
+    def test_validation_error_when_title_not_provided(self):
+        self.fail()
+
+    def test_validation_error_when_duration_not_provided(self):
+        self.fail()
+
+    def test_can_get_information_about_multiple_errors(self):
+        self.fail()
+
+
+class SoundDataTests(unittest2.TestCase):
+    def test_created_by_stored_as_string(self):
+        self.fail()
 
 
 class DataTests(unittest2.TestCase):
