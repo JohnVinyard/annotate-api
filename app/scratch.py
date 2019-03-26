@@ -2,6 +2,7 @@ from errors import PermissionsError, ImmutableError, DuplicateUserException
 import threading
 from collections import defaultdict
 from enum import Enum
+import copy
 
 thread_local = threading.local()
 
@@ -454,13 +455,25 @@ class BaseMapper(object, metaclass=MetaMapper):
 
 class MetaEntity(type):
     def __init__(cls, name, bases, attrs):
+        super(MetaEntity, cls).__init__(name, bases, attrs)
         cls._metafields = dict()
+
+        for base in bases:
+            try:
+                for k, v in base._metafields.items():
+                    new_desc = copy.copy(v)
+                    new_desc.owner_cls = cls
+                    cls._metafields[k] = new_desc
+                    setattr(cls, k, new_desc)
+            except AttributeError:
+                pass
+
         for key, value in attrs.items():
             if isinstance(value, BaseDescriptor):
                 value.name = key
+                print('Setting owner class:', value, cls)
                 value.owner_cls = cls
                 cls._metafields[key] = value
-        super(MetaEntity, cls).__init__(name, bases, attrs)
 
 
 class BaseEntity(object, metaclass=MetaEntity):

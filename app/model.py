@@ -47,11 +47,21 @@ class Email(Immutable):
             raise ValueError(f'{value} is not a valid email address')
 
 
-class User(BaseEntity):
+class BaseAppEntity(BaseEntity):
     id = BaseDescriptor(default_value=user_id_generator)
-
     date_created = Immutable(default_value=datetime.datetime.utcnow)
 
+    @property
+    def identity_query(self):
+        return self.__class__.id == self.id
+
+    @property
+    def storage_key(self):
+        # TODO: Can this be derived solely from the identity_query?
+        return self.__class__, self.id
+
+
+class User(BaseAppEntity):
     deleted = BaseDescriptor(
         default_value=False,
         visible=never,
@@ -71,23 +81,12 @@ class User(BaseEntity):
 
     about_me = AboutMe(evaluate_context=is_me)
 
-    @property
-    def identity_query(self):
-        return User.id == self.id
-
-    @property
-    def storage_key(self):
-        # TODO: Can this be derived solely from the identity_query?
-        return self.__class__, self.id
-
 
 class LicenseType(Enum):
     pass
 
 
-class Sound(BaseEntity):
-    id = Immutable(default_value=user_id_generator)
-    date_created = Immutable(default_value=datetime.datetime.utcnow)
+class Sound(BaseAppEntity):
     created_by = Immutable(required=True)
     info_url = Immutable(required=True)
     audio_url = Immutable(required=True)
@@ -96,9 +95,7 @@ class Sound(BaseEntity):
     duration_seconds = Immutable(required=True)
 
 
-class Annotation(BaseEntity):
-    id = Immutable(default_value=user_id_generator)
-    date_created = Immutable(default_value=datetime.datetime.utcnow)
+class Annotation(BaseAppEntity):
     created_by = Immutable(required=True)
     sound_url = Immutable(required=True)
     start_seconds = Immutable(required=True)

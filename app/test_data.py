@@ -2,7 +2,8 @@ import unittest2
 from model import User, UserType
 from mapping import UserMapper
 from scratch import \
-    Session, ContextualValue, BaseRepository, SortOrder, QueryResult
+    Session, ContextualValue, BaseRepository, SortOrder, QueryResult, \
+    BaseEntity, BaseDescriptor
 from errors import PermissionsError
 
 
@@ -66,6 +67,36 @@ def user2():
 
 
 class EntityTests(unittest2.TestCase):
+    def test_inheritance_works(self):
+        class A(BaseEntity):
+            a = BaseDescriptor()
+
+        class B(A):
+            b = BaseDescriptor()
+
+        class C(B):
+            c = BaseDescriptor()
+
+        self.assertIn('a', A._metafields)
+        self.assertEqual(A, A.a.owner_cls)
+
+        self.assertIn('a', B._metafields)
+        self.assertIn('b', B._metafields)
+        self.assertEqual(B, B.a.owner_cls)
+        self.assertEqual(B, B.b.owner_cls)
+
+        self.assertIn('a', C._metafields)
+        self.assertIn('b', C._metafields)
+        self.assertIn('c', C._metafields)
+        self.assertEqual(C, C.a.owner_cls)
+        self.assertEqual(C, C.b.owner_cls)
+        self.assertEqual(C, C.c.owner_cls)
+
+        self.assertIsNot(C.a, A.a)
+        self.assertIsNot(C.a, B.a)
+        self.assertIsNot(B.a, A.a)
+        self.assertIsNot(C.b, B.b)
+
     def test_can_create_new_user(self):
         c = User.create(**user1())
         self.assertEqual('Hal', c.user_name)
