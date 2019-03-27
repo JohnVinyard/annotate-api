@@ -5,6 +5,7 @@ from scratch import ContextualValue, BaseEntity, BaseDescriptor, Immutable, \
     never, always
 from enum import Enum
 import re
+from urllib.parse import urlparse
 
 
 def is_me(instance, context):
@@ -45,6 +46,14 @@ class Email(Immutable):
         value = instance.get(self.name)
         if not re.fullmatch(Email.BASIC_EMAIL_PATTERN, value):
             raise ValueError(f'{value} is not a valid email address')
+
+
+class URL(Immutable):
+    def validate(self, instance):
+        value = instance.get(self.name)
+        parsed = urlparse(value)
+        if not all((parsed.scheme, parsed.netloc)):
+            raise ValueError(f'{value} is not a valid {self.name}')
 
 
 class BaseAppEntity(BaseEntity):
@@ -105,9 +114,9 @@ class Sound(BaseAppEntity):
     # TODO: It should be returned in the output as a link
     created_by = SoundCreatedBy(required=True)
     # TODO: This should be a valid url
-    info_url = Immutable(required=True)
+    info_url = URL(required=True)
     # TODO: This should be a valid url
-    audio_url = Immutable(required=True)
+    audio_url = URL(required=True)
     license_type = Immutable(value_transform=LicenseType, required=True)
     title = Immutable(required=True)
     duration_seconds = Immutable(required=True, value_transform=float)

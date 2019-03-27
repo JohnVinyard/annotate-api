@@ -163,14 +163,22 @@ class EntityTests(unittest2.TestCase):
 
 class SoundTests(unittest2.TestCase):
 
-    def sound(self, creator):
+    def sound(
+            self,
+            creator,
+            info_url=None,
+            audio_url=None,
+            license_type=None,
+            title=None,
+            duration_seconds=None):
+
         return Sound(
             created_by=creator,
-            info_url='https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
-            audio_url='https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
-            license_type=LicenseType.BY,
-            title='Abdication Address - King Edward VIII',
-            duration_seconds=(6 * 60) + 42
+            info_url=info_url or 'https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
+            audio_url=audio_url or 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
+            license_type=license_type or LicenseType.BY,
+            title='Abdication Address - King Edward VIII' if title is None else title,
+            duration_seconds=duration_seconds or (6 * 60) + 42
         )
 
     def test_can_create_sound(self):
@@ -183,22 +191,28 @@ class SoundTests(unittest2.TestCase):
         self.assertRaises(ValueError, lambda: self.sound(user))
 
     def test_validation_error_when_info_url_is_invalid(self):
-        self.fail()
+        user = User.create(**user1())
+        self.assertRaises(ValueError, lambda: self.sound(user, info_url='blah'))
 
     def test_validation_error_when_audio_url_is_invalid(self):
-        self.fail()
+        user = User.create(**user1())
+        self.assertRaises(
+            ValueError, lambda: self.sound(user, info_url='audio_url'))
 
     def test_validation_error_when_license_type_is_invalid(self):
-        self.fail()
+        user = User.create(**user1())
+        self.assertRaises(
+            ValueError, lambda: self.sound(user, license_type='sometihing'))
 
     def test_validation_error_when_title_not_provided(self):
-        self.fail()
+        user = User.create(**user1())
+        self.assertRaises(
+            ValueError, lambda: self.sound(user, title=''))
 
-    def test_validation_error_when_duration_not_provided(self):
-        self.fail()
-
-    def test_can_get_information_about_multiple_errors(self):
-        self.fail()
+    def test_validation_error_when_duration_invalid(self):
+        user = User.create(**user1())
+        self.assertRaises(
+            ValueError, lambda: self.sound(user, duration_seconds='blah'))
 
 
 class SoundDataTests(unittest2.TestCase):
