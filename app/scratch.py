@@ -1,4 +1,6 @@
-from errors import PermissionsError, ImmutableError, DuplicateUserException
+from errors import \
+    PermissionsError, ImmutableError, DuplicateUserException, \
+    PartialEntityUpdate
 import threading
 from collections import defaultdict
 from enum import Enum
@@ -266,6 +268,8 @@ class Session(object):
 
         # validate any entities that will be created or updated
         for entity in updates.keys():
+            if entity._partial:
+                raise PartialEntityUpdate(entity)
             entity.raise_for_errors()
 
         # Divide updates up according to repository and pass them in batch
@@ -471,7 +475,6 @@ class MetaEntity(type):
         for key, value in attrs.items():
             if isinstance(value, BaseDescriptor):
                 value.name = key
-                print('Setting owner class:', value, cls)
                 value.owner_cls = cls
                 cls._metafields[key] = value
 
@@ -481,6 +484,7 @@ class BaseEntity(object, metaclass=MetaEntity):
         super().__init__()
         self._events = []
         self._data = {}
+        self._partial = False
 
         creator = creator or self
 
@@ -522,7 +526,14 @@ class BaseEntity(object, metaclass=MetaEntity):
         obj = cls.__new__(cls)
         obj._data = kwargs
         obj._events = []
+        obj._partial = False
         obj._track()
+        return obj
+
+    @classmethod
+    def partial_hydrate(cls, **kwargs):
+        obj = cls.hydrate(**kwargs)
+        obj._partial = True
         return obj
 
     def _track(self):

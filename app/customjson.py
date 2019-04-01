@@ -4,7 +4,7 @@ import pytz
 from falcon.media import BaseHandler
 from enum import Enum
 
-
+# TODO: Need a way to encode entities as links
 class JsonEncoder(json.JSONEncoder):
     def __init__(self):
         super().__init__()

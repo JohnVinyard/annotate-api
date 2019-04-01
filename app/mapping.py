@@ -1,5 +1,15 @@
 from scratch import BaseMapper, BaseMapping
-from model import UserType, User, Sound, Annotation
+from model import UserType, User, Sound, Annotation, LicenseType
+
+
+class EnumMapping(BaseMapping):
+    def __init__(self, field, enum_class, *args, **kwargs):
+        super().__init__(
+            field,
+            *args,
+            to_storage_format=lambda instance: instance.value,
+            from_storage_format=lambda value: enum_class(value),
+            **kwargs)
 
 
 class UserMapper(BaseMapper):
@@ -11,10 +21,7 @@ class UserMapper(BaseMapper):
     deleted = BaseMapping(User.deleted)
     user_name = BaseMapping(User.user_name)
     password = BaseMapping(User.password)
-    user_type = BaseMapping(
-        User.user_type,
-        to_storage_format=lambda instance: instance.value,
-        from_storage_format=lambda value: UserType(value))
+    user_type = EnumMapping(User.user_type, UserType)
     email = BaseMapping(User.email)
     about_me = BaseMapping(User.about_me)
 
@@ -24,10 +31,13 @@ class SoundMapper(BaseMapper):
 
     _id = BaseMapping(Sound.id)
     date_created = BaseMapping(Sound.date_created)
-    created_by = BaseMapping(Sound.created_by)
+    created_by = BaseMapping(
+        Sound.created_by,
+        to_storage_format=lambda instance: instance.id,
+        from_storage_format=lambda _id: User.partial_hydrate(id=_id))
     info_url = BaseMapping(Sound.info_url)
     audio_url = BaseMapping(Sound.audio_url)
-    license_type = BaseMapping(Sound.license_type)
+    license_type = EnumMapping(Sound.license_type, LicenseType)
     title = BaseMapping(Sound.title)
     duration_seconds = BaseMapping(Sound.duration_seconds)
 

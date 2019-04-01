@@ -1,6 +1,6 @@
 import unittest2
 from model import User, UserType, Sound, LicenseType
-from mapping import UserMapper
+from mapping import UserMapper, SoundMapper
 from scratch import \
     Session, ContextualValue, BaseRepository, SortOrder, QueryResult, \
     BaseEntity, BaseDescriptor
@@ -64,6 +64,23 @@ def user2():
         email='peemster@eta.com',
         user_type=UserType.HUMAN,
         about_me='DMZ 4 Life')
+
+
+def sound(
+        creator,
+        info_url=None,
+        audio_url=None,
+        license_type=None,
+        title=None,
+        duration_seconds=None):
+    return Sound.create(
+        created_by=creator,
+        info_url=info_url or 'https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
+        audio_url=audio_url or 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
+        license_type=license_type or LicenseType.BY,
+        title='Abdication Address - King Edward VIII' if title is None else title,
+        duration_seconds=duration_seconds or (6 * 60) + 42
+    )
 
 
 class EntityTests(unittest2.TestCase):
@@ -162,62 +179,77 @@ class EntityTests(unittest2.TestCase):
 
 
 class SoundTests(unittest2.TestCase):
-
-    def sound(
-            self,
-            creator,
-            info_url=None,
-            audio_url=None,
-            license_type=None,
-            title=None,
-            duration_seconds=None):
-
-        return Sound(
-            created_by=creator,
-            info_url=info_url or 'https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
-            audio_url=audio_url or 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
-            license_type=license_type or LicenseType.BY,
-            title='Abdication Address - King Edward VIII' if title is None else title,
-            duration_seconds=duration_seconds or (6 * 60) + 42
-        )
-
     def test_can_create_sound(self):
         user = User.create(**user1())
-        snd = self.sound(user)
+        snd = sound(user)
         self.assertEqual(snd.created_by, user)
 
     def test_validation_error_when_creator_is_featurebot(self):
         user = User.create(**user1(user_type=UserType.FEATUREBOT))
-        self.assertRaises(ValueError, lambda: self.sound(user))
+        self.assertRaises(ValueError, lambda: sound(user))
 
     def test_validation_error_when_info_url_is_invalid(self):
         user = User.create(**user1())
-        self.assertRaises(ValueError, lambda: self.sound(user, info_url='blah'))
+        self.assertRaises(ValueError, lambda: sound(user, info_url='blah'))
 
     def test_validation_error_when_audio_url_is_invalid(self):
         user = User.create(**user1())
         self.assertRaises(
-            ValueError, lambda: self.sound(user, info_url='audio_url'))
+            ValueError, lambda: sound(user, info_url='audio_url'))
 
     def test_validation_error_when_license_type_is_invalid(self):
         user = User.create(**user1())
         self.assertRaises(
-            ValueError, lambda: self.sound(user, license_type='sometihing'))
+            ValueError, lambda: sound(user, license_type='sometihing'))
 
     def test_validation_error_when_title_not_provided(self):
         user = User.create(**user1())
         self.assertRaises(
-            ValueError, lambda: self.sound(user, title=''))
+            ValueError, lambda: sound(user, title=''))
 
     def test_validation_error_when_duration_invalid(self):
         user = User.create(**user1())
         self.assertRaises(
-            ValueError, lambda: self.sound(user, duration_seconds='blah'))
+            ValueError, lambda: sound(user, duration_seconds='blah'))
 
 
 class SoundDataTests(unittest2.TestCase):
+    def setUp(self):
+        self.user_repo = InMemoryRepository(User, UserMapper)
+        self.sound_repo = InMemoryRepository(Sound, SoundMapper)
+
+    def _session(self):
+        return Session(self.user_repo, self.sound_repo)
+
     def test_created_by_stored_as_string(self):
-        self.fail()
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        self.assertIn(sound_id, self.sound_repo._data)
+        raw = self.sound_repo._data[sound_id]
+        self.assertEqual(user.id, raw['created_by'])
+
+    def test_created_by_retrieved_as_a_partial_user_instance(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        with self._session() as s:
+            snd = next(s.filter(Sound.id == sound_id))
+
+        self.assertIsInstance(snd.created_by, User)
+        self.assertEqual(snd.created_by.id, user_id)
 
 
 class DataTests(unittest2.TestCase):

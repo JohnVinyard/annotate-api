@@ -10,6 +10,59 @@ path, fn = os.path.split(__file__)
 
 
 class BaseTests(object):
+
+    def _user_create_data(
+            self,
+            user_name=None,
+            password=None,
+            user_type=None,
+            email=None,
+            about_me=None):
+        return {
+            'user_name': 'user' if user_name is None else user_name,
+            'password': 'password' if password is None else password,
+            'user_type': user_type or 'human',
+            'email': 'hal@eta.com' if email is None else email,
+            'about_me': about_me or 'Up and coming tennis star'
+        }
+
+    def _get_auth(self, user_create_data):
+        return user_create_data['user_name'], user_create_data['password']
+
+    def create_user(
+            self,
+            user_type='human',
+            user_name=None,
+            email=None,
+            about_me=None):
+
+        create_data = self._user_create_data(
+            user_name=user_name or uuid.uuid4().hex,
+            password=uuid.uuid4().hex,
+            user_type=user_type,
+            email=email or '{}@example.com'.format(uuid.uuid4().hex),
+            about_me=about_me or uuid.uuid4().hex
+        )
+        create_resp = requests.post(self.users_resource(), json=create_data)
+        self.assertEqual(client.CREATED, create_resp.status_code)
+        location = create_resp.headers['location']
+        return create_data, location
+
+    def sound_data(
+            self,
+            info_url=None,
+            audio_url=None,
+            license_type=None,
+            title=None,
+            duration_seconds=None):
+        return dict(
+            info_url=info_url or 'https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
+            audio_url=audio_url or 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
+            license_type=license_type or 'https://creativecommons.org/licenses/by/4.0',
+            title='Abdication Address - King Edward VIII' if title is None else title,
+            duration_seconds=duration_seconds or (6 * 60) + 42
+        )
+
     @classmethod
     def startup_executable(cls):
         return os.path.join(path, 'start.sh')
@@ -29,6 +82,10 @@ class BaseTests(object):
     @classmethod
     def users_resource(cls, user_id=''):
         return cls.url('/users/{user_id}'.format(**locals()))
+
+    @classmethod
+    def sounds_resource(cls, sound_id=''):
+        return cls.url('/sounds/{sound_id}'.format(**locals()))
 
     @classmethod
     def delete_all_data(cls):
@@ -84,43 +141,6 @@ class UserTests(BaseTests, unittest2.TestCase):
 
     def tearDown(self):
         self.delete_all_data()
-
-    def _user_create_data(
-            self,
-            user_name=None,
-            password=None,
-            user_type=None,
-            email=None,
-            about_me=None):
-        return {
-            'user_name': 'user' if user_name is None else user_name,
-            'password': 'password' if password is None else password,
-            'user_type': user_type or 'human',
-            'email': 'hal@eta.com' if email is None else email,
-            'about_me': about_me or 'Up and coming tennis star'
-        }
-
-    def _get_auth(self, user_create_data):
-        return user_create_data['user_name'], user_create_data['password']
-
-    def create_user(
-            self,
-            user_type='human',
-            user_name=None,
-            email=None,
-            about_me=None):
-
-        create_data = self._user_create_data(
-            user_name=user_name or uuid.uuid4().hex,
-            password=uuid.uuid4().hex,
-            user_type=user_type,
-            email=email or '{}@example.com'.format(uuid.uuid4().hex),
-            about_me=about_me or uuid.uuid4().hex
-        )
-        create_resp = requests.post(self.users_resource(), json=create_data)
-        self.assertEqual(client.CREATED, create_resp.status_code)
-        location = create_resp.headers['location']
-        return create_data, location
 
     def test_can_create_and_fetch_new_user(self):
         create_data = self._user_create_data(user_name='HalIncandenza')
@@ -468,7 +488,15 @@ class UserTests(BaseTests, unittest2.TestCase):
 
 class SoundTests(BaseTests, unittest2.TestCase):
     def test_dataset_can_create_sound(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.get(self.url(sound_location), auth=auth)
+        self.assertEqual(client.OK, sound_resp.status_code)
+        self.assertEqual(sound_data['info_url'], sound_resp.json()['info_url'])
 
     def test_featurebot_cannot_create_sound(self):
         self.fail()
@@ -495,6 +523,21 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.fail()
 
     def test_explicit_created_by_is_ignored(self):
+        self.fail()
+
+    def test_user_is_returned_as_uri(self):
+        self.fail()
+
+    def test_can_head_sound(self):
+        self.fail()
+
+    def test_unauthorized_when_getting_sound_anonymously(self):
+        self.fail()
+
+    def test_sounds_are_immutable(self):
+        self.fail()
+
+    def test_cannot_delete_sound(self):
         self.fail()
 
 

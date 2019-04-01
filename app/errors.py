@@ -11,3 +11,9 @@ class PermissionsError(Exception):
 class ImmutableError(Exception):
     def __init__(self, key):
         super().__init__(f'{key} is immutable')
+
+
+class PartialEntityUpdate(Exception):
+    def __init__(self, entity):
+        super().__init__(
+            'f{entity} is partial but was modified in this session')

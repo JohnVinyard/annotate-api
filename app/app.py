@@ -1,6 +1,6 @@
 import falcon
 from data import users_repo, sounds_repo, annotations_repo, NoCriteria
-from model import User, ContextualValue
+from model import User, ContextualValue, Sound, Annotation
 from httphelper import decode_auth_header, SessionMiddleware
 from customjson import JSONHandler
 import urllib
@@ -38,12 +38,17 @@ class RootResource(object):
         self.annotation_repo = annotation_repo
         self.sound_repo = sound_repo
         self.user_repo = user_repo
+        super().__init__()
 
     def on_get(self, req, resp):
+        session = req.context['session']
+
+        # TODO: This should depend on session instead, and should get
+        # counts via len(User), len(Sound), etc.
         resp.media = {
-            'totalSounds': len(self.sound_repo),
-            'totalAnnotations': len(self.annotation_repo),
-            'totalUsers': len(self.user_repo)
+            'totalSounds': session.count(NoCriteria(Sound)),
+            'totalAnnotations': session.count(NoCriteria(Annotation)),
+            'totalUsers': session.count(NoCriteria(User))
         }
         resp.status = falcon.HTTP_200
 
@@ -54,10 +59,26 @@ class RootResource(object):
         resp.status = falcon.HTTP_NO_CONTENT
 
 
-class UsersResource(object):
-    def __init__(self, user_repo):
-        self.user_repo = user_repo
+class SoundsResource(object):
+    @falcon.before(basic_auth)
+    def on_post(self, req, resp):
 
+        actor = req.context['user']
+        data = req.media
+        data['created_by'] = actor
+
+        # TODO: This looks exactly like UsersResource.post below.  Do some
+        # refactoring
+        try:
+            sound = Sound.create(creator=actor, **data)
+        except ValueError as e:
+            desc = [(err[0], err[1].args[0]) for err in e.args]
+            raise falcon.HTTPBadRequest(description=desc)
+        resp.set_header('Location', f'/sounds/{sound.id}')
+        resp.status = falcon.HTTP_CREATED
+
+
+class UsersResource(object):
     def on_post(self, req, resp):
         """
         Create a new user
@@ -121,10 +142,27 @@ class UsersResource(object):
         resp.status = falcon.HTTP_OK
 
 
-class UserResource(object):
-    def __init__(self, user_repo):
-        self.user_repo = user_repo
+class SoundResource(object):
 
+    @falcon.before(basic_auth)
+    def on_get(self, req, resp, sound_id):
+        # TODO: This is almost exactly the same code as GET /users/{user_id}
+        # below and could use some refactoring
+        actor = req.context['user']
+        session = req.context['session']
+
+        query = (Sound.id == sound_id)
+        try:
+            sound = next(session.filter(query, page_size=1, page_number=0))
+        except StopIteration:
+            raise falcon.HTTPNotFound()
+
+        sound_view = sound.view(actor)
+        resp.media = sound_view
+        resp.status = falcon.HTTP_OK
+
+
+class UserResource(object):
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id):
         """
@@ -198,16 +236,19 @@ class UserResource(object):
             raise falcon.HTTPForbidden()
 
 
+api = application = falcon.API(middleware=[
+    SessionMiddleware(users_repo, sounds_repo, annotations_repo)
+])
+
 extra_handlers = falcon.media.Handlers({
     'application/json': JSONHandler(),
 })
 
-api = application = falcon.API(middleware=[
-    SessionMiddleware(users_repo)
-])
 api.resp_options.media_handlers = extra_handlers
 
 # public endpoints
 api.add_route('/', RootResource(users_repo, sounds_repo, annotations_repo))
-api.add_route('/users', UsersResource(users_repo))
-api.add_route('/users/{user_id}', UserResource(users_repo))
+api.add_route('/users', UsersResource())
+api.add_route('/users/{user_id}', UserResource())
+api.add_route('/sounds', SoundsResource())
+api.add_route('/sounds/{sound_id}', SoundResource())

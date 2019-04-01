@@ -133,4 +133,4 @@ class Annotation(BaseAppEntity):
     duration_seconds = Immutable(required=True, value_transform=float)
     tags = Immutable(value_transform=tuple)
     # TODO: This should be null, or be a valid URL
-    data_url = Immutable()
+    data_url = URL()

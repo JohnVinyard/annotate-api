@@ -21,6 +21,9 @@ class SessionMiddleware(object):
         req.context['session'] = session
 
     def process_response(self, req, resp, resource, req_succeeded):
+        if not resource:
+            return
+
         session = req.context['session']
 
         if not req_succeeded:
