@@ -547,22 +547,70 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_explicit_created_by_is_ignored(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        sound_data['created_by'] = '1234'
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.get(self.url(sound_location), auth=auth)
+        self.assertEqual(client.OK, sound_resp.status_code)
+        self.assertEqual(user1_location, sound_resp.json()['created_by'])
 
     def test_user_is_returned_as_uri(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.get(self.url(sound_location), auth=auth)
+        self.assertEqual(client.OK, sound_resp.status_code)
+        self.assertEqual(user1_location, sound_resp.json()['created_by'])
 
     def test_can_head_sound(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.head(self.url(sound_location), auth=auth)
+        self.assertEqual(client.NO_CONTENT, sound_resp.status_code)
 
     def test_unauthorized_when_getting_sound_anonymously(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.head(self.url(sound_location))
+        self.assertEqual(client.UNAUTHORIZED, sound_resp.status_code)
 
     def test_sounds_are_immutable(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.patch(
+            self.url(sound_location),
+            json={'info_url': 'https://example.com'},
+            auth=auth)
+        self.assertEqual(client.METHOD_NOT_ALLOWED, sound_resp.status_code)
 
     def test_cannot_delete_sound(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.delete(self.url(sound_location), auth=auth)
+        self.assertEqual(client.METHOD_NOT_ALLOWED, sound_resp.status_code)
 
 
 class AnnotationTests(BaseTests, unittest2.TestCase):

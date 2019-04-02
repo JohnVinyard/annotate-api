@@ -158,6 +158,17 @@ class SoundResource(object):
         resp.media = sound_view
         resp.status = falcon.HTTP_OK
 
+    @falcon.before(basic_auth)
+    def on_head(self, req, resp, sound_id):
+        # TODO: This is almost exactly the same code as HEAD /users/{user_id}
+        # below and could use some refactoring
+        session = req.context['session']
+        count = session.count(Sound.id == sound_id)
+        if count == 1:
+            resp.status = falcon.HTTP_NO_CONTENT
+        else:
+            raise falcon.HTTPNotFound()
+
 
 class UserResource(object):
     @falcon.before(basic_auth)
