@@ -499,28 +499,52 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(sound_data['info_url'], sound_resp.json()['info_url'])
 
     def test_featurebot_cannot_create_sound(self):
-        self.fail()
+        user1, user1_location = self.create_user(user_type='featurebot')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.FORBIDDEN, resp.status_code)
 
     def test_unauthorized_when_creating_sound_anonymously(self):
-        self.fail()
-
-    def test_forbidden_when_creating_sound_as_featurebot(self):
-        self.fail()
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data)
+        self.assertEqual(client.UNAUTHORIZED, resp.status_code)
 
     def test_bad_request_for_bad_info_url(self):
-        self.fail()
+        user1, user1_location = self.create_user()
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data(info_url='blah')
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_bad_request_for_bad_audio_url(self):
-        self.fail()
+        user1, user1_location = self.create_user()
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data(audio_url='blah')
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_bad_request_for_bad_license_type(self):
-        self.fail()
+        user1, user1_location = self.create_user()
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data(license_type='blah')
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_bad_request_for_missing_title(self):
-        self.fail()
+        user1, user1_location = self.create_user()
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data(title='')
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_bad_request_for_missing_duration(self):
-        self.fail()
+        user1, user1_location = self.create_user()
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        del sound_data['duration_seconds']
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_explicit_created_by_is_ignored(self):
         self.fail()

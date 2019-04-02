@@ -145,16 +145,6 @@ class AnnotationRepository(MongoRepository):
         super().__init__(Annotation, AnnotationMapper, collection)
 
 
-# class SoundRepository(BaseMongoRepository):
-#     def __init__(self, collection):
-#         super().__init__(collection)
-#
-#
-# class AnnotationRepository(BaseMongoRepository):
-#     def __init__(self, collection):
-#         super().__init__(collection)
-
-
 users_repo = UserRepository(users_db)
 sounds_repo = SoundRepository(sounds_db)
 annotations_repo = AnnotationRepository(annotations_db)
