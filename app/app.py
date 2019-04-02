@@ -43,12 +43,10 @@ class RootResource(object):
     def on_get(self, req, resp):
         session = req.context['session']
 
-        # TODO: This should depend on session instead, and should get
-        # counts via len(User), len(Sound), etc.
         resp.media = {
-            'totalSounds': session.count(NoCriteria(Sound)),
-            'totalAnnotations': session.count(NoCriteria(Annotation)),
-            'totalUsers': session.count(NoCriteria(User))
+            'totalSounds': session.count(Sound.all_query()),
+            'totalAnnotations': session.count(Annotation.all_query()),
+            'totalUsers': session.count(User.all_query())
         }
         resp.status = falcon.HTTP_200
 

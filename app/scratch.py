@@ -557,6 +557,10 @@ class BaseEntity(object, metaclass=MetaEntity):
     def identity_query(self):
         raise NotImplementedError()
 
+    @classmethod
+    def all_query(cls):
+        return NoCriteria(cls)
+
     def validate(self):
         for field in self._metafields.values():
             try:
