@@ -236,6 +236,8 @@ class UserResource(object):
             raise falcon.HTTPForbidden()
 
 
+# TODO: Add error handlers to DRY out some of my exception handling code
+# https://falcon.readthedocs.io/en/stable/api/api.html#falcon.API.add_error_handler
 api = application = falcon.API(middleware=[
     SessionMiddleware(users_repo, sounds_repo, annotations_repo)
 ])
