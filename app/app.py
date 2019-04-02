@@ -18,9 +18,6 @@ def basic_auth(req, resp, resource, params):
         raise falcon.HTTPUnauthorized()
 
     session = params['session']
-
-    # This just about constitutes business logic, so it should be put in a
-    # collection of queries somewhere, maybe
     query = User.auth_query(username, password)
 
     try:
@@ -53,6 +50,11 @@ class RootResource(object):
         resp.status = falcon.HTTP_NO_CONTENT
 
 
+def transform_validation_errors_to_http_errors(e):
+    desc = [(err[0], err[1].args[0]) for err in e.args]
+    raise falcon.HTTPBadRequest(description=desc)
+
+
 class SoundsResource(object):
     @falcon.before(basic_auth)
     def on_post(self, req, resp, session, actor):
@@ -64,8 +66,7 @@ class SoundsResource(object):
         try:
             sound = Sound.create(creator=actor, **data)
         except ValueError as e:
-            desc = [(err[0], err[1].args[0]) for err in e.args]
-            raise falcon.HTTPBadRequest(description=desc)
+            transform_validation_errors_to_http_errors(e)
         resp.set_header('Location', f'/sounds/{sound.id}')
         resp.status = falcon.HTTP_CREATED
 
@@ -78,8 +79,7 @@ class UsersResource(object):
         try:
             user = User.create(**req.media)
         except ValueError as e:
-            desc = [(err[0], err[1].args[0]) for err in e.args]
-            raise falcon.HTTPBadRequest(description=desc)
+            transform_validation_errors_to_http_errors(e)
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
 
@@ -101,6 +101,7 @@ class UsersResource(object):
                 f'{page_size_min} and {page_size_max}')
 
         try:
+            # BUG: This should also check for deleted users
             query = \
                 (User.user_type == user_type) \
                     if user_type else NoCriteria(User)
@@ -132,55 +133,41 @@ class UsersResource(object):
         resp.status = falcon.HTTP_OK
 
 
+def get_entity(resp, session, actor, query):
+    try:
+        entity = next(session.filter(query, page_size=1, page_number=0))
+    except StopIteration:
+        raise falcon.HTTPNotFound()
+    view = entity.view(actor)
+    resp.media = view
+    resp.status = falcon.HTTP_OK
+
+
+def head_entity(resp, session, query):
+    count = session.count(query)
+    if count != 1:
+        raise falcon.HTTPNotFound()
+    resp.status = falcon.HTTP_NO_CONTENT
+
+
 class SoundResource(object):
     @falcon.before(basic_auth)
     def on_get(self, req, resp, sound_id, session, actor):
-        # TODO: This is almost exactly the same code as GET /users/{user_id}
-        # below and could use some refactoring
-        query = (Sound.id == sound_id)
-        try:
-            sound = next(session.filter(query, page_size=1, page_number=0))
-        except StopIteration:
-            raise falcon.HTTPNotFound()
-
-        sound_view = sound.view(actor)
-        resp.media = sound_view
-        resp.status = falcon.HTTP_OK
+        get_entity(resp, session, actor, Sound.id == sound_id)
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, sound_id, session, actor):
-        # TODO: This is almost exactly the same code as HEAD /users/{user_id}
-        # below and could use some refactoring
-        count = session.count(Sound.id == sound_id)
-        if count == 1:
-            resp.status = falcon.HTTP_NO_CONTENT
-        else:
-            raise falcon.HTTPNotFound()
+        head_entity(resp, session, Sound.id == sound_id)
 
 
 class UserResource(object):
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
-        """
-        Get an individual user
-        """
-        query = User.active_user_query(user_id)
-        try:
-            user_data = next(session.filter(query, page_size=1, page_number=0))
-        except StopIteration:
-            raise falcon.HTTPNotFound()
-
-        user_view = user_data.view(actor)
-        resp.media = user_view
-        resp.status = falcon.HTTP_OK
+        get_entity(resp, session, actor, User.active_user_query(user_id))
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id, session, actor):
-        count = session.count(User.active_user_query(user_id))
-        if count == 1:
-            resp.status = falcon.HTTP_NO_CONTENT
-        else:
-            raise falcon.HTTPNotFound()
+        head_entity(resp, session, User.active_user_query(user_id))
 
     @falcon.before(basic_auth)
     def on_delete(self, req, resp, user_id, session, actor):
@@ -192,7 +179,6 @@ class UserResource(object):
         # explicit, so that only that data need be fetched.  In this case,
         # the rule about who may delete whom only requires user id, which we
         # already have in this scenario.
-
         try:
             to_delete = next(session.filter(User.id == user_id))
         except StopIteration:
@@ -217,10 +203,7 @@ class UserResource(object):
         try:
             to_update.update(actor, **req.media)
         except ValueError as e:
-            # TODO: This code for transforming exceptions also appears in
-            # POST /users and should be factored into a common location
-            desc = [(err[0], err[1].args[0]) for err in e.args]
-            raise falcon.HTTPBadRequest(description=desc)
+            transform_validation_errors_to_http_errors(e)
         except PermissionsError:
             raise falcon.HTTPForbidden()
 

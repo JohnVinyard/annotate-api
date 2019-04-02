@@ -612,6 +612,9 @@ class SoundTests(BaseTests, unittest2.TestCase):
         sound_resp = requests.delete(self.url(sound_location), auth=auth)
         self.assertEqual(client.METHOD_NOT_ALLOWED, sound_resp.status_code)
 
+    def test_can_list_sounds(self):
+        self.fail()
+
 
 class AnnotationTests(BaseTests, unittest2.TestCase):
     def test_human_can_create_annotation(self):
