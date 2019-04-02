@@ -19,6 +19,7 @@ class SessionMiddleware(object):
     def process_resource(self, req, resp, resource, params):
         session = Session(*self.repositories).open()
         req.context['session'] = session
+        params['session'] = session
 
     def process_response(self, req, resp, resource, req_succeeded):
         if not resource:

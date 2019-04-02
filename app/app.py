@@ -28,7 +28,8 @@ def basic_auth(req, resp, resource, params):
 
     try:
         user = next(session.filter(query=query, page_size=1, page_number=0))
-        req.context['user'] = user
+        req.context['actor'] = user
+        params['actor'] = user
     except StopIteration:
         raise falcon.HTTPUnauthorized()
 
@@ -40,9 +41,7 @@ class RootResource(object):
         self.user_repo = user_repo
         super().__init__()
 
-    def on_get(self, req, resp):
-        session = req.context['session']
-
+    def on_get(self, req, resp, session):
         resp.media = {
             'totalSounds': session.count(Sound.all_query()),
             'totalAnnotations': session.count(Annotation.all_query()),
@@ -50,7 +49,7 @@ class RootResource(object):
         }
         resp.status = falcon.HTTP_200
 
-    def on_delete(self, req, resp):
+    def on_delete(self, req, resp, session):
         self.user_repo.delete_all()
         self.sound_repo.delete_all()
         self.annotation_repo.delete_all()
@@ -59,9 +58,7 @@ class RootResource(object):
 
 class SoundsResource(object):
     @falcon.before(basic_auth)
-    def on_post(self, req, resp):
-
-        actor = req.context['user']
+    def on_post(self, req, resp, session, actor):
         data = req.media
         data['created_by'] = actor
 
@@ -77,7 +74,7 @@ class SoundsResource(object):
 
 
 class UsersResource(object):
-    def on_post(self, req, resp):
+    def on_post(self, req, resp, session):
         """
         Create a new user
         """
@@ -90,7 +87,7 @@ class UsersResource(object):
         resp.status = falcon.HTTP_CREATED
 
     @falcon.before(basic_auth)
-    def on_get(self, req, resp):
+    def on_get(self, req, resp, session, actor):
         """
         List users
         """
@@ -113,14 +110,12 @@ class UsersResource(object):
         except ValueError as e:
             raise falcon.HTTPBadRequest(e.args[0])
 
-        session = req.context['session']
         query_result = session.filter(
             query,
             page_size,
             page_number,
             User.date_created.descending())
 
-        actor = req.context['user']
         results = {
             'items': [r.view(actor) for r in query_result.results],
             'total_count': query_result.total_count
@@ -142,12 +137,9 @@ class UsersResource(object):
 
 class SoundResource(object):
     @falcon.before(basic_auth)
-    def on_get(self, req, resp, sound_id):
+    def on_get(self, req, resp, sound_id, session, actor):
         # TODO: This is almost exactly the same code as GET /users/{user_id}
         # below and could use some refactoring
-        actor = req.context['user']
-        session = req.context['session']
-
         query = (Sound.id == sound_id)
         try:
             sound = next(session.filter(query, page_size=1, page_number=0))
@@ -159,10 +151,9 @@ class SoundResource(object):
         resp.status = falcon.HTTP_OK
 
     @falcon.before(basic_auth)
-    def on_head(self, req, resp, sound_id):
+    def on_head(self, req, resp, sound_id, session, actor):
         # TODO: This is almost exactly the same code as HEAD /users/{user_id}
         # below and could use some refactoring
-        session = req.context['session']
         count = session.count(Sound.id == sound_id)
         if count == 1:
             resp.status = falcon.HTTP_NO_CONTENT
@@ -172,13 +163,10 @@ class SoundResource(object):
 
 class UserResource(object):
     @falcon.before(basic_auth)
-    def on_get(self, req, resp, user_id):
+    def on_get(self, req, resp, user_id, session, actor):
         """
         Get an individual user
         """
-        actor = req.context['user']
-        session = req.context['session']
-
         query = (User.id == user_id) & (User.deleted == False)
         try:
             user_data = next(session.filter(query, page_size=1, page_number=0))
@@ -190,8 +178,7 @@ class UserResource(object):
         resp.status = falcon.HTTP_OK
 
     @falcon.before(basic_auth)
-    def on_head(self, req, resp, user_id):
-        session = req.context['session']
+    def on_head(self, req, resp, user_id, session, actor):
         count = session.count(User.id == user_id)
         if count == 1:
             resp.status = falcon.HTTP_NO_CONTENT
@@ -199,7 +186,7 @@ class UserResource(object):
             raise falcon.HTTPNotFound()
 
     @falcon.before(basic_auth)
-    def on_delete(self, req, resp, user_id):
+    def on_delete(self, req, resp, user_id, session, actor):
         """
         Delete an individual user
         """
@@ -208,8 +195,7 @@ class UserResource(object):
         # explicit, so that only that data need be fetched.  In this case,
         # the rule about who may delete whom only requires user id, which we
         # already have in this scenario.
-        actor = req.context['user']
-        session = req.context['session']
+
         try:
             to_delete = next(session.filter(User.id == user_id))
         except StopIteration:
@@ -221,12 +207,10 @@ class UserResource(object):
             raise falcon.HTTPForbidden()
 
     @falcon.before(basic_auth)
-    def on_patch(self, req, resp, user_id):
+    def on_patch(self, req, resp, user_id, session, actor):
         """
         Update a user
         """
-        actor = req.context['user']
-        session = req.context['session']
         query = (User.id == user_id) & (User.deleted == False)
         try:
             to_update = next(session.filter(query, page_size=1))
