@@ -76,6 +76,7 @@ class BaseAppEntity(BaseEntity):
 
 
 class User(BaseAppEntity):
+
     deleted = BaseDescriptor(
         default_value=False,
         visible=never,
@@ -94,6 +95,16 @@ class User(BaseAppEntity):
     email = Email(visible=is_me, evaluate_context=is_me)
 
     about_me = AboutMe(evaluate_context=is_me)
+
+    @classmethod
+    def auth_query(cls, user_name, password):
+        return (User.user_name == user_name) \
+            & (User.password == password) \
+            & (User.deleted == False)
+
+    @classmethod
+    def active_user_query(cls, user_id):
+        return (User.id == user_id) & (User.deleted == False)
 
 
 class LicenseType(Enum):

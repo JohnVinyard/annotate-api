@@ -17,14 +17,11 @@ def basic_auth(req, resp, resource, params):
     except TypeError:
         raise falcon.HTTPUnauthorized()
 
-    session = req.context['session']
+    session = params['session']
 
     # This just about constitutes business logic, so it should be put in a
     # collection of queries somewhere, maybe
-    query = \
-        (User.user_name == username) \
-        & (User.password == password) \
-        & (User.deleted == False)
+    query = User.auth_query(username, password)
 
     try:
         user = next(session.filter(query=query, page_size=1, page_number=0))
@@ -167,7 +164,7 @@ class UserResource(object):
         """
         Get an individual user
         """
-        query = (User.id == user_id) & (User.deleted == False)
+        query = User.active_user_query(user_id)
         try:
             user_data = next(session.filter(query, page_size=1, page_number=0))
         except StopIteration:
@@ -179,7 +176,7 @@ class UserResource(object):
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id, session, actor):
-        count = session.count(User.id == user_id)
+        count = session.count(User.active_user_query(user_id))
         if count == 1:
             resp.status = falcon.HTTP_NO_CONTENT
         else:
@@ -211,7 +208,7 @@ class UserResource(object):
         """
         Update a user
         """
-        query = (User.id == user_id) & (User.deleted == False)
+        query = User.active_user_query(user_id)
         try:
             to_update = next(session.filter(query, page_size=1))
         except StopIteration:
