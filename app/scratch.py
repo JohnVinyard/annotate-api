@@ -557,6 +557,10 @@ class BaseEntity(object, metaclass=MetaEntity):
     def identity_query(self):
         raise NotImplementedError()
 
+    @property
+    def identifier(self):
+        raise NotImplementedError()
+
     @classmethod
     def all_query(cls):
         return NoCriteria(cls)

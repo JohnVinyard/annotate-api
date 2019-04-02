@@ -57,17 +57,22 @@ class URL(Immutable):
 
 
 class BaseAppEntity(BaseEntity):
+
     id = BaseDescriptor(default_value=user_id_generator)
     date_created = Immutable(default_value=datetime.datetime.utcnow)
 
     @property
+    def identifier(self):
+        return self.id
+
+    @property
     def identity_query(self):
-        return self.__class__.id == self.id
+        return self.__class__.id == self.identifier
 
     @property
     def storage_key(self):
         # TODO: Can this be derived solely from the identity_query?
-        return self.__class__, self.id
+        return self.__class__, self.identifier
 
 
 class User(BaseAppEntity):

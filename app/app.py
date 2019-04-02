@@ -141,7 +141,6 @@ class UsersResource(object):
 
 
 class SoundResource(object):
-
     @falcon.before(basic_auth)
     def on_get(self, req, resp, sound_id):
         # TODO: This is almost exactly the same code as GET /users/{user_id}
@@ -240,8 +239,16 @@ api = application = falcon.API(middleware=[
     SessionMiddleware(users_repo, sounds_repo, annotations_repo)
 ])
 
+USER_URI_TEMPLATE = '/users/{user_id}'
+SOUND_URI_TEMPLATE = '/sounds/{sound_id}'
+
+ENTITIES_AS_LINKS = {
+    User: USER_URI_TEMPLATE,
+    Sound: SOUND_URI_TEMPLATE
+}
+
 extra_handlers = falcon.media.Handlers({
-    'application/json': JSONHandler(),
+    'application/json': JSONHandler(ENTITIES_AS_LINKS),
 })
 
 api.resp_options.media_handlers = extra_handlers
@@ -249,6 +256,6 @@ api.resp_options.media_handlers = extra_handlers
 # public endpoints
 api.add_route('/', RootResource(users_repo, sounds_repo, annotations_repo))
 api.add_route('/users', UsersResource())
-api.add_route('/users/{user_id}', UserResource())
+api.add_route(USER_URI_TEMPLATE, UserResource())
 api.add_route('/sounds', SoundsResource())
-api.add_route('/sounds/{sound_id}', SoundResource())
+api.add_route(SOUND_URI_TEMPLATE, SoundResource())
