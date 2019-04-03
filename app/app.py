@@ -184,10 +184,7 @@ class UserResource(object):
         except StopIteration:
             raise falcon.HTTPNotFound()
 
-        try:
-            to_delete.deleted = ContextualValue(actor, True)
-        except PermissionsError:
-            raise falcon.HTTPForbidden()
+        to_delete.deleted = ContextualValue(actor, True)
 
     @falcon.before(basic_auth)
     def on_patch(self, req, resp, user_id, session, actor):
@@ -204,8 +201,6 @@ class UserResource(object):
             to_update.update(actor, **req.media)
         except ValueError as e:
             transform_validation_errors_to_http_errors(e)
-        except PermissionsError:
-            raise falcon.HTTPForbidden()
 
 
 # TODO: Add error handlers to DRY out some of my exception handling code
