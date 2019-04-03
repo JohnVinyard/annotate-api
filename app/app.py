@@ -234,3 +234,11 @@ api.add_route('/users', UsersResource())
 api.add_route(USER_URI_TEMPLATE, UserResource())
 api.add_route('/sounds', SoundsResource())
 api.add_route(SOUND_URI_TEMPLATE, SoundResource())
+
+
+# custom errors
+def permissions_error(ex, req, resp, params):
+    raise falcon.HTTPForbidden(ex.args[0])
+
+
+api.add_error_handler(PermissionsError, permissions_error)

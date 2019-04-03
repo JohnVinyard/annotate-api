@@ -3,6 +3,7 @@ from password import password_hasher
 from identifier import user_id_generator
 from scratch import ContextualValue, BaseEntity, BaseDescriptor, Immutable, \
     never, always
+from errors import PermissionsError
 from enum import Enum
 import re
 from urllib.parse import urlparse
@@ -57,7 +58,6 @@ class URL(Immutable):
 
 
 class BaseAppEntity(BaseEntity):
-
     id = BaseDescriptor(default_value=user_id_generator)
     date_created = Immutable(default_value=datetime.datetime.utcnow)
 
@@ -76,7 +76,6 @@ class BaseAppEntity(BaseEntity):
 
 
 class User(BaseAppEntity):
-
     deleted = BaseDescriptor(
         default_value=False,
         visible=never,
@@ -99,8 +98,8 @@ class User(BaseAppEntity):
     @classmethod
     def auth_query(cls, user_name, password):
         return (User.user_name == user_name) \
-            & (User.password == password) \
-            & (User.deleted == False)
+               & (User.password == password) \
+               & (User.deleted == False)
 
     @classmethod
     def active_user_query(cls, user_id):
@@ -116,22 +115,12 @@ class LicenseType(Enum):
     BY_NC_ND = 'https://creativecommons.org/licenses/by-nc-nd/4.0'
 
 
-class SoundCreatedBy(Immutable):
-    def validate(self, instance):
-        user = instance.get(self.name)
-        if user.user_type == UserType.FEATUREBOT:
-            raise ValueError(f'{user.user_type} users may not create sounds')
-
-
 class Sound(BaseAppEntity):
-    # TODO: This should be a stored user
-    # TODO: The user should not be a featurebot
-    # TODO: It should be set with a user, but stored as an id
-    # TODO: It should be returned in the output as a link
-    created_by = SoundCreatedBy(required=True)
-    # TODO: This should be a valid url
+    created_by = Immutable(
+        required=True,
+        evaluate_context=lambda instance, context:
+            context.user_type != UserType.FEATUREBOT)
     info_url = URL(required=True)
-    # TODO: This should be a valid url
     audio_url = URL(required=True)
     license_type = Immutable(value_transform=LicenseType, required=True)
     title = Immutable(required=True)

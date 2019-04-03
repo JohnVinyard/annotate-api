@@ -503,6 +503,7 @@ class SoundTests(BaseTests, unittest2.TestCase):
         auth = self._get_auth(user1)
         sound_data = self.sound_data()
         resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        print(resp.content)
         self.assertEqual(client.FORBIDDEN, resp.status_code)
 
     def test_unauthorized_when_creating_sound_anonymously(self):
