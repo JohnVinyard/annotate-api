@@ -17,3 +17,8 @@ class PartialEntityUpdate(Exception):
     def __init__(self, entity):
         super().__init__(
             'f{entity} is partial but was modified in this session')
+
+
+class CompositeValidationError(ValueError):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

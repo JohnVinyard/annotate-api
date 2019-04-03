@@ -4,7 +4,9 @@ from model import User, ContextualValue, Sound, Annotation
 from httphelper import decode_auth_header, SessionMiddleware
 from customjson import JSONHandler
 import urllib
-from errors import DuplicateUserException, PermissionsError, ImmutableError
+from errors import \
+    DuplicateUserException, PermissionsError, ImmutableError, \
+    CompositeValidationError
 
 
 def basic_auth(req, resp, resource, params):
@@ -50,7 +52,7 @@ class RootResource(object):
         resp.status = falcon.HTTP_NO_CONTENT
 
 
-def transform_validation_errors_to_http_errors(e):
+def composite_validation_error(e, req, resp, params):
     desc = [(err[0], err[1].args[0]) for err in e.args]
     raise falcon.HTTPBadRequest(description=desc)
 
@@ -60,13 +62,7 @@ class SoundsResource(object):
     def on_post(self, req, resp, session, actor):
         data = req.media
         data['created_by'] = actor
-
-        # TODO: This looks exactly like UsersResource.post below.  Do some
-        # refactoring
-        try:
-            sound = Sound.create(creator=actor, **data)
-        except ValueError as e:
-            transform_validation_errors_to_http_errors(e)
+        sound = Sound.create(creator=actor, **data)
         resp.set_header('Location', f'/sounds/{sound.id}')
         resp.status = falcon.HTTP_CREATED
 
@@ -76,10 +72,7 @@ class UsersResource(object):
         """
         Create a new user
         """
-        try:
-            user = User.create(**req.media)
-        except ValueError as e:
-            transform_validation_errors_to_http_errors(e)
+        user = User.create(**req.media)
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
 
@@ -183,7 +176,6 @@ class UserResource(object):
             to_delete = next(session.filter(User.id == user_id))
         except StopIteration:
             raise falcon.HTTPNotFound()
-
         to_delete.deleted = ContextualValue(actor, True)
 
     @falcon.before(basic_auth)
@@ -196,11 +188,7 @@ class UserResource(object):
             to_update = next(session.filter(query, page_size=1))
         except StopIteration:
             raise falcon.HTTPNotFound()
-
-        try:
-            to_update.update(actor, **req.media)
-        except ValueError as e:
-            transform_validation_errors_to_http_errors(e)
+        to_update.update(actor, **req.media)
 
 
 # TODO: Add error handlers to DRY out some of my exception handling code
@@ -237,3 +225,5 @@ def permissions_error(ex, req, resp, params):
 
 
 api.add_error_handler(PermissionsError, permissions_error)
+api.add_error_handler(
+    CompositeValidationError, composite_validation_error)

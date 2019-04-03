@@ -1,6 +1,6 @@
 from errors import \
     PermissionsError, ImmutableError, DuplicateUserException, \
-    PartialEntityUpdate
+    PartialEntityUpdate, CompositeValidationError
 import threading
 from collections import defaultdict
 from enum import Enum
@@ -575,7 +575,7 @@ class BaseEntity(object, metaclass=MetaEntity):
     def raise_for_errors(self, *errors):
         errors = tuple(self.validate()) + errors
         if errors:
-            raise ValueError(*errors)
+            raise CompositeValidationError(*errors)
 
     def view(self, context):
         return \
