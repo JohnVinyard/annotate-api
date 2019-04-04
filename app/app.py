@@ -67,6 +67,54 @@ class SoundsResource(object):
         resp.status = falcon.HTTP_CREATED
 
 
+# TODO: Add date_created and exclude_id criteria to support Kafka-like
+# streams (i.e., client keeps track of last date_created and id seen and makes
+# a new request)
+def list_entity(
+        req,
+        resp,
+        session,
+        actor,
+        query,
+        result_order,
+        link_template,
+        additional_params=None):
+    page_size = req.get_param_as_int('page_size')
+    page_number = req.get_param_as_int('page_number') or 0
+
+    page_size_min = 1
+    page_size_max = 500
+
+    if page_size < page_size_min or page_size > page_size_max:
+        raise falcon.HTTPBadRequest(
+            f'Page size must be between '
+            f'{page_size_min} and {page_size_max}')
+
+    query_result = session.filter(
+        query,
+        page_size,
+        page_number,
+        result_order)
+
+    results = {
+        'items': [r.view(actor) for r in query_result.results],
+        'total_count': query_result.total_count
+    }
+
+    if query_result.next_page is not None:
+        query_params = {
+            'page_size': page_size,
+            'page_number': query_result.next_page,
+        }
+        query_params.update(**additional_params)
+        query_params = {k: v for k, v in query_params.items() if v}
+        encoded_params = urllib.parse.urlencode(query_params)
+        results['next'] = link_template.format(encoded_params=encoded_params)
+
+    resp.media = results
+    resp.status = falcon.HTTP_OK
+
+
 class UsersResource(object):
     def on_post(self, req, resp, session):
         """
@@ -78,52 +126,26 @@ class UsersResource(object):
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
-        """
-        List users
-        """
-        page_size = req.get_param_as_int('page_size')
-        page_number = req.get_param_as_int('page_number') or 0
-        user_type = req.get_param('user_type')
+        user_type = req.get_param(User.user_type.name)
 
-        page_size_min = 1
-        page_size_max = 500
+        base_query = User.deleted == False
+        if user_type:
+            try:
+                query = (base_query & (User.user_type == user_type))
+            except ValueError as e:
+                raise falcon.HTTPBadRequest(e.args[0])
+        else:
+            query = base_query
 
-        if page_size < page_size_min or page_size > page_size_max:
-            raise falcon.HTTPBadRequest(
-                f'Page size must be between '
-                f'{page_size_min} and {page_size_max}')
-
-        try:
-            # BUG: This should also check for deleted users
-            query = \
-                (User.user_type == user_type) \
-                    if user_type else NoCriteria(User)
-        except ValueError as e:
-            raise falcon.HTTPBadRequest(e.args[0])
-
-        query_result = session.filter(
+        list_entity(
+            req,
+            resp,
+            session,
+            actor,
             query,
-            page_size,
-            page_number,
-            User.date_created.descending())
-
-        results = {
-            'items': [r.view(actor) for r in query_result.results],
-            'total_count': query_result.total_count
-        }
-
-        if query_result.next_page is not None:
-            query_params = {
-                'page_size': page_size,
-                'page_number': query_result.next_page,
-                'user_type': user_type
-            }
-            query_params = {k: v for k, v in query_params.items() if v}
-            encoded_params = urllib.parse.urlencode(query_params)
-            results['next'] = f'/users?{encoded_params}'
-
-        resp.media = results
-        resp.status = falcon.HTTP_OK
+            User.date_created.descending(),
+            '/users?{encoded_params}',
+            additional_params={User.user_type.name: user_type})
 
 
 def get_entity(resp, session, actor, query):
