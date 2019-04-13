@@ -5,6 +5,7 @@ from http import client
 import time
 import os
 import uuid
+from datetime import datetime
 
 path, fn = os.path.split(__file__)
 
@@ -231,9 +232,6 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(4, len(items))
         self.assertEqual(1, len(items[-1]))
         self.assertEqual(10, sum(len(item) for item in items))
-
-    def test_supports_something_stream_like(self):
-        self.fail()
 
     def test_can_view_most_data_about_self_when_listing_users(self):
         user1, user1_location = self.create_user()
@@ -652,12 +650,51 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(3, len(items[-1]))
         self.assertEqual(93, sum(len(item) for item in items))
 
-    def test_supports_something_stream_like(self):
+    def test_can_list_sounds_by_user_id(self):
         self.fail()
+
+    def test_can_list_sounds_by_user_name(self):
+        self.fail()
+
+    def test_supports_something_stream_like(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        for _ in range(10):
+            sound_id = uuid.uuid4().hex
+            sound_data = self.sound_data(
+                audio_url=f'https://example.com/{sound_id}')
+            requests.post(
+                self.sounds_resource(), json=sound_data, auth=auth)
+            time.sleep(0.1)
+
+        resp = requests.get(
+            self.sounds_resource(),
+            params={'page_size': 5},
+            auth=auth)
+
+        self.assertEqual(client.OK, resp.status_code)
+        self.assertEqual(5, len(resp.json()['items']))
+        self.assertEqual(10, resp.json()['total_count'])
+
+        latest_date = datetime.strptime(
+            resp.json()['items'][-1]['date_created'],
+            '%Y-%m-%dT%H:%M:%S.%fZ')
+
+        resp = requests.get(
+            self.sounds_resource(),
+            params={
+                'page_size': 10,
+                'earliest_date': latest_date.isoformat() + 'Z'
+            },
+            auth=auth)
+
+        self.assertEqual(client.OK, resp.status_code)
+        self.assertEqual(5, resp.json()['total_count'])
+        self.assertEqual(5, len(resp.json()['items']))
 
 
 class AnnotationTests(BaseTests, unittest2.TestCase):
-
     def tearDown(self):
         self.delete_all_data()
 

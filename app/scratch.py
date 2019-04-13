@@ -60,6 +60,12 @@ class NoCriteria(object):
     def __init__(self, cls):
         self._entity_cls = cls
 
+    def __and__(self, other):
+        return other
+
+    def __or__(self, other):
+        return other
+
     def to_lambda(self, varname, mapper, raw=False):
         import ast
         l = f'lambda {varname}: True'
@@ -78,6 +84,10 @@ class Query(object):
     AND = 'and'
     EQUAL_TO = '=='
     NOT_EQUAL_TO = '!='
+    GREATER_THAN = '>'
+    GREATER_THAN_OR_EQUAL_TO = '>='
+    LESS_THAN = '<'
+    LESS_THAN_OR_EQUAL_TO = '<='
 
     def __init__(self, lhs, rhs, op):
         super().__init__()
@@ -357,6 +367,18 @@ class BaseDescriptor(object):
 
     def __ne__(self, other):
         return Query(self, other, Query.NOT_EQUAL_TO)
+
+    def __gt__(self, other):
+        return Query(self, other, Query.GREATER_THAN)
+
+    def __ge__(self, other):
+        return Query(self, other, Query.GREATER_THAN_OR_EQUAL_TO)
+
+    def __lt__(self, other):
+        return Query(self, other, Query.LESS_THAN)
+
+    def __le__(self, other):
+        return Query(self, other, Query.LESS_THAN_OR_EQUAL_TO)
 
     def __get__(self, instance, owner):
         if instance is None:

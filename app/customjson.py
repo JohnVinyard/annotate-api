@@ -26,8 +26,7 @@ class JsonEncoder(json.JSONEncoder):
             pass
 
         if isinstance(o, datetime.datetime):
-            return datetime.datetime.utcnow() \
-                .replace(tzinfo=pytz.utc).isoformat()
+            return datetime.datetime.utcnow().isoformat() + 'Z'
         elif isinstance(o, Enum):
             return o.value
         else:

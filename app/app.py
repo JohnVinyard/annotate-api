@@ -69,6 +69,7 @@ def list_entity(
         result_order,
         link_template,
         additional_params=None):
+
     page_size = req.get_param_as_int('page_size')
     page_number = req.get_param_as_int('page_number') or 0
 
@@ -118,15 +119,21 @@ class SoundsResource(object):
     def on_get(self, req, resp, session, actor):
         created_by_key = Sound.created_by.name
 
-        # TODO: There will likely be an error here when trying to create
-        # a query directly with a user id instead of a User instance.  Maybe
-        # user .partial()?
         user_id = req.get_param(created_by_key)
+        additional_params = {}
 
         if user_id:
             query = Sound.created_by == User.partial(id=user_id)
+            additional_params[created_by_key] = user_id
         else:
             query = Sound.all_query()
+
+        created_after = req.get_param_as_datetime(
+            'earliest_date',
+            format_string='%Y-%m-%dT%H:%M:%S.%fZ')
+        if created_after:
+            query = query & (Sound.date_created > created_after)
+            additional_params['earliest_date'] = created_after
 
         list_entity(
             req,
@@ -134,11 +141,9 @@ class SoundsResource(object):
             session,
             actor,
             query,
-            # TODO: Sort should be passed in the request (for User too) to
-            # support both "recent" and Kafka stream-like behavior
-            Sound.date_created.descending(),
+            Sound.date_created.ascending(),
             '/sounds?{encoded_params}',
-            additional_params={created_by_key: user_id})
+            additional_params=additional_params)
 
 
 class UsersResource(object):

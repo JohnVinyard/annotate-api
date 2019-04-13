@@ -36,11 +36,22 @@ class MongoRepository(BaseRepository):
         Query.AND: '$and',
         Query.OR: '$or',
         Query.EQUAL_TO: '$eq',
-        Query.NOT_EQUAL_TO: '$ne'
+        Query.NOT_EQUAL_TO: '$ne',
+        Query.GREATER_THAN: '$gt',
+        Query.GREATER_THAN_OR_EQUAL_TO: '$gte',
+        Query.LESS_THAN: '$lt',
+        Query.LESS_THAN_OR_EQUAL_TO: '$lte'
     }
 
     BOOLEAN_OPS = {Query.AND, Query.OR}
-    COMPARISON_OPS = {Query.EQUAL_TO, Query.NOT_EQUAL_TO}
+    COMPARISON_OPS = {
+        Query.EQUAL_TO,
+        Query.NOT_EQUAL_TO,
+        Query.GREATER_THAN,
+        Query.GREATER_THAN_OR_EQUAL_TO,
+        Query.LESS_THAN,
+        Query.LESS_THAN_OR_EQUAL_TO
+    }
 
     SORT_ORDER_MAPPING = {
         SortOrder.ASCENDING: ASCENDING,

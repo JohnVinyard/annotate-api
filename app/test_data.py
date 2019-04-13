@@ -73,7 +73,9 @@ def sound(
         license_type=None,
         title=None,
         duration_seconds=None):
+
     return Sound.create(
+        creator=creator,
         created_by=creator,
         info_url=info_url or 'https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
         audio_url=audio_url or 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
@@ -184,9 +186,9 @@ class SoundTests(unittest2.TestCase):
         snd = sound(user)
         self.assertEqual(snd.created_by, user)
 
-    def test_validation_error_when_creator_is_featurebot(self):
+    def test_permission_error_when_creator_is_featurebot(self):
         user = User.create(**user1(user_type=UserType.FEATUREBOT))
-        self.assertRaises(ValueError, lambda: sound(user))
+        self.assertRaises(PermissionsError, lambda: sound(user))
 
     def test_validation_error_when_info_url_is_invalid(self):
         user = User.create(**user1())
