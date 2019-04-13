@@ -10,7 +10,6 @@ path, fn = os.path.split(__file__)
 
 
 class BaseTests(object):
-
     def _user_create_data(
             self,
             user_name=None,
@@ -232,6 +231,9 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(4, len(items))
         self.assertEqual(1, len(items[-1]))
         self.assertEqual(10, sum(len(item) for item in items))
+
+    def test_supports_something_stream_like(self):
+        self.fail()
 
     def test_can_view_most_data_about_self_when_listing_users(self):
         user1, user1_location = self.create_user()
@@ -487,6 +489,9 @@ class UserTests(BaseTests, unittest2.TestCase):
 
 
 class SoundTests(BaseTests, unittest2.TestCase):
+    def tearDown(self):
+        self.delete_all_data()
+
     def test_dataset_can_create_sound(self):
         user1, user1_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user1)
@@ -614,10 +619,48 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(client.METHOD_NOT_ALLOWED, sound_resp.status_code)
 
     def test_can_list_sounds(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        for _ in range(93):
+            sound_id = uuid.uuid4().hex
+            sound_data = self.sound_data(
+                audio_url=f'https://example.com/{sound_id}')
+            requests.post(
+                self.sounds_resource(), json=sound_data, auth=auth)
+
+        resp = requests.get(
+            self.sounds_resource(),
+            params={'page_size': 10},
+            auth=auth)
+
+        self.assertEqual(client.OK, resp.status_code)
+        resp_data = resp.json()
+        self.assertEqual(10, len(resp_data['items']))
+        self.assertEqual(93, resp_data['total_count'])
+
+        items = [resp_data['items']]
+
+        while 'next' in resp_data:
+            current = requests.get(
+                self.url(resp_data['next']),
+                auth=auth)
+            resp_data = current.json()
+            items.append(resp_data['items'])
+
+        self.assertEqual(10, len(items))
+        self.assertEqual(3, len(items[-1]))
+        self.assertEqual(93, sum(len(item) for item in items))
+
+    def test_supports_something_stream_like(self):
         self.fail()
 
 
 class AnnotationTests(BaseTests, unittest2.TestCase):
+
+    def tearDown(self):
+        self.delete_all_data()
+
     def test_human_can_create_annotation(self):
         self.fail()
 

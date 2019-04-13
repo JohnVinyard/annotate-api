@@ -57,16 +57,6 @@ def composite_validation_error(e, req, resp, params):
     raise falcon.HTTPBadRequest(description=desc)
 
 
-class SoundsResource(object):
-    @falcon.before(basic_auth)
-    def on_post(self, req, resp, session, actor):
-        data = req.media
-        data['created_by'] = actor
-        sound = Sound.create(creator=actor, **data)
-        resp.set_header('Location', f'/sounds/{sound.id}')
-        resp.status = falcon.HTTP_CREATED
-
-
 # TODO: Add date_created and exclude_id criteria to support Kafka-like
 # streams (i.e., client keeps track of last date_created and id seen and makes
 # a new request)
@@ -113,6 +103,42 @@ def list_entity(
 
     resp.media = results
     resp.status = falcon.HTTP_OK
+
+
+class SoundsResource(object):
+    @falcon.before(basic_auth)
+    def on_post(self, req, resp, session, actor):
+        data = req.media
+        data['created_by'] = actor
+        sound = Sound.create(creator=actor, **data)
+        resp.set_header('Location', f'/sounds/{sound.id}')
+        resp.status = falcon.HTTP_CREATED
+
+    @falcon.before(basic_auth)
+    def on_get(self, req, resp, session, actor):
+        created_by_key = Sound.created_by.name
+
+        # TODO: There will likely be an error here when trying to create
+        # a query directly with a user id instead of a User instance.  Maybe
+        # user .partial()?
+        user_id = req.get_param(created_by_key)
+
+        if user_id:
+            query = Sound.created_by == User.partial(id=user_id)
+        else:
+            query = Sound.all_query()
+
+        list_entity(
+            req,
+            resp,
+            session,
+            actor,
+            query,
+            # TODO: Sort should be passed in the request (for User too) to
+            # support both "recent" and Kafka stream-like behavior
+            Sound.date_created.descending(),
+            '/sounds?{encoded_params}',
+            additional_params={created_by_key: user_id})
 
 
 class UsersResource(object):
