@@ -1,1 +1,1 @@
-sudo docker-compose stop
+sudo docker-compose stop --timeout 30

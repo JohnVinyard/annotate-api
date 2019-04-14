@@ -37,10 +37,6 @@ class SessionMiddleware(object):
         except Exception as e:
             if isinstance(e, DuplicateUserException):
                 raise falcon.HTTPConflict()
-            elif isinstance(e, PermissionsError):
-                raise falcon.HTTPForbidden()
-            elif isinstance(e, ImmutableError):
-                raise falcon.HTTPBadRequest()
             else:
                 logging.error(e)
                 raise
