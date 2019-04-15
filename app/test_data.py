@@ -253,6 +253,21 @@ class SoundDataTests(unittest2.TestCase):
         self.assertIsInstance(snd.created_by, User)
         self.assertEqual(snd.created_by.id, user_id)
 
+    def test_date_created_matches(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            date_created = snd.date_created
+            sound_id = snd.id
+        with self._session() as s:
+            snd = next(s.filter(Sound.id == sound_id))
+
+        self.assertEqual(date_created, snd.date_created)
+
 
 class DataTests(unittest2.TestCase):
     def setUp(self):

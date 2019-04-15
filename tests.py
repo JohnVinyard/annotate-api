@@ -121,6 +121,7 @@ class SmokeTests(BaseTests, unittest2.TestCase):
     """
     Basic tests to ensure that the API is up and responding to requests
     """
+
     def tearDown(self):
         self.delete_all_data()
 

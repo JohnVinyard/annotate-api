@@ -69,7 +69,6 @@ def list_entity(
         result_order,
         link_template,
         additional_params=None):
-
     page_size = req.get_param_as_int('page_size')
     page_number = req.get_param_as_int('page_number') or 0
 
@@ -244,8 +243,6 @@ class UserResource(object):
         to_update.update(actor, **req.media)
 
 
-# TODO: Add error handlers to DRY out some of my exception handling code
-# https://falcon.readthedocs.io/en/stable/api/api.html#falcon.API.add_error_handler
 api = application = falcon.API(middleware=[
     SessionMiddleware(users_repo, sounds_repo, annotations_repo)
 ])
