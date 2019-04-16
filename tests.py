@@ -70,6 +70,20 @@ class BaseTests(object):
             tags=tags,
             data_url=data_url)
 
+    def _create_sound_with_user(self, auth):
+        sound_id = uuid.uuid4().hex
+        sound_data = self.sound_data(
+            audio_url=f'https://example.com/{sound_id}')
+        resp = requests.post(
+            self.sounds_resource(), json=sound_data, auth=auth)
+        return resp.headers['location'].split('/')[-1]
+
+    def _create_sounds_with_user(self, auth, n_sounds, delay=None):
+        for _ in range(n_sounds):
+            self._create_sound_with_user(auth)
+            if delay:
+                time.sleep(delay)
+
     @classmethod
     def startup_executable(cls):
         return os.path.join(path, 'start.sh')
@@ -93,6 +107,14 @@ class BaseTests(object):
     @classmethod
     def sounds_resource(cls, sound_id=''):
         return cls.url(f'/sounds/{sound_id}')
+
+    @classmethod
+    def user_sounds_resource(cls, user_id=''):
+        return cls.url(f'/users/{user_id}/sounds')
+
+    @classmethod
+    def user_annotations_resource(cls, user_id=''):
+        return cls.url(f'/users/{user_id}/annotations')
 
     @classmethod
     def sound_annotations_resource(cls, sound_id=''):
@@ -658,16 +680,6 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(3, len(items[-1]))
         self.assertEqual(93, sum(len(item) for item in items))
 
-    def _create_sounds_with_user(self, auth, n_sounds, delay=None):
-        for _ in range(n_sounds):
-            sound_id = uuid.uuid4().hex
-            sound_data = self.sound_data(
-                audio_url=f'https://example.com/{sound_id}')
-            requests.post(
-                self.sounds_resource(), json=sound_data, auth=auth)
-            if delay:
-                time.sleep(delay)
-
     def test_can_list_sounds_by_user_id(self):
         user1, user1_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user1)
@@ -755,17 +767,88 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(5, len(resp.json()['items']))
 
 
+class UserSoundTests(BaseTests, unittest2.TestCase):
+    def test_not_found_for_nonexistent_user(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        self._create_sounds_with_user(auth, 5)
+        resp = requests.get(
+            self.user_sounds_resource('BAD_USER_ID'),
+            params={'page_size': 10},
+            auth=auth)
+        self.assertEqual(client.NOT_FOUND, resp.status_code)
+
+    def test_can_list_all_sounds_from_user(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        self._create_sounds_with_user(auth, 5)
+        user2, user2_location = self.create_user(user_type='dataset')
+        auth2 = self._get_auth(user2)
+        user2_id = user1_location.split('/')[-1]
+
+        self._create_sounds_with_user(auth2, 5)
+        resp = requests.get(
+            self.user_sounds_resource(user2_id),
+            params={'page_size': 10},
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(5, len(items))
+        user_uri = f'/users/{user2_id}'
+        self.assertTrue(all([item['created_by'] == user_uri for item in items]))
+
+
+class UserAnnotationTests(BaseTests, unittest2.TestCase):
+    def test_not_found_for_nonexistent_user(self):
+        user, user_location = self.create_user(user_type='dataset')
+        user_id = user_location.split('/')[-1]
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(10)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        resp = requests.get(
+            self.user_annotations_resource('BAD_USER_ID'), auth=auth)
+        self.assertEqual(client.NOT_FOUND, resp.status_code)
+
+    def test_can_list_all_annotations_for_user(self):
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(10)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        fb, fb_location = self.create_user(user_type='featurebot')
+        fb_auth = self._get_auth(fb)
+        fb_id = fb_location.split('/')[-1]
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(3)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=fb_auth)
+
+        user_uri = f'/users/{fb_id}'
+        resp = requests.get(
+            self.user_annotations_resource(fb_id),
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(3, len(items))
+        self.assertTrue(all([item['created_by'] == user_uri for item in items]))
+
+
 class AnnotationTests(BaseTests, unittest2.TestCase):
     def tearDown(self):
         self.delete_all_data()
-
-    def _create_sound_with_user(self, auth):
-        sound_id = uuid.uuid4().hex
-        sound_data = self.sound_data(
-            audio_url=f'https://example.com/{sound_id}')
-        resp = requests.post(
-            self.sounds_resource(), json=sound_data, auth=auth)
-        return resp.headers['location'].split('/')[-1]
 
     def test_human_can_create_annotation(self):
         user, user_location = self.create_user(user_type='human')

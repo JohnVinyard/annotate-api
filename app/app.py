@@ -209,6 +209,44 @@ class SoundAnnotationsResource(object):
             f'/sounds/{sound_id}/annotations?{{encoded_params}}')
 
 
+class UserSoundsResource(object):
+    """
+    List sounds created by a user
+    """
+
+    @falcon.before(basic_auth)
+    def on_get(self, req, resp, user_id, session, actor):
+        user = domain_entity(session, User.id == user_id)
+        query = Sound.created_by == user
+        list_entity(
+            req,
+            resp,
+            session,
+            actor,
+            query,
+            Sound.date_created.ascending(),
+            f'/users/{user_id}/sounds?{{encoded_params}}')
+
+
+class UserAnnotationResource(object):
+    """
+    List annotations created by a user
+    """
+
+    @falcon.before(basic_auth)
+    def on_get(self, req, resp, user_id, session, actor):
+        user = domain_entity(session, User.id == user_id)
+        query = Annotation.created_by == user
+        list_entity(
+            req,
+            resp,
+            session,
+            actor,
+            query,
+            Annotation.date_created.ascending(),
+            f'/users/{user_id}/annotations?{{encoded_params}}')
+
+
 class UsersResource(object):
     def on_post(self, req, resp, session):
         """
@@ -315,6 +353,8 @@ api.add_route(USER_URI_TEMPLATE, UserResource())
 api.add_route('/sounds', SoundsResource())
 api.add_route(SOUND_URI_TEMPLATE, SoundResource())
 api.add_route('/sounds/{sound_id}/annotations', SoundAnnotationsResource())
+api.add_route('/users/{user_id}/sounds', UserSoundsResource())
+api.add_route('/users/{user_id}/annotations', UserAnnotationResource())
 
 
 # custom errors
