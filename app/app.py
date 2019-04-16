@@ -69,7 +69,7 @@ def list_entity(
         result_order,
         link_template,
         additional_params=None):
-    page_size = req.get_param_as_int('page_size')
+    page_size = req.get_param_as_int('page_size') or 100
     page_number = req.get_param_as_int('page_number') or 0
 
     page_size_min = 1
@@ -145,6 +145,70 @@ class SoundsResource(object):
             additional_params=additional_params)
 
 
+def domain_entity(session, query):
+    try:
+        # TODO: There should be an option to exclude the total count here
+        return next(session.filter(query, page_size=1, page_number=0))
+    except StopIteration:
+        raise falcon.HTTPNotFound()
+
+
+def view_entity(session, actor, query):
+    entity = domain_entity(session, query)
+    view = entity.view(actor)
+    return view
+
+
+def get_entity(resp, session, actor, query):
+    view = view_entity(session, actor, query)
+    resp.media = view
+    resp.status = falcon.HTTP_OK
+
+
+def head_entity(resp, session, query):
+    count = session.count(query)
+    if count != 1:
+        raise falcon.HTTPNotFound()
+    resp.status = falcon.HTTP_NO_CONTENT
+
+
+class SoundAnnotationsResource(object):
+    """
+    Create and list annotations associated with a sound
+    """
+
+    @falcon.before(basic_auth)
+    def on_post(self, req, resp, sound_id, session, actor):
+        """
+        Create new annotations for a sound
+        """
+        sound = domain_entity(session, Sound.id == sound_id)
+        for annotation in req.media['annotations']:
+            annotation['created_by'] = actor
+            annotation['sound'] = sound
+            Annotation.create(
+                creator=actor,
+                **annotation)
+        resp.set_header('Location', f'/sounds/{sound_id}/annotations')
+        resp.status = falcon.HTTP_CREATED
+
+    @falcon.before(basic_auth)
+    def on_get(self, req, resp, sound_id, session, actor):
+        """
+        List annotations for a sound
+        """
+        sound = domain_entity(session, Sound.id == sound_id)
+        query = Annotation.sound == sound
+        list_entity(
+            req,
+            resp,
+            session,
+            actor,
+            query,
+            Annotation.date_created.ascending(),
+            f'/sounds/{sound_id}/annotations?{{encoded_params}}')
+
+
 class UsersResource(object):
     def on_post(self, req, resp, session):
         """
@@ -176,23 +240,6 @@ class UsersResource(object):
             User.date_created.descending(),
             '/users?{encoded_params}',
             additional_params={User.user_type.name: user_type})
-
-
-def get_entity(resp, session, actor, query):
-    try:
-        entity = next(session.filter(query, page_size=1, page_number=0))
-    except StopIteration:
-        raise falcon.HTTPNotFound()
-    view = entity.view(actor)
-    resp.media = view
-    resp.status = falcon.HTTP_OK
-
-
-def head_entity(resp, session, query):
-    count = session.count(query)
-    if count != 1:
-        raise falcon.HTTPNotFound()
-    resp.status = falcon.HTTP_NO_CONTENT
 
 
 class SoundResource(object):
@@ -267,6 +314,7 @@ api.add_route('/users', UsersResource())
 api.add_route(USER_URI_TEMPLATE, UserResource())
 api.add_route('/sounds', SoundsResource())
 api.add_route(SOUND_URI_TEMPLATE, SoundResource())
+api.add_route('/sounds/{sound_id}/annotations', SoundAnnotationsResource())
 
 
 # custom errors

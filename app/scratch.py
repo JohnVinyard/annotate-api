@@ -383,7 +383,7 @@ class BaseDescriptor(object):
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        value = instance._data[self.name]
+        value = instance._data.get(self.name, self.default_value)
         return value
 
     def __set__(self, instance, value):
@@ -473,9 +473,13 @@ class BaseMapper(object, metaclass=MetaMapper):
 
     @classmethod
     def from_storage(cls, data):
-        transformed = dict(
-            mapping.from_storage(data)
-            for mapping in cls._mapped_fields.values())
+        transformed = dict()
+        for mapping in cls._mapped_fields.values():
+            try:
+                key, value = mapping.from_storage(data)
+                transformed[key] = value
+            except KeyError:
+                pass
         return cls.entity_class.hydrate(**transformed)
 
 

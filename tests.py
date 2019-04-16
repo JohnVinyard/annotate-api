@@ -63,6 +63,13 @@ class BaseTests(object):
             duration_seconds=duration_seconds or (6 * 60) + 42
         )
 
+    def annotation_data(self, tags=None, data_url=None):
+        return dict(
+            start_seconds=1,
+            duration_seconds=1,
+            tags=tags,
+            data_url=data_url)
+
     @classmethod
     def startup_executable(cls):
         return os.path.join(path, 'start.sh')
@@ -81,11 +88,15 @@ class BaseTests(object):
 
     @classmethod
     def users_resource(cls, user_id=''):
-        return cls.url('/users/{user_id}'.format(**locals()))
+        return cls.url(f'/users/{user_id}')
 
     @classmethod
     def sounds_resource(cls, sound_id=''):
-        return cls.url('/sounds/{sound_id}'.format(**locals()))
+        return cls.url(f'/sounds/{sound_id}')
+
+    @classmethod
+    def sound_annotations_resource(cls, sound_id=''):
+        return cls.url(f'/sounds/{sound_id}/annotations')
 
     @classmethod
     def delete_all_data(cls):
@@ -748,11 +759,130 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
     def tearDown(self):
         self.delete_all_data()
 
+    def _create_sound_with_user(self, auth):
+        sound_id = uuid.uuid4().hex
+        sound_data = self.sound_data(
+            audio_url=f'https://example.com/{sound_id}')
+        resp = requests.post(
+            self.sounds_resource(), json=sound_data, auth=auth)
+        return resp.headers['location'].split('/')[-1]
+
     def test_human_can_create_annotation(self):
-        self.fail()
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(tags=['drums'])
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
 
     def test_featurebot_can_create_annotation(self):
-        self.fail()
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+
+        fb, fb_location = self.create_user(user_type='featurebot')
+        fb_auth = self._get_auth(fb)
+        annotation_data = self.annotation_data(tags=['drums'])
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=fb_auth)
+        self.assertEqual(client.CREATED, resp.status_code)
 
     def test_dataset_can_create_annotation(self):
-        self.fail()
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(tags=['drums'])
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+
+    def test_can_create_multiple_annotations_at_once(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(10)]
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+
+    def test_cannot_create_annotation_for_nonexistent_sound(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(tags=['drums'])
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id + 'WRONG'),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+        self.assertEqual(client.NOT_FOUND, resp.status_code)
+
+    def test_can_list_annotations_for_a_sound(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(10)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+        resp = requests.get(
+            self.sound_annotations_resource(sound_id),
+            auth=auth)
+        self.assertEqual(10, len(resp.json()['items']))
+
+    def test_not_found_when_listing_annotations_for_nonexistent_sound(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        resp = requests.get(
+            self.sound_annotations_resource('WRONG'),
+            auth=auth)
+        self.assertEqual(client.NOT_FOUND, resp.status_code)
+
+    def test_can_create_annotation_with_external_data_url(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(data_url='https://example.com')
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+
+    def test_no_annotations_are_created_when_one_is_invalid(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+
+        def data_url(i):
+            return 'WRONG' if i == 0 else 'https://example.com'
+
+        annotation_data = \
+            [self.annotation_data(data_url=data_url(i)) for i in range(10)]
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_bad_request_when_creating_annotation_with_invalid_data_url(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(data_url='WRONG')
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)

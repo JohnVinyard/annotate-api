@@ -3,7 +3,6 @@ from password import password_hasher
 from identifier import user_id_generator
 from scratch import ContextualValue, BaseEntity, BaseDescriptor, Immutable, \
     never, always
-from errors import PermissionsError
 from enum import Enum
 import re
 from urllib.parse import urlparse
@@ -50,8 +49,11 @@ class Email(Immutable):
 
 
 class URL(Immutable):
+
     def validate(self, instance):
         value = instance.get(self.name)
+        if value is None:
+            return
         parsed = urlparse(value)
         if not all((parsed.scheme, parsed.netloc)):
             raise ValueError(f'{value} is not a valid {self.name}')
@@ -128,14 +130,9 @@ class Sound(BaseAppEntity):
 
 
 class Annotation(BaseAppEntity):
-    # TODO: This should be a stored user
-    # TODO: It should be set with a user, but stored as an id
-    # TODO: It should be returned in the output as a link
     created_by = Immutable(required=True)
-    # TODO: This should be set with a stored sound entity
-    sound_id = Immutable(required=True)
+    sound = Immutable(required=True)
     start_seconds = Immutable(required=True, value_transform=float)
     duration_seconds = Immutable(required=True, value_transform=float)
     tags = Immutable(value_transform=tuple)
-    # TODO: This should be null, or be a valid URL
-    data_url = URL()
+    data_url = URL(default_value=None)

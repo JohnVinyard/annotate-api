@@ -12,6 +12,23 @@ class EnumMapping(BaseMapping):
             **kwargs)
 
 
+class EntityMapping(BaseMapping):
+    def __init__(self, field, entity_class, *args, **kwargs):
+        self.entity_class = entity_class
+        super().__init__(
+            field,
+            *args,
+            to_storage_format=self._to_storage_format,
+            from_storage_format=self._from_storage_format,
+            **kwargs)
+
+    def _to_storage_format(self, instance):
+        return instance.id
+
+    def _from_storage_format(self, value):
+        return self.entity_class.partial_hydrate(id=value)
+
+
 class UserMapper(BaseMapper):
     # TODO: Better, more formal way to specify mapper's target class than this
     entity_class = User
@@ -31,10 +48,7 @@ class SoundMapper(BaseMapper):
 
     _id = BaseMapping(Sound.id)
     date_created = BaseMapping(Sound.date_created)
-    created_by = BaseMapping(
-        Sound.created_by,
-        to_storage_format=lambda instance: instance.id,
-        from_storage_format=lambda _id: User.partial_hydrate(id=_id))
+    created_by = EntityMapping(Sound.created_by, User)
     info_url = BaseMapping(Sound.info_url)
     audio_url = BaseMapping(Sound.audio_url)
     license_type = EnumMapping(Sound.license_type, LicenseType)
@@ -47,8 +61,8 @@ class AnnotationMapper(BaseMapper):
 
     _id = BaseMapping(Annotation.id)
     date_created = BaseMapping(Annotation.date_created)
-    created_by = BaseMapping(Annotation.created_by)
-    sound_id = BaseMapping(Annotation.sound_id)
+    created_by = EntityMapping(Annotation.created_by, User)
+    sound_id = EntityMapping(Annotation.sound, Sound)
     start_seconds = BaseMapping(Annotation.start_seconds)
     duration_seconds = BaseMapping(Annotation.duration_seconds)
     tags = BaseMapping(Annotation.tags)

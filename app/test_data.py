@@ -1,6 +1,6 @@
 import unittest2
-from model import User, UserType, Sound, LicenseType
-from mapping import UserMapper, SoundMapper
+from model import User, UserType, Sound, LicenseType, Annotation
+from mapping import UserMapper, SoundMapper, AnnotationMapper
 from scratch import \
     Session, ContextualValue, BaseRepository, SortOrder, QueryResult, \
     BaseEntity, BaseDescriptor
@@ -73,7 +73,6 @@ def sound(
         license_type=None,
         title=None,
         duration_seconds=None):
-
     return Sound.create(
         creator=creator,
         created_by=creator,
@@ -213,6 +212,42 @@ class SoundTests(unittest2.TestCase):
         user = User.create(**user1())
         self.assertRaises(
             ValueError, lambda: sound(user, duration_seconds='blah'))
+
+
+class AnnotationDataTests(unittest2.TestCase):
+    def setUp(self):
+        self.user_repo = InMemoryRepository(User, UserMapper)
+        self.sound_repo = InMemoryRepository(Sound, SoundMapper)
+        self.annotation_repo = InMemoryRepository(Annotation, AnnotationMapper)
+
+    def _session(self):
+        return Session(self.user_repo, self.sound_repo, self.annotation_repo)
+
+    def test_can_store_and_retrieve_with_no_data_url(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = next(s.filter(Sound.id == sound_id))
+            annotation = Annotation.create(
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['drums'],
+                data_url=None)
+            annotation_id = annotation.id
+
+        with self._session():
+            annotation = next(s.filter(Annotation.id == annotation_id))
+            self.assertIsNone(annotation.data_url)
 
 
 class SoundDataTests(unittest2.TestCase):
