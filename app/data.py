@@ -9,20 +9,30 @@ from mapping import UserMapper, SoundMapper, AnnotationMapper
 
 client = MongoClient('mongo')
 db = client.annotate
+
+
+def index_model(mapped_field, unique=False):
+    key = mapped_field.storage_name
+    return IndexModel(key, name=key, unique=unique)
+
+
 db.users.create_indexes([
-    IndexModel('user_type', name='user_type'),
-    IndexModel('date_created', name='date_created'),
-    IndexModel('password', name='password'),
-    IndexModel('user_name', name='user_name', unique=True),
-    IndexModel('email', name='email', unique=True)
+    index_model(UserMapper.user_type),
+    index_model(UserMapper.date_created),
+    index_model(UserMapper.password),
+    index_model(UserMapper.user_name, unique=True),
+    index_model(UserMapper.email, unique=True)
 ])
 
 db.sounds.create_indexes([
-    IndexModel('date_created', name='date_created')
+    index_model(SoundMapper.date_created),
+    index_model(SoundMapper.created_by),
 ])
 
 db.annotations.create_indexes([
-    IndexModel('date_created', name='date_created')
+    index_model(AnnotationMapper.date_created),
+    index_model(AnnotationMapper.created_by),
+    index_model(AnnotationMapper.sound_id)
 ])
 
 users_db = db.users
