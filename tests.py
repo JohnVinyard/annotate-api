@@ -677,6 +677,42 @@ class SoundTests(BaseTests, unittest2.TestCase):
         user_uri = f'/users/{user2_id}'
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
+    def test_can_stream_sounds_by_user_id(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        self._create_sounds_with_user(auth, 5)
+        user2, user2_location = self.create_user(user_type='dataset')
+        auth2 = self._get_auth(user2)
+        user2_id = user1_location.split('/')[-1]
+
+        self._create_sounds_with_user(auth2, 5)
+        resp = requests.get(
+            self.sounds_resource(),
+            params={'page_size': 2, 'created_by': user2_id},
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(2, len(items))
+        user_uri = f'/users/{user2_id}'
+        self.assertTrue(all([item['created_by'] == user_uri for item in items]))
+
+        latest_date = datetime.strptime(
+            items[-1]['date_created'],
+            '%Y-%m-%dT%H:%M:%S.%fZ')
+
+        resp = requests.get(
+            self.sounds_resource(),
+            params={
+                'page_size': 100,
+                'created_by': user2_id,
+                'earliest_date': latest_date.isoformat() + 'Z'
+            },
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(3, len(items))
+        user_uri = f'/users/{user2_id}'
+        self.assertTrue(all([item['created_by'] == user_uri for item in items]))
+
     def test_supports_something_stream_like(self):
         user1, user1_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user1)
