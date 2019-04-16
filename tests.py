@@ -623,13 +623,7 @@ class SoundTests(BaseTests, unittest2.TestCase):
         user1, user1_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user1)
 
-        for _ in range(93):
-            sound_id = uuid.uuid4().hex
-            sound_data = self.sound_data(
-                audio_url=f'https://example.com/{sound_id}')
-            requests.post(
-                self.sounds_resource(), json=sound_data, auth=auth)
-
+        self._create_sounds_with_user(auth, 93)
         resp = requests.get(
             self.sounds_resource(),
             params={'page_size': 10},
@@ -653,24 +647,41 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(3, len(items[-1]))
         self.assertEqual(93, sum(len(item) for item in items))
 
-    def test_can_list_sounds_by_user_id(self):
-        self.fail()
-
-    def test_can_list_sounds_by_user_name(self):
-        self.fail()
-
-    def test_supports_something_stream_like(self):
-        user1, user1_location = self.create_user(user_type='dataset')
-        auth = self._get_auth(user1)
-
-        for _ in range(10):
+    def _create_sounds_with_user(self, auth, n_sounds, delay=None):
+        for _ in range(n_sounds):
             sound_id = uuid.uuid4().hex
             sound_data = self.sound_data(
                 audio_url=f'https://example.com/{sound_id}')
             requests.post(
                 self.sounds_resource(), json=sound_data, auth=auth)
-            time.sleep(0.1)
+            if delay:
+                time.sleep(delay)
 
+    def test_can_list_sounds_by_user_id(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        self._create_sounds_with_user(auth, 5)
+        user2, user2_location = self.create_user(user_type='dataset')
+        auth2 = self._get_auth(user2)
+        user2_id = user1_location.split('/')[-1]
+
+        self._create_sounds_with_user(auth2, 5)
+        resp = requests.get(
+            self.sounds_resource(),
+            params={'page_size': 10, 'created_by': user2_id},
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(5, len(items))
+        user_uri = f'/users/{user2_id}'
+        self.assertTrue(all([item['created_by'] == user_uri for item in items]))
+
+    def test_supports_something_stream_like(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        self._create_sounds_with_user(auth, 10, delay=0.1)
         resp = requests.get(
             self.sounds_resource(),
             params={'page_size': 5},

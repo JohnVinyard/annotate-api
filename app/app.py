@@ -122,7 +122,7 @@ class SoundsResource(object):
         additional_params = {}
 
         if user_id:
-            query = Sound.created_by == User.partial(id=user_id)
+            query = Sound.created_by == User.partial_hydrate(id=user_id)
             additional_params[created_by_key] = user_id
         else:
             query = Sound.all_query()
