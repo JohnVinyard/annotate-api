@@ -28,4 +28,9 @@ services:
     logging:
         driver: "none"
 
+  s3:
+    build: ./s3
+    ports:
+        - "4569:4569"
+
 
