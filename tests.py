@@ -798,6 +798,9 @@ class UserSoundTests(BaseTests, unittest2.TestCase):
         user_uri = f'/users/{user2_id}'
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
+    def test_can_stream_user_sounds_using_earliest_date(self):
+        self.fail()
+
 
 class UserAnnotationTests(BaseTests, unittest2.TestCase):
     def test_not_found_for_nonexistent_user(self):
@@ -844,6 +847,9 @@ class UserAnnotationTests(BaseTests, unittest2.TestCase):
         items = resp.json()['items']
         self.assertEqual(3, len(items))
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
+
+    def test_can_stream_user_annotations_using_earliest_date(self):
+        self.fail()
 
 
 class AnnotationTests(BaseTests, unittest2.TestCase):
