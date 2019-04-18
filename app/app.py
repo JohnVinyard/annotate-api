@@ -80,6 +80,12 @@ def list_entity(
             f'Page size must be between '
             f'{page_size_min} and {page_size_max}')
 
+    additional_params = additional_params or {}
+    low_id = req.get_param('low_id')
+    if low_id is not None:
+        query = query & (query.entity_class.id > low_id)
+        additional_params['low_id'] = low_id
+
     query_result = session.filter(
         query,
         page_size,
@@ -126,13 +132,6 @@ class SoundsResource(object):
             additional_params[created_by_key] = user_id
         else:
             query = Sound.all_query()
-
-        created_after = req.get_param_as_datetime(
-            'earliest_date',
-            format_string='%Y-%m-%dT%H:%M:%S.%fZ')
-        if created_after:
-            query = query & (Sound.date_created > created_after)
-            additional_params['earliest_date'] = created_after
 
         list_entity(
             req,
@@ -199,6 +198,7 @@ class SoundAnnotationsResource(object):
         """
         sound = domain_entity(session, Sound.id == sound_id)
         query = Annotation.sound == sound
+
         list_entity(
             req,
             resp,
@@ -218,6 +218,7 @@ class UserSoundsResource(object):
     def on_get(self, req, resp, user_id, session, actor):
         user = domain_entity(session, User.id == user_id)
         query = Sound.created_by == user
+
         list_entity(
             req,
             resp,
@@ -237,6 +238,7 @@ class UserAnnotationResource(object):
     def on_get(self, req, resp, user_id, session, actor):
         user = domain_entity(session, User.id == user_id)
         query = Annotation.created_by == user
+
         list_entity(
             req,
             resp,

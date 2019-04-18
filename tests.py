@@ -719,16 +719,14 @@ class SoundTests(BaseTests, unittest2.TestCase):
         user_uri = f'/users/{user2_id}'
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
-        latest_date = datetime.strptime(
-            items[-1]['date_created'],
-            '%Y-%m-%dT%H:%M:%S.%fZ')
+        low_id = items[-1]['id']
 
         resp = requests.get(
             self.sounds_resource(),
             params={
                 'page_size': 100,
                 'created_by': user2_id,
-                'earliest_date': latest_date.isoformat() + 'Z'
+                'low_id': low_id
             },
             auth=auth)
         items = resp.json()['items']
@@ -750,15 +748,13 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(5, len(resp.json()['items']))
         self.assertEqual(10, resp.json()['total_count'])
 
-        latest_date = datetime.strptime(
-            resp.json()['items'][-1]['date_created'],
-            '%Y-%m-%dT%H:%M:%S.%fZ')
+        low_id = resp.json()['items'][-1]['id']
 
         resp = requests.get(
             self.sounds_resource(),
             params={
                 'page_size': 10,
-                'earliest_date': latest_date.isoformat() + 'Z'
+                'low_id': low_id
             },
             auth=auth)
 
@@ -785,7 +781,7 @@ class UserSoundTests(BaseTests, unittest2.TestCase):
         self._create_sounds_with_user(auth, 5)
         user2, user2_location = self.create_user(user_type='dataset')
         auth2 = self._get_auth(user2)
-        user2_id = user1_location.split('/')[-1]
+        user2_id = user2_location.split('/')[-1]
 
         self._create_sounds_with_user(auth2, 5)
         resp = requests.get(
@@ -798,14 +794,39 @@ class UserSoundTests(BaseTests, unittest2.TestCase):
         user_uri = f'/users/{user2_id}'
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
-    def test_can_stream_user_sounds_using_earliest_date(self):
-        self.fail()
+    def test_can_stream_user_sounds_using_low_id(self):
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        user_id = user_location.split('/')[-1]
+        self._create_sounds_with_user(auth, 10)
+
+        user2, user2_location = self.create_user(user_type='dataset')
+        auth2 = self._get_auth(user2)
+        self._create_sounds_with_user(auth2, 5)
+
+        resp = requests.get(
+            self.user_sounds_resource(user_id),
+            params={'page_size': 3},
+            auth=auth)
+        items = resp.json()['items']
+        low_id = items[-1]['id']
+
+        resp = requests.get(
+            self.user_sounds_resource(user_id),
+            params={
+                'page_size': 100,
+                'low_id': low_id
+            },
+            auth=auth)
+        user_uri = f'/users/{user_id}'
+        items = resp.json()['items']
+        self.assertEqual(7, len(items))
+        self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
 
 class UserAnnotationTests(BaseTests, unittest2.TestCase):
     def test_not_found_for_nonexistent_user(self):
         user, user_location = self.create_user(user_type='dataset')
-        user_id = user_location.split('/')[-1]
         auth = self._get_auth(user)
         sound_id = self._create_sound_with_user(auth)
         annotation_data = [
@@ -848,8 +869,46 @@ class UserAnnotationTests(BaseTests, unittest2.TestCase):
         self.assertEqual(3, len(items))
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
-    def test_can_stream_user_annotations_using_earliest_date(self):
-        self.fail()
+    def test_can_stream_user_annotations_using_low_id(self):
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(10)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        fb, fb_location = self.create_user(user_type='featurebot')
+        fb_auth = self._get_auth(fb)
+        fb_id = fb_location.split('/')[-1]
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(40)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=fb_auth)
+
+        resp = requests.get(
+            self.user_annotations_resource(fb_id),
+            params={'page_size': 11},
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(11, len(items))
+        low_id = items[-1]['id']
+
+        resp = requests.get(
+            self.user_annotations_resource(fb_id),
+            params={
+                'page_size': 100,
+                'low_id': low_id
+            },
+            auth=auth)
+        user_uri = f'/users/{fb_id}'
+        items = resp.json()['items']
+        self.assertEqual(29, len(items))
+        self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
 
 class AnnotationTests(BaseTests, unittest2.TestCase):

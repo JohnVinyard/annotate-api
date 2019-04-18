@@ -18,19 +18,16 @@ def index_model(mapped_field, unique=False):
 
 db.users.create_indexes([
     index_model(UserMapper.user_type),
-    index_model(UserMapper.date_created),
     index_model(UserMapper.password),
     index_model(UserMapper.user_name, unique=True),
     index_model(UserMapper.email, unique=True)
 ])
 
 db.sounds.create_indexes([
-    index_model(SoundMapper.date_created),
     index_model(SoundMapper.created_by),
 ])
 
 db.annotations.create_indexes([
-    index_model(AnnotationMapper.date_created),
     index_model(AnnotationMapper.created_by),
     index_model(AnnotationMapper.sound_id)
 ])
