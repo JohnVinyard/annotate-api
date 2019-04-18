@@ -57,9 +57,6 @@ def composite_validation_error(e, req, resp, params):
     raise falcon.HTTPBadRequest(description=desc)
 
 
-# TODO: Add date_created and exclude_id criteria to support Kafka-like
-# streams (i.e., client keeps track of last date_created and id seen and makes
-# a new request)
 def list_entity(
         req,
         resp,
