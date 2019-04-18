@@ -24,7 +24,7 @@ Get a paged list of sounds, ordered from oldest to newest
 |------|-------------|
 | page_size | number of results per page |
 | page_number | page number, which will skip the first `page_size * page_number` records |
-| earliest_date | an ISO-8601 formatted date, in UTC.  Only records created *after* this date will be returned |
+| low_id | When streaming sounds, this is last id seen by the client.  Only records created after this one should be returned |
 
 #### Sample Output
 ```json
