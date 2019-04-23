@@ -132,6 +132,10 @@ class Sound(BaseAppEntity):
     title = Immutable(required=True)
     duration_seconds = Immutable(required=True, value_transform=float)
 
+    @classmethod
+    def exists_query(cls, audio_url):
+        return Sound.audio_url == audio_url
+
 
 class Annotation(BaseAppEntity):
     created_by = Immutable(required=True)

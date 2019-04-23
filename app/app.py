@@ -125,6 +125,18 @@ class SoundsResource(object):
     @falcon.before(basic_auth)
     def on_post(self, req, resp, session, actor):
         data = req.media
+
+        try:
+            # TODO: It's possible that we could do this in an automated way
+            # when we handle conflicts in the middleware, provided that every
+            # entity had an exists query method
+            sound = next(session.filter(Sound.exists_query(data['audio_url'])))
+            resp.location = AppEntityLinks().convert_to_link(sound)
+            raise falcon.HTTPConflict()
+        except StopIteration:
+            # there's no sound that matches, so it's OK to create it
+            pass
+
         data['created_by'] = actor
         sound = Sound.create(creator=actor, **data)
         resp.set_header('Location', f'/sounds/{sound.id}')

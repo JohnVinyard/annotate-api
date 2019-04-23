@@ -558,6 +558,17 @@ class SoundTests(BaseTests, unittest2.TestCase):
         resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
         self.assertEqual(client.CONFLICT, resp.status_code)
 
+    def test_location_header_is_returned_when_creating_duplicate_sound(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        expected_location = resp.headers['location']
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CONFLICT, resp.status_code)
+        self.assertEqual(expected_location, resp.headers['location'])
+
     def test_featurebot_cannot_create_sound(self):
         user1, user1_location = self.create_user(user_type='featurebot')
         auth = self._get_auth(user1)
