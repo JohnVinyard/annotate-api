@@ -1,9 +1,7 @@
 import json
 import datetime
-import pytz
 from falcon.media import BaseHandler
 from enum import Enum
-from string import Formatter
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -12,16 +10,9 @@ class JsonEncoder(json.JSONEncoder):
         super().__init__()
         self.convert_to_links = convert_to_links
 
-    def _extract_keys_from_template_string(self, template):
-        # KLUDGE: What happens if there are multiple keys in the template?
-        return (x[1] for x in Formatter().parse(template))
-
     def default(self, o):
         try:
-            link_template = self.convert_to_links[o.__class__]
-            key = next(self._extract_keys_from_template_string(link_template))
-            format_dict = {key: o.identifier}
-            return link_template.format(**format_dict)
+            return self.convert_to_links.convert_to_link(o)
         except KeyError:
             pass
 

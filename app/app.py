@@ -1,12 +1,25 @@
 import falcon
 from data import users_repo, sounds_repo, annotations_repo, NoCriteria
 from model import User, ContextualValue, Sound, Annotation
-from httphelper import decode_auth_header, SessionMiddleware
+from httphelper import decode_auth_header, SessionMiddleware, EntityLinks
 from customjson import JSONHandler
 import urllib
 from errors import \
     DuplicateUserException, PermissionsError, ImmutableError, \
     CompositeValidationError
+
+USER_URI_TEMPLATE = '/users/{user_id}'
+SOUND_URI_TEMPLATE = '/sounds/{sound_id}'
+
+ENTITIES_AS_LINKS = {
+    User: USER_URI_TEMPLATE,
+    Sound: SOUND_URI_TEMPLATE
+}
+
+
+class AppEntityLinks(EntityLinks):
+    def __init__(self):
+        super().__init__(ENTITIES_AS_LINKS)
 
 
 def basic_auth(req, resp, resource, params):
@@ -251,6 +264,20 @@ class UsersResource(object):
         """
         Create a new user
         """
+
+        try:
+            # TODO: It's possible that we could do this in an automated way
+            # when we handle conflicts in the middleware, provided that every
+            # entity had an exists query method
+            user_name = req.media['user_name']
+            email = req.media['email']
+            user = next(session.filter(User.exists_query(user_name, email)))
+            resp.set_header('Location', AppEntityLinks().convert_to_link(user))
+            raise falcon.HTTPConflict()
+        except StopIteration:
+            # we didn't find a matching user, so it's safe to create one
+            pass
+
         user = User.create(**req.media)
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
@@ -331,16 +358,8 @@ api = application = falcon.API(middleware=[
     SessionMiddleware(users_repo, sounds_repo, annotations_repo)
 ])
 
-USER_URI_TEMPLATE = '/users/{user_id}'
-SOUND_URI_TEMPLATE = '/sounds/{sound_id}'
-
-ENTITIES_AS_LINKS = {
-    User: USER_URI_TEMPLATE,
-    Sound: SOUND_URI_TEMPLATE
-}
-
 extra_handlers = falcon.media.Handlers({
-    'application/json': JSONHandler(ENTITIES_AS_LINKS),
+    'application/json': JSONHandler(AppEntityLinks()),
 })
 
 api.resp_options.media_handlers = extra_handlers

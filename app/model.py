@@ -107,6 +107,10 @@ class User(BaseAppEntity):
     def active_user_query(cls, user_id):
         return (User.id == user_id) & (User.deleted == False)
 
+    @classmethod
+    def exists_query(cls, user_name, email):
+        return (User.user_name == user_name) | (User.email == email)
+
 
 class LicenseType(Enum):
     BY = 'https://creativecommons.org/licenses/by/4.0'

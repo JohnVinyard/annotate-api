@@ -444,6 +444,17 @@ class UserTests(BaseTests, unittest2.TestCase):
         resp2 = requests.post(self.users_resource(), json=user2_data)
         self.assertEqual(client.CONFLICT, resp2.status_code)
 
+    def test_location_header_is_included_when_conflict_is_encountered(self):
+        user1_data = self._user_create_data(
+            user_name='user1', email='user1@example.com')
+        resp = requests.post(self.users_resource(), json=user1_data)
+        self.assertEqual(client.CREATED, resp.status_code)
+        expected_location = resp.headers['location']
+        user2_data = self._user_create_data(
+            user_name='user2', email='user1@example.com')
+        resp2 = requests.post(self.users_resource(), json=user2_data)
+        self.assertEqual(expected_location, resp2.headers['location'])
+
     def test_can_update_about_me_text(self):
         user1, user1_location = self.create_user(
             user_type='human', about_me='original')
