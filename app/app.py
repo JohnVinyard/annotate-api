@@ -4,7 +4,8 @@ from model import User, ContextualValue, Sound, Annotation
 from httphelper import decode_auth_header, SessionMiddleware, EntityLinks
 from customjson import JSONHandler
 import urllib
-from errors import PermissionsError, CompositeValidationError
+from errors import \
+    PermissionsError, CompositeValidationError, EntityNotFoundError
 
 USER_URI_TEMPLATE = '/users/{user_id}'
 SOUND_URI_TEMPLATE = '/sounds/{sound_id}'
@@ -34,10 +35,10 @@ def basic_auth(req, resp, resource, params):
     query = User.auth_query(username, password)
 
     try:
-        user = next(session.filter(query=query, page_size=1, page_number=0))
+        user = session.find_one(query)
         req.context['actor'] = user
         params['actor'] = user
-    except StopIteration:
+    except EntityNotFoundError:
         raise falcon.HTTPUnauthorized()
 
 
@@ -66,6 +67,10 @@ class RootResource(object):
 def composite_validation_error(e, req, resp, params):
     desc = [(err[0], err[1].args[0]) for err in e.args]
     raise falcon.HTTPBadRequest(description=desc)
+
+
+def not_found_error(e, req, resp, params):
+    raise falcon.HTTPNotFound()
 
 
 def list_entity(
@@ -152,16 +157,9 @@ class SoundsResource(object):
             additional_params=additional_params)
 
 
-def domain_entity(session, query):
-    try:
-        # TODO: There should be an option to exclude the total count here
-        return next(session.filter(query, page_size=1, page_number=0))
-    except StopIteration:
-        raise falcon.HTTPNotFound()
-
-
 def view_entity(session, actor, query):
-    entity = domain_entity(session, query)
+    # TODO: There should be an option to exclude the total count here
+    entity = session.find_one(query)
     view = entity.view(actor)
     return view
 
@@ -189,7 +187,7 @@ class SoundAnnotationsResource(object):
         """
         Create new annotations for a sound
         """
-        sound = domain_entity(session, Sound.id == sound_id)
+        sound = session.find_one(Sound.id == sound_id)
         for annotation in req.media['annotations']:
             annotation['created_by'] = actor
             annotation['sound'] = sound
@@ -204,7 +202,7 @@ class SoundAnnotationsResource(object):
         """
         List annotations for a sound
         """
-        sound = domain_entity(session, Sound.id == sound_id)
+        sound = session.find_one(Sound.id == sound_id)
         query = Annotation.sound == sound
 
         list_entity(
@@ -224,7 +222,7 @@ class UserSoundsResource(object):
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
-        user = domain_entity(session, User.id == user_id)
+        user = session.find_one(User.id == user_id)
         query = Sound.created_by == user
 
         list_entity(
@@ -244,7 +242,7 @@ class UserAnnotationResource(object):
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
-        user = domain_entity(session, User.id == user_id)
+        user = session.find_one(User.id == user_id)
         query = Annotation.created_by == user
 
         list_entity(
@@ -314,15 +312,7 @@ class UserResource(object):
         """
         Delete an individual user
         """
-
-        # TODO: Business rules that make data needed to evaluate the rule
-        # explicit, so that only that data need be fetched.  In this case,
-        # the rule about who may delete whom only requires user id, which we
-        # already have in this scenario.
-        try:
-            to_delete = next(session.filter(User.id == user_id))
-        except StopIteration:
-            raise falcon.HTTPNotFound()
+        to_delete = session.find_one(User.id == user_id)
         to_delete.deleted = ContextualValue(actor, True)
 
     @falcon.before(basic_auth)
@@ -331,10 +321,7 @@ class UserResource(object):
         Update a user
         """
         query = User.active_user_query(user_id)
-        try:
-            to_update = next(session.filter(query, page_size=1))
-        except StopIteration:
-            raise falcon.HTTPNotFound()
+        to_update = session.find_one(query)
         to_update.update(actor, **req.media)
 
 
@@ -370,3 +357,4 @@ def permissions_error(ex, req, resp, params):
 api.add_error_handler(PermissionsError, permissions_error)
 api.add_error_handler(
     CompositeValidationError, composite_validation_error)
+api.add_error_handler(EntityNotFoundError, not_found_error)
