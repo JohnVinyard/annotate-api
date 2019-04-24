@@ -60,9 +60,8 @@ class SessionMiddleware(object):
                 entity_cls = e.entity_cls
 
                 with self._session() as session:
-                    # TODO: I really need a find_one method on session
-                    entity = next(session.filter(
-                        entity_cls.exists_query(**req.media), page_size=1))
+                    query = entity_cls.exists_query(**req.media)
+                    entity = session.find_one(query)
                     uri = self.link_converter.convert_to_link(entity)
                     resp.set_header('Location', uri)
                     raise falcon.HTTPConflict()

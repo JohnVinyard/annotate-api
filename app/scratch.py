@@ -1,6 +1,6 @@
 from errors import \
-    PermissionsError, ImmutableError, DuplicateEntityException, \
-    PartialEntityUpdate, CompositeValidationError
+    PermissionsError, ImmutableError, PartialEntityUpdate, \
+    CompositeValidationError, EntityNotFoundError
 import threading
 from collections import defaultdict
 from enum import Enum
@@ -27,13 +27,13 @@ class BaseRepository(object):
         self.mapper = mapper
         self.cls = cls
 
-    def upsert(self, item):
+    def upsert(self, *updates):
         raise NotImplementedError()
 
-    def filter(self, predicate, page_size=100, page_number=0, sort=None):
+    def filter(self, query, page_size=100, page_number=0, sort=None):
         raise NotImplementedError()
 
-    def count(self, predicate):
+    def count(self, query):
         raise NotImplementedError()
 
     # TODO: Perhaps count() should just accept a query with no criteria, which
@@ -246,6 +246,12 @@ class Session(object):
             transformed_results.append(result)
         query_result.results = transformed_results
         return query_result
+
+    def find_one(self, query):
+        try:
+            return next(self.filter(query, page_size=1))
+        except StopIteration:
+            raise EntityNotFoundError()
 
     def count(self, query):
         repo = self._repositories[query.entity_class]
