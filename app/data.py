@@ -118,22 +118,27 @@ class MongoRepository(BaseRepository):
         except BulkWriteError as e:
             write_errors = e.details['writeErrors']
             if any('duplicate' in we['errmsg'] for we in write_errors):
-                # TODO: This is a user-specific message in a base/generic
-                # repository
                 raise DuplicateEntityException(self.cls)
             else:
                 raise
 
-    def filter(self, query, page_size=100, page_number=0, sort=None):
+    def filter(
+            self,
+            query,
+            page_size=100,
+            page_number=0,
+            sort=None,
+            total_count=True):
+
         mongo_query = self._transform_query(query)
         sort = self._transform_sort(sort)
-        total_count = self._count(mongo_query)
+        total_count = self._count(mongo_query) if total_count else None
         results = self.collection \
             .find(mongo_query, sort=sort) \
             .skip(page_number * page_size) \
             .limit(page_size)
         results = list(results)
-        return QueryResult(total_count, results, page_number, page_size)
+        return QueryResult(results, page_number, page_size, total_count)
 
     def _count(self, mongo_query):
         return self.collection.count_documents(mongo_query)

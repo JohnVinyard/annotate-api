@@ -4,7 +4,7 @@ from mapping import UserMapper, SoundMapper, AnnotationMapper
 from scratch import \
     Session, ContextualValue, BaseRepository, SortOrder, QueryResult, \
     BaseEntity, BaseDescriptor
-from errors import PermissionsError
+from errors import PermissionsError, EntityNotFoundError
 
 
 class InMemoryRepository(BaseRepository):
@@ -27,7 +27,14 @@ class InMemoryRepository(BaseRepository):
                 # this is a new document.  insert it
                 self._data[query.literal_value] = storage_updates
 
-    def filter(self, query, page_size=100, page_number=0, sort=None):
+    def filter(
+            self,
+            query,
+            page_size=100,
+            page_number=0,
+            sort=None,
+            total_count=True):
+
         f = query.to_lambda('item', self.mapper)
         results = list(filter(f, self._data.values()))
 
@@ -39,10 +46,10 @@ class InMemoryRepository(BaseRepository):
                 key=lambda x: x[storage_name],
                 reverse=sort.order == SortOrder.DESCENDING)
 
-        total_count = len(results)
+        total_count = len(results) if total_count else None
         start_pos = page_number * page_size
         page = results[start_pos: start_pos + page_size]
-        return QueryResult(total_count, page, page_number, page_size)
+        return QueryResult(page, page_number, page_size, total_count)
 
     def count(self, query):
         return len(tuple(self.filter(query)))

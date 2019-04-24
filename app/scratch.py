@@ -30,7 +30,13 @@ class BaseRepository(object):
     def upsert(self, *updates):
         raise NotImplementedError()
 
-    def filter(self, query, page_size=100, page_number=0, sort=None):
+    def filter(
+            self,
+            query,
+            page_size=100,
+            page_number=0,
+            sort=None,
+            total_count=True):
         raise NotImplementedError()
 
     def count(self, query):
@@ -207,12 +213,17 @@ class Query(object):
 
 
 class QueryResult(object):
-    def __init__(self, total_count, results, page_number, page_size):
-        self.total_count = total_count
+    def __init__(self, results, page_number, page_size, total_count=None):
         self.results = results
-        current_pos = (page_number * page_size) + len(results)
-        self.next_page = page_number + 1 if current_pos < total_count else None
         self.pos = 0
+        self.total_count = total_count
+
+        if self.total_count is None:
+            self.next_page = None
+        else:
+            current_pos = (page_number * page_size) + len(results)
+            self.next_page = \
+                page_number + 1 if current_pos < total_count else None
 
     def __iter__(self):
         return iter(self.results)
@@ -235,10 +246,21 @@ class Session(object):
     def track(self, entity):
         self.__entities.setdefault(entity.storage_key, entity)
 
-    def filter(self, query, page_size=100, page_number=0, sort=None):
+    def filter(
+            self,
+            query,
+            page_size=100,
+            page_number=0,
+            sort=None,
+            total_count=True):
+
         repo = self._repositories[query.entity_class]
         query_result = repo.filter(
-            query, page_size=page_size, page_number=page_number, sort=sort)
+            query,
+            page_size=page_size,
+            page_number=page_number,
+            sort=sort,
+            total_count=total_count)
         transformed_results = []
         for result in query_result.results:
             result = repo.mapper.from_storage(result)
@@ -249,7 +271,7 @@ class Session(object):
 
     def find_one(self, query):
         try:
-            return next(self.filter(query, page_size=1))
+            return next(self.filter(query, page_size=1, total_count=False))
         except StopIteration:
             raise EntityNotFoundError()
 
