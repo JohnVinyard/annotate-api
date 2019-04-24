@@ -1,5 +1,5 @@
 from errors import \
-    PermissionsError, ImmutableError, DuplicateUserException, \
+    PermissionsError, ImmutableError, DuplicateEntityException, \
     PartialEntityUpdate, CompositeValidationError
 import threading
 from collections import defaultdict

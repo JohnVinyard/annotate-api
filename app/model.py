@@ -76,6 +76,10 @@ class BaseAppEntity(BaseEntity):
         # TODO: Can this be derived solely from the identity_query?
         return self.__class__, self.identifier
 
+    @classmethod
+    def exists_query(cls, **kwargs):
+        raise NotImplementedError()
+
 
 class User(BaseAppEntity):
     deleted = BaseDescriptor(
@@ -108,7 +112,7 @@ class User(BaseAppEntity):
         return (User.id == user_id) & (User.deleted == False)
 
     @classmethod
-    def exists_query(cls, user_name, email):
+    def exists_query(cls, user_name, email, **kwargs):
         return (User.user_name == user_name) | (User.email == email)
 
 
@@ -133,7 +137,7 @@ class Sound(BaseAppEntity):
     duration_seconds = Immutable(required=True, value_transform=float)
 
     @classmethod
-    def exists_query(cls, audio_url):
+    def exists_query(cls, audio_url, **kwargs):
         return Sound.audio_url == audio_url
 
 

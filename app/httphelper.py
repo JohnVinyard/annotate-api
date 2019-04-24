@@ -2,7 +2,7 @@ import base64
 from scratch import Session
 import falcon
 import logging
-from errors import DuplicateUserException, PermissionsError, ImmutableError
+from errors import DuplicateEntityException, PermissionsError, ImmutableError
 from string import Formatter
 
 
@@ -28,12 +28,17 @@ class EntityLinks(object):
 
 
 class SessionMiddleware(object):
-    def __init__(self, *repositories):
+    def __init__(self, link_converter, *repositories):
         super().__init__()
+        self.link_converter = link_converter
         self.repositories = repositories
 
+    def _session(self):
+        return Session(*self.repositories)
+
     def process_resource(self, req, resp, resource, params):
-        session = Session(*self.repositories).open()
+        # session = Session(*self.repositories).open()
+        session = self._session().open()
         req.context['session'] = session
         params['session'] = session
 
@@ -51,8 +56,16 @@ class SessionMiddleware(object):
             # commit any changes to backing data stores
             session.close()
         except Exception as e:
-            if isinstance(e, DuplicateUserException):
-                raise falcon.HTTPConflict()
+            if isinstance(e, DuplicateEntityException):
+                entity_cls = e.entity_cls
+
+                with self._session() as session:
+                    # TODO: I really need a find_one method on session
+                    entity = next(session.filter(
+                        entity_cls.exists_query(**req.media), page_size=1))
+                    uri = self.link_converter.convert_to_link(entity)
+                    resp.set_header('Location', uri)
+                    raise falcon.HTTPConflict()
             else:
                 logging.error(e)
                 raise

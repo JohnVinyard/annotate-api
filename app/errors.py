@@ -1,6 +1,9 @@
-class DuplicateUserException(Exception):
-    def __init__(self):
-        super().__init__('A user already exists with this user_name or email')
+
+class DuplicateEntityException(Exception):
+    def __init__(self, entity_cls):
+        super().__init__(
+            f'A matching {entity_cls.__name__} already exists')
+        self.entity_cls = entity_cls
 
 
 class PermissionsError(Exception):

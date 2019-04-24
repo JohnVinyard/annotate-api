@@ -4,9 +4,7 @@ from model import User, ContextualValue, Sound, Annotation
 from httphelper import decode_auth_header, SessionMiddleware, EntityLinks
 from customjson import JSONHandler
 import urllib
-from errors import \
-    DuplicateUserException, PermissionsError, ImmutableError, \
-    CompositeValidationError
+from errors import PermissionsError, CompositeValidationError
 
 USER_URI_TEMPLATE = '/users/{user_id}'
 SOUND_URI_TEMPLATE = '/sounds/{sound_id}'
@@ -125,18 +123,6 @@ class SoundsResource(object):
     @falcon.before(basic_auth)
     def on_post(self, req, resp, session, actor):
         data = req.media
-
-        try:
-            # TODO: It's possible that we could do this in an automated way
-            # when we handle conflicts in the middleware, provided that every
-            # entity had an exists query method
-            sound = next(session.filter(Sound.exists_query(data['audio_url'])))
-            resp.location = AppEntityLinks().convert_to_link(sound)
-            raise falcon.HTTPConflict()
-        except StopIteration:
-            # there's no sound that matches, so it's OK to create it
-            pass
-
         data['created_by'] = actor
         sound = Sound.create(creator=actor, **data)
         resp.set_header('Location', f'/sounds/{sound.id}')
@@ -276,20 +262,6 @@ class UsersResource(object):
         """
         Create a new user
         """
-
-        try:
-            # TODO: It's possible that we could do this in an automated way
-            # when we handle conflicts in the middleware, provided that every
-            # entity had an exists query method
-            user_name = req.media['user_name']
-            email = req.media['email']
-            user = next(session.filter(User.exists_query(user_name, email)))
-            resp.set_header('Location', AppEntityLinks().convert_to_link(user))
-            raise falcon.HTTPConflict()
-        except StopIteration:
-            # we didn't find a matching user, so it's safe to create one
-            pass
-
         user = User.create(**req.media)
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
@@ -366,12 +338,15 @@ class UserResource(object):
         to_update.update(actor, **req.media)
 
 
+app_entity_links = AppEntityLinks()
+
 api = application = falcon.API(middleware=[
-    SessionMiddleware(users_repo, sounds_repo, annotations_repo)
+    SessionMiddleware(
+        app_entity_links, users_repo, sounds_repo, annotations_repo)
 ])
 
 extra_handlers = falcon.media.Handlers({
-    'application/json': JSONHandler(AppEntityLinks()),
+    'application/json': JSONHandler(app_entity_links),
 })
 
 api.resp_options.media_handlers = extra_handlers

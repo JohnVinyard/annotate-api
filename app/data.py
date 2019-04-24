@@ -4,7 +4,7 @@ from scratch import \
     NoCriteria, BaseMapper, BaseMapping, QueryResult, BaseRepository, Query, \
     SortOrder
 from model import User, UserType, Sound, Annotation
-from errors import DuplicateUserException
+from errors import DuplicateEntityException
 from mapping import UserMapper, SoundMapper, AnnotationMapper
 
 client = MongoClient('mongo')
@@ -120,7 +120,7 @@ class MongoRepository(BaseRepository):
             if any('duplicate' in we['errmsg'] for we in write_errors):
                 # TODO: This is a user-specific message in a base/generic
                 # repository
-                raise DuplicateUserException()
+                raise DuplicateEntityException(self.cls)
             else:
                 raise
 
