@@ -63,9 +63,9 @@ class BaseTests(object):
             duration_seconds=duration_seconds or (6 * 60) + 42
         )
 
-    def annotation_data(self, tags=None, data_url=None):
+    def annotation_data(self, tags=None, data_url=None, start_seconds=1):
         return dict(
-            start_seconds=1,
+            start_seconds=start_seconds,
             duration_seconds=1,
             tags=tags,
             data_url=data_url)
@@ -1065,3 +1065,15 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
             json={'annotations': [annotation_data]},
             auth=auth)
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_can_create_annotation_with_start_seconds_of_zero(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(
+            data_url='https://example.com', start_seconds=0)
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)

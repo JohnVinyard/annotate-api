@@ -437,7 +437,8 @@ class BaseDescriptor(object):
         if not self.required:
             return
 
-        if not instance.get(self.name, None):
+        value = instance.get(self.name, None)
+        if value is None or value == '':
             raise ValueError(f'{self.name} is required')
 
     def visible(self, instance, context):
