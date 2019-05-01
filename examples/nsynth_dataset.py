@@ -72,8 +72,6 @@ if __name__ == '__main__':
 
         # push the audio data to s3
         with open(full_path, 'rb') as f:
-            duration_seconds = soundfile.info(f).duration
-            f.seek(0)
             s3.put_object(
                 Bucket=nsynth_bucket_name,
                 Body=f,
@@ -83,6 +81,7 @@ if __name__ == '__main__':
             url = f'{args.s3_endpoint}/{nsynth_bucket_name}/{key}'
             print(f'Created s3 resource at {url}')
 
+        duration_seconds = soundfile.info(full_path).duration
         status, sound_uri, sound_id = annotate_client.create_sound(
             audio_url=url,
             info_url='https://magenta.tensorflow.org/datasets/nsynth',
