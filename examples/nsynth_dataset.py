@@ -1,13 +1,12 @@
-import boto3
 import json
 import argparse
 from zounds.util import midi_to_note
 import os
-from botocore.exceptions import ClientError
 import soundfile
 from client import Client
 from cli import DefaultArgumentParser
 from http import client
+from s3client import ObjectStorageClient
 
 
 def get_metadata(json_path):
@@ -19,10 +18,8 @@ def get_metadata(json_path):
         tags = meta['qualities_str']
         tags.append(meta['instrument_family_str'])
         tags.append(meta['instrument_source_str'])
-
-        # TODO: Decide on how key value pairs in tags will be handled
-        tags.append('pitch:' + midi_to_note(meta['pitch']))
-        tags.append('velocity:' + str(meta['velocity']))
+        tags.append('musical_note:' + midi_to_note(meta['pitch']))
+        tags.append('midi_velocity:' + str(meta['velocity']))
         processed[key] = tags
     return processed
 
@@ -46,23 +43,18 @@ if __name__ == '__main__':
     )
     metadata = get_metadata(os.path.join(args.metadata_path, 'examples.json'))
 
-    s3 = boto3.client(
-        service_name='s3',
-        endpoint_url=args.s3_endpoint,
-        region_name=args.s3_region,
-        aws_access_key_id=args.aws_access_key_id,
-        aws_secret_access_key=args.aws_secret_access_key)
-
-    audio_path = os.path.join(args.metadata_path, 'audio')
     nsynth_bucket_name = 'NSynth'
 
-    # ensure the s3 bucket exists
-    try:
-        s3.head_bucket(Bucket=nsynth_bucket_name)
-    except ClientError:
-        s3.create_bucket(
-            ACL='public-read',
-            Bucket=nsynth_bucket_name)
+    object_storage_client = ObjectStorageClient(
+        endpoint=args.s3_endpoint,
+        region=args.s3_region,
+        access_key=args.aws_access_key_id,
+        secret=args.aws_secret_access_key,
+        bucket=nsynth_bucket_name)
+
+    audio_path = os.path.join(args.metadata_path, 'audio')
+
+    object_storage_client.ensure_bucket_exists()
 
     for filename in os.listdir(audio_path):
         full_path = os.path.join(audio_path, filename)
@@ -70,13 +62,7 @@ if __name__ == '__main__':
 
         # push the audio data to s3
         with open(full_path, 'rb') as f:
-            s3.put_object(
-                Bucket=nsynth_bucket_name,
-                Body=f,
-                Key=key,
-                ACL='public-read',
-                ContentType='audio/wav')
-            url = f'{args.s3_endpoint}/{nsynth_bucket_name}/{key}'
+            url = object_storage_client.put_object(key, f, 'audio/wav')
             print(f'Created s3 resource at {url}')
 
         duration_seconds = soundfile.info(full_path).duration
@@ -88,7 +74,8 @@ if __name__ == '__main__':
             duration_seconds=duration_seconds,
             # TODO: This should depend on which part of the
             # dataset we're reading, and it might be helpful if this property
-            # is mutable
+            # is mutable, especially if/when there is overlap between train
+            # and validation sets
             tags=['validation'])
 
         if status == client.CREATED:

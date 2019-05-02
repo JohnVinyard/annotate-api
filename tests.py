@@ -5,7 +5,6 @@ from http import client
 import time
 import os
 import uuid
-from datetime import datetime
 
 path, fn = os.path.split(__file__)
 

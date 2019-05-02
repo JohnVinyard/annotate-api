@@ -7,14 +7,18 @@ from csv import DictReader
 from zounds.util import midi_to_note, midi_instrument
 
 
+def slugify(s):
+    return s.lower().replace('(', '').replace(')', '').replace(' ', '-')
+
+
 def get_metadata(path):
     metadata = dict()
     metadata_file = os.path.join(path, 'musicnet_metadata.csv')
     with open(metadata_file, 'r') as f:
         reader = DictReader(f)
         for row in reader:
-            composer = row['composer'].lower()
-            ensemble = row['ensemble'].lower().replace(' ', '-')
+            composer = slugify(row['composer'])
+            ensemble = slugify(row['ensemble'])
             data = {
                 'tags': [composer, ensemble],
                 'title': f'{row["compsition"]} {row["movement"]}'
@@ -29,9 +33,18 @@ def get_annotations(filename, samplerate):
         for row in reader:
             start_seconds = int(row['start_time']) / samplerate
             stop_seconds = int(row['end_time']) / samplerate
+            duration_seconds = stop_seconds - start_seconds
             note = midi_to_note(int(row['note']))
-            instrument = midi_instrument(int(row['instrument']))
+            instrument = slugify(midi_instrument(int(row['instrument'])))
             print(start_seconds, stop_seconds, note, instrument)
+            yield {
+                'start_seconds': start_seconds,
+                'duration_seconds': duration_seconds,
+                'tags': [
+                    f'musical_note:{note}',
+                    instrument,
+                ]
+            }
 
 
 if __name__ == '__main__':
