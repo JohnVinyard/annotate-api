@@ -10,15 +10,7 @@ from cli import DefaultArgumentParser
 from http import client
 
 
-# TODO: this should include train and validation datasets too
-
-# TODO: How do I tag train and validation, as opposed to tags relating directly
-# to the sound content itself?
-
-
 def get_metadata(json_path):
-    # TODO: Decide on how key value pairs in tags will be handled
-    # TODO: Add velocity to the tags
     with open(json_path, 'r') as f:
         data = json.load(f)
 
@@ -27,7 +19,10 @@ def get_metadata(json_path):
         tags = meta['qualities_str']
         tags.append(meta['instrument_family_str'])
         tags.append(meta['instrument_source_str'])
+
+        # TODO: Decide on how key value pairs in tags will be handled
         tags.append('pitch:' + midi_to_note(meta['pitch']))
+        tags.append('velocity:' + str(meta['velocity']))
         processed[key] = tags
     return processed
 
@@ -40,11 +35,14 @@ if __name__ == '__main__':
 
     annotate_client = Client(args.annotate_api_endpoint)
 
+    with open('nsynth.md', 'r') as f:
+        about_me = f.read()
+
     annotate_client.upsert_dataset(
         user_name='nsynth',
         email='john.vinyard+nsynth-dataset@gmail.com',
         password=args.password,
-        about_me='''NSynth is an audio dataset containing 305,979 musical notes, each with a unique pitch, timbre, and envelope. For 1,006 instruments from commercial sample libraries, we generated four second, monophonic 16kHz audio snippets, referred to as notes, by ranging over every pitch of a standard MIDI pian o (21-108) as well as five different velocities (25, 50, 75, 100, 127). The note was held for the first three seconds and allowed to decay for the final second.'''
+        about_me=about_me
     )
     metadata = get_metadata(os.path.join(args.metadata_path, 'examples.json'))
 
@@ -87,7 +85,11 @@ if __name__ == '__main__':
             info_url='https://magenta.tensorflow.org/datasets/nsynth',
             license_type='https://creativecommons.org/licenses/by/4.0',
             title=key,
-            duration_seconds=duration_seconds)
+            duration_seconds=duration_seconds,
+            # TODO: This should depend on which part of the
+            # dataset we're reading, and it might be helpful if this property
+            # is mutable
+            tags=['validation'])
 
         if status == client.CREATED:
             # If we've just created the sound resource, create the annotation
