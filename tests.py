@@ -54,13 +54,15 @@ class BaseTests(object):
             audio_url=None,
             license_type=None,
             title=None,
-            duration_seconds=None):
+            duration_seconds=None,
+            tags=None):
         return dict(
             info_url=info_url or 'https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
             audio_url=audio_url or 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
             license_type=license_type or 'https://creativecommons.org/licenses/by/4.0',
             title='Abdication Address - King Edward VIII' if title is None else title,
-            duration_seconds=duration_seconds or (6 * 60) + 42
+            duration_seconds=duration_seconds or (6 * 60) + 42,
+            tags=tags
         )
 
     def annotation_data(self, tags=None, data_url=None, start_seconds=1):
@@ -70,17 +72,17 @@ class BaseTests(object):
             tags=tags,
             data_url=data_url)
 
-    def _create_sound_with_user(self, auth):
+    def _create_sound_with_user(self, auth, tags=None):
         sound_id = uuid.uuid4().hex
         sound_data = self.sound_data(
-            audio_url=f'https://example.com/{sound_id}')
+            audio_url=f'https://example.com/{sound_id}', tags=tags)
         resp = requests.post(
             self.sounds_resource(), json=sound_data, auth=auth)
         return resp.headers['location'].split('/')[-1]
 
-    def _create_sounds_with_user(self, auth, n_sounds, delay=None):
+    def _create_sounds_with_user(self, auth, n_sounds, tags=None, delay=None):
         for _ in range(n_sounds):
-            self._create_sound_with_user(auth)
+            self._create_sound_with_user(auth, tags=tags)
             if delay:
                 time.sleep(delay)
 
@@ -853,6 +855,61 @@ class UserSoundTests(BaseTests, unittest2.TestCase):
         items = resp.json()['items']
         self.assertEqual(7, len(items))
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
+
+    def test_can_filter_by_sound_tags(self):
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        user_id = user_location.split('/')[-1]
+        self._create_sounds_with_user(auth, 10, tags=['train'])
+        self._create_sounds_with_user(auth, 11, tags=['validation'])
+
+        resp = requests.get(
+            self.user_sounds_resource(user_id),
+            params={'page_size': 100, 'tags': 'train'},
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(10, len(items))
+
+        resp = requests.get(
+            self.user_sounds_resource(user_id),
+            params={'page_size': 100, 'tags': 'validation'},
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(11, len(items))
+
+    def test_sound_tag_filtering_is_implicit_and(self):
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        user_id = user_location.split('/')[-1]
+        self._create_sounds_with_user(auth, 10, tags=['train'])
+        self._create_sounds_with_user(auth, 11, tags=['validation'])
+        self._create_sounds_with_user(auth, 5, tags=['train', 'validation'])
+
+        resp = requests.get(
+            self.user_sounds_resource(user_id),
+            params={'page_size': 100, 'tags': 'train'},
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(15, len(items))
+
+        resp = requests.get(
+            self.user_sounds_resource(user_id),
+            params={'page_size': 100, 'tags': 'validation'},
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(16, len(items))
+
+        resp = requests.get(
+            self.user_sounds_resource(user_id),
+            params={'page_size': 100, 'tags': ['validation', 'train']},
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(5, len(items))
 
 
 class UserAnnotationTests(BaseTests, unittest2.TestCase):

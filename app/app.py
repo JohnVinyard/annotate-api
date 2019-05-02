@@ -225,6 +225,14 @@ class UserSoundsResource(object):
         user = session.find_one(User.id == user_id)
         query = Sound.created_by == user
 
+        additional_params = {}
+        tags = req.get_param_as_list('tags')
+
+        if tags:
+            additional_params['tags'] = tags
+            for tag in tags:
+                query = query & (Sound.tags == tag)
+
         list_entity(
             req,
             resp,
@@ -232,7 +240,8 @@ class UserSoundsResource(object):
             actor,
             query,
             Sound.date_created.ascending(),
-            f'/users/{user_id}/sounds?{{encoded_params}}')
+            f'/users/{user_id}/sounds?{{encoded_params}}',
+            additional_params=additional_params)
 
 
 class UserAnnotationResource(object):

@@ -25,7 +25,8 @@ db.users.create_indexes([
 
 db.sounds.create_indexes([
     index_model(SoundMapper.created_by),
-    index_model(SoundMapper.audio_url, unique=True)
+    index_model(SoundMapper.audio_url, unique=True),
+    index_model(SoundMapper.tags)
 ])
 
 db.annotations.create_indexes([

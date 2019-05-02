@@ -41,6 +41,7 @@ class UserMapper(BaseMapper):
     user_type = EnumMapping(User.user_type, UserType)
     email = BaseMapping(User.email)
     about_me = BaseMapping(User.about_me)
+    info_url = BaseMapping(User.info_url)
 
 
 class SoundMapper(BaseMapper):
@@ -54,6 +55,7 @@ class SoundMapper(BaseMapper):
     license_type = EnumMapping(Sound.license_type, LicenseType)
     title = BaseMapping(Sound.title)
     duration_seconds = BaseMapping(Sound.duration_seconds)
+    tags = BaseMapping(Sound.tags)
 
 
 class AnnotationMapper(BaseMapper):

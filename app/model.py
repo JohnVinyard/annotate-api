@@ -49,7 +49,6 @@ class Email(Immutable):
 
 
 class URL(Immutable):
-
     def validate(self, instance):
         value = instance.get(self.name)
         if value is None:
@@ -57,11 +56,6 @@ class URL(Immutable):
         parsed = urlparse(value)
         if not all((parsed.scheme, parsed.netloc)):
             raise ValueError(f'{value} is not a valid {self.name}')
-
-
-class Tags(Immutable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, value_transform=tuple, **kwargs)
 
 
 class BaseAppEntity(BaseEntity):
@@ -130,13 +124,13 @@ class Sound(BaseAppEntity):
     created_by = Immutable(
         required=True,
         evaluate_context=lambda instance, context:
-            context.user_type != UserType.FEATUREBOT)
+        context.user_type != UserType.FEATUREBOT)
     info_url = URL(required=True)
     audio_url = URL(required=True)
     license_type = Immutable(value_transform=LicenseType, required=True)
     title = Immutable(required=True)
     duration_seconds = Immutable(required=True, value_transform=float)
-    tags = Tags()
+    tags = Immutable()
 
     @classmethod
     def exists_query(cls, audio_url, **kwargs):
@@ -149,4 +143,4 @@ class Annotation(BaseAppEntity):
     start_seconds = Immutable(required=True, value_transform=float)
     duration_seconds = Immutable(required=True, value_transform=float)
     data_url = URL(default_value=None)
-    tags = Tags()
+    tags = Immutable()
