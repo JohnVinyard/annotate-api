@@ -3,11 +3,11 @@ import argparse
 
 class DefaultArgumentParser(argparse.ArgumentParser):
     def __init__(self):
-        super().__init__()
+        super().__init__(add_help=False)
         self.add_argument(
             '--password',
             required=True,
-            help='MusicNet user password')
+            help='user password')
         self.add_argument(
             '--metadata-path',
             required=True,
