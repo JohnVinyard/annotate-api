@@ -16,6 +16,11 @@ ENTITIES_AS_LINKS = {
 }
 
 
+# TODO: annotations resource that allows searching by tag
+# TODO: annotation documents include computed end_seconds property
+# TODO: compound index on annotations for (user, start_time) and (user, end_time)
+# TODO: /sounds/{sound_id}/annotations supports filtering by start and end times
+
 class AppEntityLinks(EntityLinks):
     def __init__(self):
         super().__init__(ENTITIES_AS_LINKS)
@@ -177,6 +182,35 @@ def head_entity(resp, session, query):
     resp.status = falcon.HTTP_NO_CONTENT
 
 
+class AnnotationsResource(object):
+    """
+    List all annotations
+    """
+
+    @falcon.before(basic_auth)
+    def on_get(self, req, resp, session, actor):
+        query = Annotation.all_query()
+
+        # TODO: This is near-duplicate code from the /sounds resource below.
+        # factor it out
+        additional_params = {}
+        tags = req.get_param_as_list('tags')
+        if tags:
+            additional_params['tags'] = tags
+            for tag in tags:
+                query = query & (Annotation.tags == tag)
+
+        list_entity(
+            req,
+            resp,
+            session,
+            actor,
+            query,
+            Annotation.date_created.descending(),
+            '/annotations?{encoded_params}',
+            additional_params=additional_params)
+
+
 class SoundAnnotationsResource(object):
     """
     Create and list annotations associated with a sound
@@ -227,7 +261,6 @@ class UserSoundsResource(object):
 
         additional_params = {}
         tags = req.get_param_as_list('tags')
-
         if tags:
             additional_params['tags'] = tags
             for tag in tags:
@@ -356,6 +389,7 @@ api.add_route(SOUND_URI_TEMPLATE, SoundResource())
 api.add_route('/sounds/{sound_id}/annotations', SoundAnnotationsResource())
 api.add_route('/users/{user_id}/sounds', UserSoundsResource())
 api.add_route('/users/{user_id}/annotations', UserAnnotationResource())
+api.add_route('/annotations', AnnotationsResource())
 
 
 # custom errors

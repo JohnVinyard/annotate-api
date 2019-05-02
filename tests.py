@@ -998,6 +998,14 @@ class UserAnnotationTests(BaseTests, unittest2.TestCase):
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
 
+class AnnotationsTests(BaseTests, unittest2.TestCase):
+    def tearDown(self):
+        self.delete_all_data()
+
+    def test_can_search_across_sounds_by_tag(self):
+        self.fail()
+
+
 class AnnotationTests(BaseTests, unittest2.TestCase):
     def tearDown(self):
         self.delete_all_data()
@@ -1075,6 +1083,9 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
             self.sound_annotations_resource(sound_id),
             auth=auth)
         self.assertEqual(10, len(resp.json()['items']))
+
+    def test_can_filter_annotations_for_sound_overlapping_with_range(self):
+        self.fail()
 
     def test_not_found_when_listing_annotations_for_nonexistent_sound(self):
         user, user_location = self.create_user(user_type='human')
