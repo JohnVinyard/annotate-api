@@ -43,14 +43,14 @@ if __name__ == '__main__':
     )
     metadata = get_metadata(os.path.join(args.metadata_path, 'examples.json'))
 
-    nsynth_bucket_name = 'NSynth'
+    bucket_name = 'NSynth'
 
     object_storage_client = ObjectStorageClient(
         endpoint=args.s3_endpoint,
         region=args.s3_region,
         access_key=args.aws_access_key_id,
         secret=args.aws_secret_access_key,
-        bucket=nsynth_bucket_name)
+        bucket=bucket_name)
 
     audio_path = os.path.join(args.metadata_path, 'audio')
 
