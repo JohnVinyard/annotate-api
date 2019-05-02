@@ -19,16 +19,15 @@ class Client(object):
     def auth(self, value):
         self.session.auth = value
 
-    def upsert_dataset(self, user_name, email, password, about_me):
+    def upsert_dataset(
+            self, user_name, email, password, about_me, info_url=None):
         user_data = {
-            # TODO: Should users also have an info url property?
             'user_name': user_name,
             'user_type': 'dataset',
             'email': email,
             'password': password,
-            # TODO: This should be read from a markdown file in the dataset-specific
-            # repository
-            'about_me': about_me
+            'about_me': about_me,
+            'info_url': info_url
         }
         auth = (user_data['user_name'], user_data['password'])
 
@@ -47,10 +46,6 @@ class Client(object):
             resp.raise_for_status()
             print(f'Updated user {user_name}')
         self.session.auth = auth
-        # TODO: This is a temporary convenience for incremental refactoring.
-        # Eventually the session should be treated as an internal and not
-        # returned
-        return auth
 
     def create_sound(
             self,
@@ -58,7 +53,8 @@ class Client(object):
             info_url,
             license_type,
             title,
-            duration_seconds):
+            duration_seconds,
+            tags=None):
 
         resp = self.session.post(
             f'{self.hostname}/sounds',
@@ -67,7 +63,8 @@ class Client(object):
                 'info_url': info_url,
                 'license_type': license_type,
                 'title': title,
-                'duration_seconds': duration_seconds
+                'duration_seconds': duration_seconds,
+                'tags': tags
             }
         )
         if resp.status_code in (client.CREATED, client.CONFLICT):
