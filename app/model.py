@@ -59,6 +59,11 @@ class URL(Immutable):
             raise ValueError(f'{value} is not a valid {self.name}')
 
 
+class Tags(Immutable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, value_transform=tuple, **kwargs)
+
+
 class BaseAppEntity(BaseEntity):
     id = BaseDescriptor(default_value=user_id_generator)
     date_created = Immutable(default_value=datetime.datetime.utcnow)
@@ -86,20 +91,16 @@ class User(BaseAppEntity):
         default_value=False,
         visible=never,
         evaluate_context=is_me)
-
     user_name = Immutable(required=True)
-
     password = BaseDescriptor(
         visible=never,
         value_transform=password_hasher,
         required=True,
         evaluate_context=is_me)
-
     user_type = Immutable(value_transform=UserType, evaluate_context=is_me)
-
     email = Email(visible=is_me, evaluate_context=is_me)
-
     about_me = AboutMe(evaluate_context=is_me)
+    info_url = URL()
 
     @classmethod
     def auth_query(cls, user_name, password):
@@ -135,6 +136,7 @@ class Sound(BaseAppEntity):
     license_type = Immutable(value_transform=LicenseType, required=True)
     title = Immutable(required=True)
     duration_seconds = Immutable(required=True, value_transform=float)
+    tags = Tags()
 
     @classmethod
     def exists_query(cls, audio_url, **kwargs):
@@ -146,5 +148,5 @@ class Annotation(BaseAppEntity):
     sound = Immutable(required=True)
     start_seconds = Immutable(required=True, value_transform=float)
     duration_seconds = Immutable(required=True, value_transform=float)
-    tags = Immutable(value_transform=tuple)
     data_url = URL(default_value=None)
+    tags = Tags()
