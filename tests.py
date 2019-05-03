@@ -1044,6 +1044,9 @@ class AnnotationsTests(BaseTests, unittest2.TestCase):
         items = resp.json()['items']
         self.assertEqual(2, len(items))
 
+    def test_tags_should_be_formatted_correctly_in_next_link(self):
+        self.fail()
+
 
 class AnnotationTests(BaseTests, unittest2.TestCase):
     def tearDown(self):
