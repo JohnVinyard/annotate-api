@@ -16,11 +16,6 @@ ENTITIES_AS_LINKS = {
 }
 
 
-# TODO: annotations resource that allows searching by tag
-
-# TODO: compound index on annotations for (user, start_time) and (user, end_time)
-# TODO: /sounds/{sound_id}/annotations supports filtering by start and end times
-
 class AppEntityLinks(EntityLinks):
     def __init__(self):
         super().__init__(ENTITIES_AS_LINKS)
