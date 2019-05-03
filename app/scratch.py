@@ -411,6 +411,7 @@ class BaseDescriptor(object):
     def __get__(self, instance, owner):
         if instance is None:
             return self
+
         value = instance._data.get(self.name, self.default_value)
         return value
 
@@ -546,19 +547,20 @@ class BaseEntity(object, metaclass=MetaEntity):
         # filter any missing values
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
-        # set default values if values weren't provided to __init_
+        # set values explicitly provided to __init__
+        self.update(creator, **kwargs)
+
+        # set default values if values weren't provided to __init__
         for k, v in self._metafields.items():
             if v.default_value is not None and k not in kwargs:
                 try:
                     contextual_value = ContextualValue(
-                        creator, v.default_value())
+                        creator, v.default_value(self))
                     self.__setattr__(k, contextual_value)
                 except TypeError:
                     contextual_value = ContextualValue(creator, v.default_value)
                     self.__setattr__(k, contextual_value)
 
-        # set values explicitly provided to __init__
-        self.update(creator, **kwargs)
         self._track()
 
     def update(self, actor, **kwargs):

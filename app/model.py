@@ -59,8 +59,9 @@ class URL(Immutable):
 
 
 class BaseAppEntity(BaseEntity):
-    id = BaseDescriptor(default_value=user_id_generator)
-    date_created = Immutable(default_value=datetime.datetime.utcnow)
+    id = Immutable(default_value=user_id_generator)
+    date_created = Immutable(
+        default_value=lambda instance: datetime.datetime.utcnow())
 
     @property
     def identifier(self):
@@ -142,5 +143,8 @@ class Annotation(BaseAppEntity):
     sound = Immutable(required=True)
     start_seconds = Immutable(required=True, value_transform=float)
     duration_seconds = Immutable(required=True, value_transform=float)
+    end_seconds = Immutable(
+        default_value=lambda instance:
+        instance.start_seconds + instance.duration_seconds)
     data_url = URL(default_value=None)
     tags = Immutable()

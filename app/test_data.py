@@ -4,7 +4,7 @@ from mapping import UserMapper, SoundMapper, AnnotationMapper
 from scratch import \
     Session, ContextualValue, BaseRepository, SortOrder, QueryResult, \
     BaseEntity, BaseDescriptor
-from errors import PermissionsError, EntityNotFoundError
+from errors import PermissionsError, EntityNotFoundError, ImmutableError
 
 
 class InMemoryRepository(BaseRepository):
@@ -229,6 +229,55 @@ class AnnotationDataTests(unittest2.TestCase):
 
     def _session(self):
         return Session(self.user_repo, self.sound_repo, self.annotation_repo)
+
+    def test_can_create_computed_field(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = next(s.filter(Sound.id == sound_id))
+            annotation = Annotation.create(
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['drums'],
+                data_url=None)
+
+        self.assertEqual(2, annotation.end_seconds)
+
+    def test_error_when_setting_computed_field(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = next(s.filter(Sound.id == sound_id))
+            annotation = Annotation.create(
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['drums'],
+                data_url=None)
+
+        def x():
+            annotation.end_seconds = 10
+
+        self.assertRaises(ImmutableError, x)
 
     def test_can_store_and_retrieve_with_no_data_url(self):
         with self._session():

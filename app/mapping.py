@@ -67,5 +67,6 @@ class AnnotationMapper(BaseMapper):
     sound_id = EntityMapping(Annotation.sound, Sound)
     start_seconds = BaseMapping(Annotation.start_seconds)
     duration_seconds = BaseMapping(Annotation.duration_seconds)
+    end_seconds = BaseMapping(Annotation.end_seconds)
     tags = BaseMapping(Annotation.tags)
     data_url = BaseMapping(Annotation.data_url)
