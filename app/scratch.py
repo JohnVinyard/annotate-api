@@ -130,6 +130,8 @@ class Query(object):
         except AttributeError:
             pass
 
+        self.negated = False
+
     @property
     def entity_class(self):
         classes = set()
@@ -160,8 +162,16 @@ class Query(object):
     def __or__(self, other):
         return Query(self, other, Query.OR)
 
+    def __neg__(self):
+        return self.negate()
+
+    def negate(self):
+        self.negated = not self.negated
+        return self
+
     def __repr__(self):
-        return '({lhs} {op} {rhs})'.format(**self.__dict__)
+        s = '({lhs} {op} {rhs})'.format(**self.__dict__)
+        return '!' + s if self.negated else s
 
     def __str__(self):
         return self.__repr__()

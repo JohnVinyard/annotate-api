@@ -17,6 +17,7 @@ ENTITIES_AS_LINKS = {
 
 
 # TODO: annotations resource that allows searching by tag
+
 # TODO: compound index on annotations for (user, start_time) and (user, end_time)
 # TODO: /sounds/{sound_id}/annotations supports filtering by start and end times
 
@@ -238,6 +239,24 @@ class SoundAnnotationsResource(object):
         sound = session.find_one(Sound.id == sound_id)
         query = Annotation.sound == sound
 
+        additional_params = {}
+        time_range = req.get_param('time_range')
+
+        if time_range is not None:
+            try:
+                start, end = time_range.split('-')
+                start = float(start)
+                end = float(end)
+                not_intersects_query = \
+                    (Annotation.start_seconds > end) \
+                    | (Annotation.end_seconds < start)
+                query = query & not_intersects_query.negate()
+                additional_params['time_range'] = time_range
+            except ValueError:
+                raise falcon.HTTPBadRequest(
+                    'Please specify time ranges as two '
+                    'dash-separated float values')
+
         list_entity(
             req,
             resp,
@@ -245,7 +264,8 @@ class SoundAnnotationsResource(object):
             actor,
             query,
             Annotation.date_created.ascending(),
-            f'/sounds/{sound_id}/annotations?{{encoded_params}}')
+            f'/sounds/{sound_id}/annotations?{{encoded_params}}',
+            additional_params=additional_params)
 
 
 class UserSoundsResource(object):

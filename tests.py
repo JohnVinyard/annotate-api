@@ -64,10 +64,16 @@ class BaseTests(object):
             tags=tags
         )
 
-    def annotation_data(self, tags=None, data_url=None, start_seconds=1):
+    def annotation_data(
+            self,
+            tags=None,
+            data_url=None,
+            start_seconds=1,
+            duration_seconds=1):
+
         return dict(
             start_seconds=start_seconds,
-            duration_seconds=1,
+            duration_seconds=duration_seconds,
             tags=tags,
             data_url=data_url)
 
@@ -1085,7 +1091,36 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
         self.assertEqual(10, len(resp.json()['items']))
 
     def test_can_filter_annotations_for_sound_overlapping_with_range(self):
-        self.fail()
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            # full-duration
+            self.annotation_data(start_seconds=0, duration_seconds=(6 * 60) + 42),
+            # completely before range
+            self.annotation_data(start_seconds=0, duration_seconds=4),
+            # end overlaps with range
+            self.annotation_data(start_seconds=1, duration_seconds=5),
+            # totally within range
+            self.annotation_data(start_seconds=6, duration_seconds=1),
+            # beginning overlaps with range
+            self.annotation_data(start_seconds=9, duration_seconds=5),
+            # completely after range
+            self.annotation_data(start_seconds=11, duration_seconds=5)
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+        resp = requests.get(
+            self.sound_annotations_resource(sound_id),
+            params={'time_range': '5-10'},
+            auth=auth)
+        items = resp.json()['items']
+        import pprint
+        pprint.pprint(items)
+        self.assertEqual(4, len(items))
+
 
     def test_not_found_when_listing_annotations_for_nonexistent_sound(self):
         user, user_location = self.create_user(user_type='human')

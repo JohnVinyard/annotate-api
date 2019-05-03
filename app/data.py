@@ -31,7 +31,16 @@ db.sounds.create_indexes([
 
 db.annotations.create_indexes([
     index_model(AnnotationMapper.created_by),
-    index_model(AnnotationMapper.sound_id)
+    index_model(AnnotationMapper.sound_id),
+    IndexModel([
+        (AnnotationMapper.sound_id.storage_name, ASCENDING),
+        (AnnotationMapper.start_seconds.storage_name, ASCENDING)
+    ], name='start_seconds'),
+    IndexModel([
+        (AnnotationMapper.sound_id.storage_name, ASCENDING),
+        (AnnotationMapper.end_seconds.storage_name, ASCENDING)
+    ], name='end_seconds')
+
 ])
 
 users_db = db.users
@@ -76,6 +85,10 @@ class MongoRepository(BaseRepository):
             return {}
 
         mongo_op = MongoRepository.OPERATOR_MAPPING[query.op]
+
+        if mongo_op == '$or' and query.negated:
+            mongo_op = '$nor'
+
         if query.op in MongoRepository.BOOLEAN_OPS:
             criteria = map(self._transform_query, (query.lhs, query.rhs))
             conditions = []
