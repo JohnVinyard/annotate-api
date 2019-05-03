@@ -32,6 +32,7 @@ db.sounds.create_indexes([
 db.annotations.create_indexes([
     index_model(AnnotationMapper.created_by),
     index_model(AnnotationMapper.sound_id),
+    index_model(AnnotationMapper.tags),
     IndexModel([
         (AnnotationMapper.sound_id.storage_name, ASCENDING),
         (AnnotationMapper.start_seconds.storage_name, ASCENDING)

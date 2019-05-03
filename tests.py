@@ -128,6 +128,10 @@ class BaseTests(object):
         return cls.url(f'/sounds/{sound_id}/annotations')
 
     @classmethod
+    def annotations_resource(cls):
+        return cls.url('/annotations')
+
+    @classmethod
     def delete_all_data(cls):
         requests.delete(cls.root_resource())
 
@@ -1009,7 +1013,36 @@ class AnnotationsTests(BaseTests, unittest2.TestCase):
         self.delete_all_data()
 
     def test_can_search_across_sounds_by_tag(self):
-        self.fail()
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=['drums']),
+            self.annotation_data(tags=['snare'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        user2, user2_location = self.create_user(user_type='human')
+        auth2 = self._get_auth(user2)
+        sound_id2 = self._create_sound_with_user(auth2)
+        annotation_data2 = [
+            self.annotation_data(tags=['kick']),
+            self.annotation_data(tags=['snare'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id2),
+            json={'annotations': annotation_data2},
+            auth=auth)
+
+        resp = requests.get(
+            self.annotations_resource(),
+            params={'page_size': 100, 'tags': ['snare']},
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(2, len(items))
 
 
 class AnnotationTests(BaseTests, unittest2.TestCase):
@@ -1096,7 +1129,8 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
         sound_id = self._create_sound_with_user(auth)
         annotation_data = [
             # full-duration
-            self.annotation_data(start_seconds=0, duration_seconds=(6 * 60) + 42),
+            self.annotation_data(start_seconds=0,
+                                 duration_seconds=(6 * 60) + 42),
             # completely before range
             self.annotation_data(start_seconds=0, duration_seconds=4),
             # end overlaps with range
@@ -1120,7 +1154,6 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
         import pprint
         pprint.pprint(items)
         self.assertEqual(4, len(items))
-
 
     def test_not_found_when_listing_annotations_for_nonexistent_sound(self):
         user, user_location = self.create_user(user_type='human')

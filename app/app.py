@@ -222,6 +222,7 @@ class SoundAnnotationsResource(object):
         Create new annotations for a sound
         """
         sound = session.find_one(Sound.id == sound_id)
+
         for annotation in req.media['annotations']:
             annotation['created_by'] = actor
             annotation['sound'] = sound
