@@ -4,7 +4,34 @@
     <meta charset="UTF-8">
     <title>Annotate UI</title>
     <script type="text/javascript" src="app.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
 </head>
 <body>
+    <header class="container">
+        <div class="columns">
+            <div class="column col-1">Annotate</div>
+            <div class="column col-11"></div>
+        </div>
+    </header>
+    <main>
+        <section class="container">
+            <div class="columns">
+                <div class="column col-12">
+                    <input
+                            id="search-criteria"
+                            type="text"
+                            placeholder="tags" />
+                    <input id="search" type="submit" />
+                </div>
+            </div>
+            <div class="columns">
+                <div class="column col-12">
+                    <ul id="search-results">
+
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
 </body>
 </html>

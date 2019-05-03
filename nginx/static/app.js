@@ -48,25 +48,71 @@ const playAudio = (url, context, start, duration) => {
   fetchAudio(url, context)
     .then((audioBuffer) => {
         const source = context.createBufferSource();
-        const gain = context.createGain();
         source.buffer = audioBuffer;
-        source.connect(gain);
-        gain.connect(context.destination);
-        const now = context.currentTime;
-        gain.gain.setValueAtTime(1, now);
-        source.start(0, start * audioBuffer.duration, duration * 2);
-        gain.gain.setValueAtTime(1, now + duration);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + (duration * 2));
+        source.connect(context.destination);
+        source.start(0, start, duration);
     });
 };
 
-const headers = new Headers();
-headers.append('Authorization', authHeader('musicnet', 'password'));
 
-fetch('/sounds', {headers})
-  .then(resp => resp.json())
-  .then(data => {
-    return fetch(`/sounds/${data.items[0].id}/annotations`, {headers});
-  })
-  .then(resp => resp.json())
-  .then(data => console.log(data));
+const onClick = (selector, handler) => {
+  document.addEventListener('click', function(event) {
+    if(event.target.matches(selector)) {
+      event.preventDefault();
+      handler(event);
+    }
+  });
+};
+
+const handleSubmit = (event) => {
+  const rawQuery = document.querySelector('#search-criteria').value;
+
+  const headers = new Headers();
+  headers.append('Authorization', authHeader('musicnet', 'password'));
+
+  fetch(`/annotations?tags=${rawQuery}&page_size=25`, {headers})
+    .then(resp => resp.json())
+    .then(data => {
+      const searchResults = document.querySelector('#search-results');
+
+      // clear the results
+      while(searchResults.firstChild) {
+        searchResults.firstChild.remove();
+      }
+
+      // get unique list of all sounds and fetch them greedily
+      const sounds = new Set(data.items.map(x => x.sound));
+      const mapping = {};
+      sounds.forEach(sndUri => {
+        fetch(sndUri, {headers})
+          .then(resp => resp.json())
+          .then(data => {
+            mapping[`/sounds/${data.id}`] = data.audio_url;
+            fetchAudio(data.audio_url, context);
+          })
+      });
+
+      // add click-able elements to play each annotation
+      data.items.forEach(annotation => {
+        const item = document.createElement('li');
+        item.innerText = `${annotation.sound} ${annotation.start_seconds} - ${annotation.end_seconds}`;
+        item.id = `annotation-${annotation.id}`;
+        onClick(`#${item.id}`, event => {
+            console.log(`playing ${item.id}`);
+            playAudio(
+              mapping[annotation.sound],
+              context,
+              annotation.start_seconds,
+              annotation.duration_seconds);
+        });
+        searchResults.appendChild(item);
+      });
+      console.log(data);
+      console.log(sounds)
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+  onClick('#search', handleSubmit);
+});
