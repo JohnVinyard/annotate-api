@@ -27,6 +27,8 @@ services:
       - annotate
     logging:
         driver: "none"
+    volumes:
+        - ./nginx/static:/remote/static
 
   s3:
     build: ./s3
