@@ -4,15 +4,27 @@
     <meta charset="UTF-8">
     <title>Annotate UI</title>
     <script type="text/javascript" src="app.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css" />
+    <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
+
+    <template id="sound-view-template">
+        <div class="sound-view-container">
+            <canvas class="sound-view-visualization">
+            </canvas>
+        </div>
+    </template>
+
     <header class="container">
         <div class="columns">
             <div class="column col-1">Annotate</div>
             <div class="column col-11"></div>
         </div>
     </header>
+    <div id="temp-container">
+
+    </div>
     <main>
         <section class="container">
             <div class="columns">
