@@ -45,6 +45,7 @@ const addTemplate = (templateSelector, parentElement) => {
   parentElement.appendChild(clone);
 };
 
+// TODO: Create a 2D version of this class, and factor out common logic
 class SoundView1D {
   constructor(parentElement, featureData) {
     const template = document.querySelector('#sound-view-template');
@@ -55,22 +56,12 @@ class SoundView1D {
     this.drawContext = canvas.getContext('2d');
     this.parentElement = parentElement;
     this.parentElement.appendChild(clone);
-
-
     this.container = parentElement.querySelector('.sound-view-container');
 
     canvas.width = this.container.clientWidth;
     canvas.style.width = '100%';
     canvas.height = this.container.clientHeight;
     canvas.style.height = '100%';
-
-    console.log(
-      this.container.clientWidth,
-      this.canvas.clientWidth,
-      this.canvas.width,
-      this.canvas.style.width,
-      this.canvas.style.height);
-
     this.featureData = featureData;
     this.zoom = 1;
     this.draw();
@@ -102,24 +93,19 @@ class SoundView1D {
     const stride = this.featureData.length / this.elementWidth;
     const offsetPercent = this.container.scrollLeft / this.elementWidth;
 
-    // console.log(
-    //   this.container.clientWidth,
-    //   this.canvas.clientWidth,
-    //   this.container.scrollLeft);
-
     const height = this.container.clientHeight;
 
-    for(let i = 0; i < this.containerWidth; i++) {
-      // TODO: Render the correct samples
+    const increment = Math.max(1, 1 / stride);
+
+    for(let i = 0; i < this.containerWidth; i+=increment) {
       const index = (this.featureData.length * offsetPercent) + (i * stride);
-      // KLUDGE: This should be behind the FeatureData interface
       const sample =
         Math.abs(this.featureData.binaryData[Math.round(index)]);
 
       this.drawContext.fillRect(
         this.container.scrollLeft + i,
         height - (sample * height),
-        1,
+        increment,
         sample * height);
     }
   }
