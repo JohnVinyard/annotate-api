@@ -253,6 +253,13 @@ class SoundAnnotationsResource(object):
                     'Please specify time ranges as two '
                     'dash-separated float values')
 
+        created_by = req.get_param('created_by')
+        if created_by is not None:
+            partial_user =  User.partial_hydrate(id=created_by)
+            user_query = (Annotation.created_by == partial_user)
+            query = query & user_query
+            additional_params['created_by'] = created_by
+
         list_entity(
             req,
             resp,

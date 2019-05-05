@@ -1052,6 +1052,39 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
     def tearDown(self):
         self.delete_all_data()
 
+    def test_can_filter_annotations_by_creating_user(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+
+        user2, user2_location = self.create_user(user_type='featurebot')
+        auth2 = self._get_auth(user2)
+
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(tags=['drums'])
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+
+        annotation_data = self.annotation_data(tags=['snare'])
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth2)
+
+        resp = requests.get(
+            self.sound_annotations_resource(sound_id),
+            params={
+                'created_by': user2_location.split('/')[-1],
+                'page_size': 10
+            },
+            auth=auth)
+
+        items = resp.json()['items']
+        self.assertEqual(1, len(items))
+        self.assertEqual('snare', items[0]['tags'][0])
+
+
     def test_human_can_create_annotation(self):
         user, user_location = self.create_user(user_type='human')
         auth = self._get_auth(user)
