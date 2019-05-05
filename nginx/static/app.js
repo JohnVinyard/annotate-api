@@ -45,7 +45,36 @@ const addTemplate = (templateSelector, parentElement) => {
   parentElement.appendChild(clone);
 };
 
-// TODO: Create a 2D version of this class, and factor out common logic
+const onClick = (selector, handler) => {
+  document.addEventListener('click', function(event) {
+    if(event.target.matches(selector)) {
+      event.preventDefault();
+      handler(event);
+    }
+  });
+};
+
+const debounced = (element, event, func, debounce) => {
+  let timeout = null;
+  element.addEventListener(event, function(event) {
+    if(timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(function() {
+      func();
+    }, debounce);
+  });
+};
+
+const onScroll = (element, func, debounce=100) => {
+  debounced(element, 'scroll', func, debounce);
+};
+
+const onResize = (element, func, debounce=100) => {
+  debounced(element, 'resize', func, debounce);
+};
+
+// TODO: redraw on resize
 class SoundView1D {
   constructor(parentElement, featureData) {
     const template = document.querySelector('#sound-view-template');
@@ -66,17 +95,9 @@ class SoundView1D {
     this.zoom = 1;
     this.draw();
 
-    let timeout = null;
     const self = this;
-
-    this.container.addEventListener('scroll', function(event) {
-      if(timeout !== null) {
-        clearTimeout(timeout);
-      }
-      timeout = setTimeout(function() {
-        self.draw();
-      }, 100);
-    });
+    onScroll(this.container, () => this.draw(), 100);
+    onResize(window, () => this.draw(), 100);
   }
 
   get containerWidth() {
@@ -87,26 +108,53 @@ class SoundView1D {
     this.drawContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  draw() {
-    this.clear()
-    this.drawContext.fillStyle = 'black';
-    const stride = this.featureData.length / this.elementWidth;
-    const offsetPercent = this.container.scrollLeft / this.elementWidth;
+  draw1D(i, increment, height, index) {
+    const sample =
+      Math.abs(this.featureData.binaryData[Math.round(index)]);
+    this.drawContext.fillRect(
+      this.container.scrollLeft + i,
+      height - (sample * height),
+      increment,
+      sample * height);
+  }
 
-    const height = this.container.clientHeight;
+  draw2D(i, increment, height, index) {
+    const roundedIndex = Math.round(index);
+    const slice = this.featureData.slice(roundedIndex, roundedIndex + 1);
+    const data = slice.binaryData;
+    const verticalStride = height / data.length;
 
-    const increment = Math.max(1, 1 / stride);
-
-    for(let i = 0; i < this.containerWidth; i+=increment) {
-      const index = (this.featureData.length * offsetPercent) + (i * stride);
-      const sample =
-        Math.abs(this.featureData.binaryData[Math.round(index)]);
-
+    for(let j = 0; j < data.length; j++) {
+      // KLUDGE: This assumes that all data will be in range 0-1
+      const value = Math.round(Math.abs(data[j]) * 255);
+      const color = `rgb(${value}, ${value}, ${value})`;
+      this.drawContext.fillStyle = color;
       this.drawContext.fillRect(
         this.container.scrollLeft + i,
-        height - (sample * height),
+        verticalStride * j,
         increment,
-        sample * height);
+        verticalStride);
+    }
+  }
+
+  draw() {
+    this.clear()
+    const stride = this.featureData.length / this.elementWidth;
+    const offsetPercent = this.container.scrollLeft / this.elementWidth;
+    const height = this.container.clientHeight;
+    const increment = Math.max(1, 1 / stride);
+
+
+    this.drawContext.fillStyle = 'black';
+    for(let i = 0; i < this.containerWidth; i+=increment) {
+      const index = (this.featureData.length * offsetPercent) + (i * stride);
+      if (this.featureData.rank === 1) {
+        this.draw1D(i, increment, height, index);
+      } else if (this.featureData.rank === 2) {
+        this.draw2D(i, increment, height, index);
+      } else {
+        throw new Error('Dimensions greater than 2 not currently supported');
+      }
     }
   }
 
@@ -213,14 +261,7 @@ const playAudio = (url, context, start, duration) => {
 };
 
 
-const onClick = (selector, handler) => {
-  document.addEventListener('click', function(event) {
-    if(event.target.matches(selector)) {
-      event.preventDefault();
-      handler(event);
-    }
-  });
-};
+
 
 const annotateClient = new AnnotateApiClient('musicnet', 'password');
 
