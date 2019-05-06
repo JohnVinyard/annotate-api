@@ -4,8 +4,9 @@
 .sound-view-container {
     overflow: auto;
     border: solid 1px #000;
+    height: 200px;
 }
 
 .sound-view-visualization {
-    height: 200px;
+
 }

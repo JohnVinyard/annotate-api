@@ -86,11 +86,6 @@ class SoundView1D {
     this.parentElement = parentElement;
     this.parentElement.appendChild(clone);
     this.container = parentElement.querySelector('.sound-view-container');
-
-    canvas.width = this.container.clientWidth;
-    canvas.style.width = '100%';
-    canvas.height = this.container.clientHeight;
-    canvas.style.height = '100%';
     this.featureData = featureData;
     this.zoom = 1;
     this.draw();
@@ -138,7 +133,12 @@ class SoundView1D {
   }
 
   draw() {
-    this.clear()
+    this.canvas.width = this.elementWidth;
+    this.canvas.style.width = `${this.zoom * 100}%`;
+    this.canvas.height = this.container.clientHeight;
+    this.canvas.style.height = '100%';
+    this.clear();
+
     const stride = this.featureData.length / this.elementWidth;
     const offsetPercent = this.container.scrollLeft / this.elementWidth;
     const height = this.container.clientHeight;
@@ -164,12 +164,8 @@ class SoundView1D {
 
   setZoom(zoom) {
     this.zoom = zoom;
-    this.canvas.width = this.elementWidth;
-    this.canvas.style.width = `${this.zoom * 100}%`;
     this.draw();
   }
-
-
 }
 
 const context = new (window.AudioContext || window.webkitAudioContext)();
