@@ -2,11 +2,21 @@
     position:relative;
 }
 .sound-view-container {
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
     border: solid 1px #000;
     height: 200px;
 }
 
 .sound-view-visualization {
+  cursor: pointer;
+}
 
+.sound-view-controls {
+  position:absolute;
+  top: 5px;
+  right:20px;
+  font-weight:bold;
+  font-size:2em;
+  cursor: pointer;
 }

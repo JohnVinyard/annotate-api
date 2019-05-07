@@ -20,6 +20,10 @@ class FeatureData {
     return this.dimensions[0];
   }
 
+  get durationSeconds() {
+    return this.sampleFrequency * this.length;
+  }
+
   slice(start, end) {
     const latterDimensions = this.dimensions.slice(1);
     const stride = latterDimensions.reduce((x, y) => x * y, 1);
@@ -47,7 +51,13 @@ const addTemplate = (templateSelector, parentElement) => {
 
 const onClick = (selector, handler) => {
   document.addEventListener('click', function(event) {
-    if(event.target.matches(selector)) {
+    let matching = false;
+    if(selector instanceof Element) {
+      matching = event.target === selector;
+    } else {
+      matching = event.target.matches(selector);
+    }
+    if(matching) {
       event.preventDefault();
       handler(event);
     }
@@ -74,13 +84,14 @@ const onResize = (element, func, debounce=100) => {
   debounced(element, 'resize', func, debounce);
 };
 
-// TODO: redraw on resize
-class SoundView1D {
-  constructor(parentElement, featureData) {
+class FeatureView {
+  constructor(parentElement, featureData, audioUrl) {
+
     const template = document.querySelector('#sound-view-template');
     const clone = document.importNode(template.content, true);
     const canvas = clone.querySelector('canvas');
 
+    this.audioUrl = audioUrl;
     this.canvas = canvas;
     this.drawContext = canvas.getContext('2d');
     this.parentElement = parentElement;
@@ -90,9 +101,20 @@ class SoundView1D {
     this.zoom = 1;
     this.draw();
 
-    const self = this;
-    onScroll(this.container, () => this.draw(), 100);
-    onResize(window, () => this.draw(), 100);
+    onScroll(this.container, () => this.draw(false), 100);
+    onResize(window, () => this.draw(true), 100);
+
+    onClick(this.container.querySelector('.sound-view-zoom-in'), () => {
+      this.setZoom(Math.min(20, this.zoom + 1));
+    });
+    onClick(this.container.querySelector('.sound-view-zoom-out'), () => {
+      this.setZoom(Math.max(1, this.zoom - 1));
+    });
+    onClick(this.canvas, (event) => {
+      const startSeconds =
+        (event.offsetX / this.elementWidth) * this.featureData.durationSeconds;
+      playAudio(this.audioUrl, context, startSeconds, 2.5);
+    });
   }
 
   get containerWidth() {
@@ -106,11 +128,18 @@ class SoundView1D {
   draw1D(i, increment, height, index) {
     const sample =
       Math.abs(this.featureData.binaryData[Math.round(index)]);
+
+    // KLUDGE: This assumes that all data will be in range 0-1
+    const value = 0.25 + (sample);
+    const color = `rgba(0, 0, 0, ${value})`;
+    this.drawContext.fillStyle = color;
+
+    const size = sample * height;
     this.drawContext.fillRect(
       this.container.scrollLeft + i,
-      height - (sample * height),
+      (height - size) / 2,
       increment,
-      sample * height);
+      size);
   }
 
   draw2D(i, increment, height, index) {
@@ -132,22 +161,27 @@ class SoundView1D {
     }
   }
 
-  draw() {
+  draw(preserveOffset=false) {
     this.canvas.width = this.elementWidth;
     this.canvas.style.width = `${this.zoom * 100}%`;
     this.canvas.height = this.container.clientHeight;
     this.canvas.style.height = '100%';
     this.clear();
 
-    const stride = this.featureData.length / this.elementWidth;
-    const offsetPercent = this.container.scrollLeft / this.elementWidth;
+    if(preserveOffset) {
+      this.container.scrollLeft = this.offsetPercent * this.elementWidth;
+    } else {
+      const offsetPercent = this.container.scrollLeft / this.elementWidth;
+      this.offsetPercent = offsetPercent;
+    }
+
     const height = this.container.clientHeight;
+    const stride = this.featureData.length / this.elementWidth;
     const increment = Math.max(1, 1 / stride);
 
-
-    this.drawContext.fillStyle = 'black';
     for(let i = 0; i < this.containerWidth; i+=increment) {
-      const index = (this.featureData.length * offsetPercent) + (i * stride);
+      const index =
+        (this.featureData.length * this.offsetPercent) + (i * stride);
       if (this.featureData.rank === 1) {
         this.draw1D(i, increment, height, index);
       } else if (this.featureData.rank === 2) {
@@ -163,8 +197,11 @@ class SoundView1D {
   }
 
   setZoom(zoom) {
+    if(zoom === this.zoom) {
+      return;
+    }
     this.zoom = zoom;
-    this.draw();
+    this.draw(true);
   }
 }
 
@@ -256,9 +293,6 @@ const playAudio = (url, context, start, duration) => {
     });
 };
 
-
-
-
 const annotateClient = new AnnotateApiClient('musicnet', 'password');
 
 const handleSubmit = (event) => {
@@ -302,22 +336,28 @@ const handleSubmit = (event) => {
 }
 
 
-let soundView = null;
+let featureView = null;
 
 document.addEventListener('DOMContentLoaded', function() {
   // onClick('#search', handleSubmit);
+
   annotateClient.getSounds()
     .then(sounds => {
       return annotateClient.getSound(sounds.items[0].id);
     })
     .then(snd => {
-      return fetchAudio(snd.audio_url, context);
+      return new Promise(function(resolve, reject) {
+        fetchAudio(snd.audio_url, context).then(buffer => {
+          resolve({buffer, audioUrl: snd.audio_url});
+        });
+      });
     })
-    .then(buffer => {
+    .then(data => {
+      const {buffer, audioUrl} = data;
       const raw = buffer.getChannelData(0);
       const frequency = 1 / buffer.sampleRate;
       const fd = new FeatureData(raw, [raw.length], frequency, frequency);
       const parentElement = document.querySelector('#temp-container');
-      soundView = new SoundView1D(parentElement, fd);
+      featureView = new FeatureView(parentElement, fd, audioUrl);
     });
 });
