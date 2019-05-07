@@ -113,8 +113,8 @@ class FeatureView {
 
     promisify(audioUrl).then(audioUrl => {
       this.audioUrl = audioUrl;
-    })
-    // this.audioUrl = audioUrl;
+    });
+
     this.offsetSeconds = offsetSeconds;
     this.canvas = canvas;
     this.container = container;
@@ -141,9 +141,14 @@ class FeatureView {
       this.setZoom(Math.max(1, this.zoom - 1));
     });
     onClick(this.canvas, (event) => {
-      const startSeconds =
+      // the starting point in seconds relative to this slice
+      const relativeStartSeconds =
         (event.offsetX / this.elementWidth) * this.featureData.durationSeconds;
-      playAudio(this.audioUrl, context, this.offsetSeconds + startSeconds, 2.5);
+      // the starting point in seconds in the sound as a whole
+      const startSeconds = this.offsetSeconds + relativeStartSeconds;
+      const durationSeconds =
+        Math.min(2.5, this.featureData.durationSeconds - relativeStartSeconds);
+      playAudio(this.audioUrl, context, startSeconds, durationSeconds);
     });
   }
 
