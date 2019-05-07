@@ -1,16 +1,8 @@
 #temp-container {
     position:relative;
 }
-.sound-view-container {
-    overflow-x: auto;
-    overflow-y: hidden;
-    border: solid 1px #000;
-    height: 200px;
-    position: relative;
-}
-
-.sound-view-visualization {
-  cursor: pointer;
+.sound-view-outer-container {
+  position: relative;
 }
 
 .sound-view-controls {
@@ -19,5 +11,16 @@
   right:20px;
   font-weight:bold;
   font-size:2em;
+  cursor: pointer;
+}
+
+.sound-view-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: solid 1px #000;
+    height: 200px;
+}
+
+.sound-view-visualization {
   cursor: pointer;
 }
