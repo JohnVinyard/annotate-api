@@ -28,9 +28,9 @@ class FeatureData {
     const latterDimensions = this.dimensions.slice(1);
     const stride = latterDimensions.reduce((x, y) => x * y, 1);
     const startIndex =
-      start === undefined ? 0 : start * latterDimensions;
+      start === undefined ? 0 : start * stride;
     const endIndex =
-      end === undefined ? this.binaryData.length : end * latterDimensions;
+      end === undefined ? this.binaryData.length : end * stride;
     const newFirstDimension = (endIndex - startIndex) / stride;
     const newDimensions = [newFirstDimension].concat(latterDimensions);
     return new FeatureData(
@@ -40,6 +40,14 @@ class FeatureData {
       this.sampleFrequency,
       this.sampleDuration
     );
+  }
+
+  timeSlice(startSeconds, durationSeconds) {
+    const startIndex = Math.round(startSeconds / this.sampleFrequency);
+    const endIndex =
+      startIndex + Math.round(durationSeconds / this.sampleFrequency);
+    const sliced = this.slice(startIndex, endIndex);
+    return sliced;
   }
 }
 
@@ -84,22 +92,42 @@ const onResize = (element, func, debounce=100) => {
   debounced(element, 'resize', func, debounce);
 };
 
+const promisify = (value) => {
+  if (value instanceof Promise) {
+    return value;
+  }
+
+  return new Promise(function(resolve, reject) {
+    return resolve(value);
+  });
+};
+
 class FeatureView {
-  constructor(parentElement, featureData, audioUrl) {
+  constructor(parentElement, featureData, audioUrl, offsetSeconds=0) {
 
     const template = document.querySelector('#sound-view-template');
     const clone = document.importNode(template.content, true);
     const canvas = clone.querySelector('canvas');
 
-    this.audioUrl = audioUrl;
+    promisify(audioUrl).then(audioUrl => {
+      this.audioUrl = audioUrl;
+    })
+    // this.audioUrl = audioUrl;
+    this.offsetSeconds = offsetSeconds;
     this.canvas = canvas;
     this.drawContext = canvas.getContext('2d');
     this.parentElement = parentElement;
-    this.parentElement.appendChild(clone);
-    this.container = parentElement.querySelector('.sound-view-container');
-    this.featureData = featureData;
+
+    // TODO: How do I query the document fragment?
+    const appended = this.parentElement.appendChild(clone);
+    this.container = appended.querySelector('.sound-view-container');
+
     this.zoom = 1;
-    this.draw();
+    this.featureData = undefined;
+    promisify(featureData).then(featureData => {
+      this.featureData = featureData;
+      this.draw();
+    });
 
     onScroll(this.container, () => this.draw(false), 100);
     onResize(window, () => this.draw(true), 100);
@@ -113,7 +141,7 @@ class FeatureView {
     onClick(this.canvas, (event) => {
       const startSeconds =
         (event.offsetX / this.elementWidth) * this.featureData.durationSeconds;
-      playAudio(this.audioUrl, context, startSeconds, 2.5);
+      playAudio(this.audioUrl, context, this.offsetSeconds + startSeconds, 2.5);
     });
   }
 
@@ -173,6 +201,10 @@ class FeatureView {
     } else {
       const offsetPercent = this.container.scrollLeft / this.elementWidth;
       this.offsetPercent = offsetPercent;
+    }
+
+    if(this.featureData === undefined) {
+      return;
     }
 
     const height = this.container.clientHeight;
@@ -307,31 +339,112 @@ const handleSubmit = (event) => {
         searchResults.firstChild.remove();
       }
 
-      // get unique list of all sounds and fetch them greedily
-      const sounds = new Set(data.items.map(x => x.sound));
-      const mapping = {};
-      sounds.forEach(sndUri => {
-        annotateClient.getResource(sndUri)
-          .then(data => {
-            mapping[`/sounds/${data.id}`] = data.audio_url;
-            fetchAudio(data.audio_url, context);
-          })
+      const featureDataMapping = {};
+      data.items.forEach(annotation => {
+        let featureDataPromise = featureDataMapping[annotation.sound];
+        if(featureDataPromise === undefined) {
+          featureDataPromise = annotateClient
+            // Get sound data from the API
+            .getResource(annotation.sound)
+            // Fetch audio data from the remote audio url
+            .then(data => {
+              return new Promise(function(resolve, reject) {
+                return fetchAudio(data.audio_url, context).then(buffer => {
+                  resolve({
+                    buffer,
+                    audioUrl: data.audio_url,
+                    soundUri: annotation.sound
+                   });
+                });
+              });
+            })
+            // Build the feature data
+            .then(data => {
+              const {buffer, audioUrl, soundUri} = data;
+              const audioData = buffer.getChannelData(0);
+              const frequency = 1 / buffer.sampleRate;
+              const fd = new FeatureData(
+                audioData, [audioData.length], frequency, frequency);
+              return {featureData: fd, audioUrl};
+            });
+
+          // Put the pending promise into the map
+          featureDataMapping[annotation.sound] = featureDataPromise;
+        }
+
+        const slicedPromise = featureDataPromise.then(data => {
+          const {featureData, audioUrl} = data;
+          return featureData.timeSlice(
+            annotation.start_seconds, annotation.duration_seconds);
+        });
+
+        const audioUrlPromise = featureDataPromise.then(data => {
+          const {featureData, audioUrl} = data;
+          return audioUrl;
+        });
+
+        new FeatureView(
+          searchResults,
+          slicedPromise,
+          audioUrlPromise,
+          annotation.start_seconds);
       });
 
+
+
+      // // get unique list of all sounds and fetch them greedily
+      // const sounds = new Set(data.items.map(x => x.sound));
+      // const mapping = {};
+      // const fdMapping = {};
+      //
+      // sounds.forEach(sndUri => {
+      //   annotateClient.getResource(sndUri)
+      //     .then(data => {
+      //       const soundUri = `/sounds/${data.id}`;
+      //       mapping[soundUri] = data.audio_url;
+      //       return new Promise(function(resolve, reject) {
+      //         fetchAudio(data.audio_url, context).then(buffer => {
+      //           resolve({buffer, audioUrl: data.audio_url, soundUri});
+      //         });
+      //       });
+      //     })
+      //     .then(data => {
+      //       const {buffer, audioUrl, soundUri} = data;
+      //       const audioData = buffer.getChannelData(0);
+      //       const frequency = 1 / buffer.sampleRate;
+      //       const fd = new FeatureData(
+      //         audioData, [audioData.length], frequency, frequency);
+      //       fdMapping[soundUri] = fd;
+      //       return new Promise(function (resolve, reject) {
+      //         resolve(true);
+      //       });
+      //     });
+      // });
+
       // add click-able elements to play each annotation
-      data.items.forEach(annotation => {
-        const item = document.createElement('li');
-        item.innerText = `${annotation.sound} ${annotation.start_seconds} - ${annotation.end_seconds}`;
-        item.id = `annotation-${annotation.id}`;
-        onClick(`#${item.id}`, event => {
-            playAudio(
-              mapping[annotation.sound],
-              context,
-              annotation.start_seconds,
-              annotation.duration_seconds);
-        });
-        searchResults.appendChild(item);
-      });
+      // data.items.forEach(annotation => {
+      //   // const item = document.createElement('li');
+      //   // item.innerText = `${annotation.sound} ${annotation.start_seconds} - ${annotation.end_seconds}`;
+      //   // item.id = `annotation-${annotation.id}`;
+      //   // onClick(`#${item.id}`, event => {
+      //   //     playAudio(
+      //   //       mapping[annotation.sound],
+      //   //       context,
+      //   //       annotation.start_seconds,
+      //   //       annotation.duration_seconds);
+      //   // });
+      //   const featureData = fdMapping[annotation.sound];
+      //   const sliced = featureData.timeSlice(
+      //     annotation.start_seconds, annotation.duration_seconds);
+      //   new FeatureView(
+      //     searchResults,
+      //     sliced,
+      //     mapping[annotation.sound],
+      //     annotation.start_seconds);
+      //   searchResults.appendChild(item);
+      // });
+
+
     });
 }
 
@@ -339,25 +452,25 @@ const handleSubmit = (event) => {
 let featureView = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-  // onClick('#search', handleSubmit);
+  onClick('#search', handleSubmit);
 
-  annotateClient.getSounds()
-    .then(sounds => {
-      return annotateClient.getSound(sounds.items[0].id);
-    })
-    .then(snd => {
-      return new Promise(function(resolve, reject) {
-        fetchAudio(snd.audio_url, context).then(buffer => {
-          resolve({buffer, audioUrl: snd.audio_url});
-        });
-      });
-    })
-    .then(data => {
-      const {buffer, audioUrl} = data;
-      const raw = buffer.getChannelData(0);
-      const frequency = 1 / buffer.sampleRate;
-      const fd = new FeatureData(raw, [raw.length], frequency, frequency);
-      const parentElement = document.querySelector('#temp-container');
-      featureView = new FeatureView(parentElement, fd, audioUrl);
-    });
+  // annotateClient.getSounds()
+  //   .then(sounds => {
+  //     return annotateClient.getSound(sounds.items[0].id);
+  //   })
+  //   .then(snd => {
+  //     return new Promise(function(resolve, reject) {
+  //       fetchAudio(snd.audio_url, context).then(buffer => {
+  //         resolve({buffer, audioUrl: snd.audio_url});
+  //       });
+  //     });
+  //   })
+  //   .then(data => {
+  //     const {buffer, audioUrl} = data;
+  //     const raw = buffer.getChannelData(0);
+  //     const frequency = 1 / buffer.sampleRate;
+  //     const fd = new FeatureData(raw, [raw.length], frequency, frequency);
+  //     const parentElement = document.querySelector('#temp-container');
+  //     featureView = new FeatureView(parentElement, fd, audioUrl);
+  //   });
 });

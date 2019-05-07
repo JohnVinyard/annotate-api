@@ -6,6 +6,7 @@
     overflow-y: hidden;
     border: solid 1px #000;
     height: 200px;
+    position: relative;
 }
 
 .sound-view-visualization {
