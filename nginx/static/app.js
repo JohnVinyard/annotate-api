@@ -31,11 +31,14 @@ class FeatureData {
       start === undefined ? 0 : start * stride;
     const endIndex =
       end === undefined ? this.binaryData.length : end * stride;
+
     const newFirstDimension = (endIndex - startIndex) / stride;
     const newDimensions = [newFirstDimension].concat(latterDimensions);
+
+    const subarray = this.binaryData.subarray(startIndex, endIndex);
     return new FeatureData(
       // Use subarray so that the same underlying buffer is used
-      this.binaryData.subarray(startIndex, endIndex),
+      subarray,
       newDimensions,
       this.sampleFrequency,
       this.sampleDuration
@@ -185,8 +188,8 @@ class FeatureView {
 
     for(let j = 0; j < data.length; j++) {
       // KLUDGE: This assumes that all data will be in range 0-1
-      const value = Math.round(Math.abs(data[j]) * 255);
-      const color = `rgb(${value}, ${value}, ${value})`;
+      const value = Math.abs(data[j]);
+      const color = `rgba(0, 0, 0, ${value})`;
       this.drawContext.fillStyle = color;
       this.drawContext.fillRect(
         this.container.scrollLeft + i,
@@ -282,6 +285,12 @@ class AnnotateApiClient {
     const url = `/annotations?tags=${rawQuery}&page_size=${pageSize}`;
     return this.getResource(url);
   }
+
+  getSoundAnnotationsByUser(soundId, userId, pageSize=100) {
+    const url =
+      `/sounds/${soundId}/annotations?created_by=${userId}&page_size=${pageSize}`;
+    return this.getResource(url);
+  }
 }
 
 
@@ -334,6 +343,17 @@ const playAudio = (url, context, start, duration) => {
 
 const annotateClient = new AnnotateApiClient('musicnet', 'password');
 
+const promiseContext = (promise, dataFunc) => {
+  return new Promise(function(resolve, reject) {
+    return promise.then(data => {
+      resolve({
+        data,
+        ...(dataFunc(data))
+      });
+    })
+  });
+};
+
 const handleSubmit = (event) => {
   const rawQuery = document.querySelector('#search-criteria').value;
 
@@ -360,19 +380,55 @@ const handleSubmit = (event) => {
                   resolve({
                     buffer,
                     audioUrl: data.audio_url,
-                    soundUri: annotation.sound
+                    soundUri: annotation.sound,
+                    soundId: data.id
                    });
                 });
               });
             })
             // Build the feature data
+            // .then(data => {
+            //   const {buffer, audioUrl, soundUri} = data;
+            //   const audioData = buffer.getChannelData(0);
+            //   const frequency = 1 / buffer.sampleRate;
+            //   const fd = new FeatureData(
+            //     audioData, [audioData.length], frequency, frequency);
+            //   return {featureData: fd, audioUrl};
+            // });
             .then(data => {
-              const {buffer, audioUrl, soundUri} = data;
-              const audioData = buffer.getChannelData(0);
-              const frequency = 1 / buffer.sampleRate;
-              const fd = new FeatureData(
-                audioData, [audioData.length], frequency, frequency);
-              return {featureData: fd, audioUrl};
+              const {buffer, audioUrl, soundUri, soundId} = data;
+              console.log(audioUrl);
+              // KLUDGE: Don't hardcode a user id here
+              const promise = annotateClient.getSoundAnnotationsByUser(
+                soundId, '5884c623f7636350fddac5590b582');
+              return promiseContext(promise, r => ({audioUrl}));
+            })
+            .then(result => {
+              console.log(result);
+              const {data, audioUrl} = result;
+              const promise = fetchBinary(data.items[0].data_url);
+              return promiseContext(promise, r => ({audioUrl}));
+            })
+            .then(result => {
+              console.log(result);
+              const {data, audioUrl} = result;
+              const view = new DataView(data);
+              const byteView = new Uint8Array(data);
+              const length = new Uint32Array(data, 0, 4)[0];
+              const rawMetadata = String.fromCharCode.apply(
+                null, new Uint8Array(data, 4, length));
+              const metadata = JSON.parse(rawMetadata);
+
+              // TODO: Array type should be dictated by metadata and not
+              // hard-coded
+              const rawFeatures = new Float32Array(
+                byteView.slice(4 + length).buffer);
+              const featureData = new FeatureData(
+                rawFeatures,
+                metadata.shape,
+                metadata.dimensions[0].frequency_seconds,
+                metadata.dimensions[0].duration_seconds);
+              return {featureData, audioUrl};
             });
 
           // Put the pending promise into the map

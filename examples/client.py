@@ -19,11 +19,18 @@ class Client(object):
     def auth(self, value):
         self.session.auth = value
 
-    def upsert_dataset(
-            self, user_name, email, password, about_me, info_url=None):
+    def _upsert_user(
+            self,
+            user_type,
+            user_name,
+            email,
+            password,
+            about_me,
+            info_url=None):
+
         user_data = {
             'user_name': user_name,
-            'user_type': 'dataset',
+            'user_type': user_type,
             'email': email,
             'password': password,
             'about_me': about_me,
@@ -46,6 +53,16 @@ class Client(object):
             resp.raise_for_status()
             print(f'Updated user {user_name}')
         self.session.auth = auth
+
+    def upsert_dataset(
+            self, user_name, email, password, about_me, info_url=None):
+        self._upsert_user(
+            'dataset', user_name, email, password, about_me, info_url)
+
+    def upsert_featurebot(
+            self, user_name, email, password, about_me, info_url=None):
+        self._upsert_user(
+            'featurebot', user_name, email, password, about_me, info_url)
 
     def create_sound(
             self,
@@ -84,3 +101,11 @@ class Client(object):
             }
         )
         return resp.status_code
+
+    def get_sounds(self, low_id=None, page_size=100):
+        resp = self.session.get(
+            f'{self.hostname}/sounds',
+            params={'low_id': low_id, 'page_size': page_size}
+        )
+        resp.raise_for_status()
+        return resp.json()

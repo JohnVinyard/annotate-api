@@ -9,10 +9,6 @@ class DefaultArgumentParser(argparse.ArgumentParser):
             required=True,
             help='user password')
         self.add_argument(
-            '--metadata-path',
-            required=True,
-            help='path to dataset on disk')
-        self.add_argument(
             '--annotate-api-endpoint',
             required=True,
             help='scheme, hostname and optional port for annotation API')
@@ -34,3 +30,10 @@ class DefaultArgumentParser(argparse.ArgumentParser):
             default=None)
 
 
+class DatasetArgumentParser(DefaultArgumentParser):
+    def __init__(self):
+        super().__init__()
+        self.add_argument(
+            '--metadata-path',
+            required=True,
+            help='path to dataset on disk')

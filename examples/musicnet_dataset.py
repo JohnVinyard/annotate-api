@@ -1,5 +1,5 @@
 from http import client
-from cli import DefaultArgumentParser
+from cli import DatasetArgumentParser
 from client import Client
 import argparse
 import os
@@ -90,7 +90,7 @@ def add_sounds(data_dir, labels_dir, metadata, tags):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(parents=[
-        DefaultArgumentParser()
+        DatasetArgumentParser()
     ])
     args = parser.parse_args()
     annotate_client = Client(args.annotate_api_endpoint)
@@ -124,8 +124,8 @@ if __name__ == '__main__':
         metadata,
         ['test'])
 
-    add_sounds(
-        os.path.join(args.metadata_path, 'train_data'),
-        os.path.join(args.metadata_path, 'train_labels'),
-        metadata,
-        ['train'])
+    # add_sounds(
+    #     os.path.join(args.metadata_path, 'train_data'),
+    #     os.path.join(args.metadata_path, 'train_labels'),
+    #     metadata,
+    #     ['train'])

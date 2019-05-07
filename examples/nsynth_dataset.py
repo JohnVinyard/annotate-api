@@ -4,7 +4,7 @@ from zounds.util import midi_to_note
 import os
 import soundfile
 from client import Client
-from cli import DefaultArgumentParser
+from cli import DatasetArgumentParser
 from http import client
 from s3client import ObjectStorageClient
 
@@ -26,7 +26,7 @@ def get_metadata(json_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[
-        DefaultArgumentParser()
+        DatasetArgumentParser()
     ])
     args = parser.parse_args()
 
