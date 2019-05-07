@@ -116,6 +116,7 @@ class Listener(object):
         spec = np.dot(FILTER_BANK, windowed.T).T
         spec = np.abs(spec)
         spec = 20 * np.log10(spec + 1)
+        spec = np.flipud(spec)
         spec = np.ascontiguousarray(spec).astype(np.float32)
         print(spec.shape)
 
@@ -146,19 +147,19 @@ class Listener(object):
             + spec.tostring()
 
         # push output to s3
-        data_url = self.s3_client.put_object(
-            sound['id'],
-            BytesIO(payload),
-            'application/octet-stream')
-        print(f'pushed binary data to {data_url}')
-
-        # create annotation
-        client.create_annotations(sound['id'], {
-            'start_seconds': 0,
-            'duration_seconds': sound['duration_seconds'],
-            'data_url': data_url
-        })
-        print('created annotation')
+        # data_url = self.s3_client.put_object(
+        #     sound['id'],
+        #     BytesIO(payload),
+        #     'application/octet-stream')
+        # print(f'pushed binary data to {data_url}')
+        #
+        # # create annotation
+        # client.create_annotations(sound['id'], {
+        #     'start_seconds': 0,
+        #     'duration_seconds': sound['duration_seconds'],
+        #     'data_url': data_url
+        # })
+        # print('created annotation')
 
     def _run(self):
         for sound in self._iter_sounds():

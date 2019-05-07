@@ -10,6 +10,15 @@ class FeatureData {
     this.dimensions = dimensions;
     this.sampleFrequency = sampleFrequency;
     this.sampleDuration = sampleDuration;
+
+    const dims = Array.from(dimensions).reverse();
+    const strides = dims.reduce((arr, item) => {
+      const previous = (arr[arr.length - 1] || 1);
+      arr.push(item * previous);
+      return arr;
+    }, [1]);
+    strides.reverse();
+    this.strides = strides.slice(1);
   }
 
   get rank() {
@@ -22,6 +31,14 @@ class FeatureData {
 
   get durationSeconds() {
     return this.sampleFrequency * this.length;
+  }
+
+  item(indices) {
+    let index = 0;
+    for(let i = 0; i < this.strides.length; i++) {
+      index += indices[i] * this.strides[i];
+    }
+    return this.binaryData[index];
   }
 
   slice(start, end) {
@@ -119,10 +136,12 @@ class FeatureView {
     });
 
     this.offsetSeconds = offsetSeconds;
-    this.canvas = canvas;
     this.container = container;
     this.outerContainer = outerContainer;
-    this.drawContext = canvas.getContext('2d');
+
+    this.canvas = canvas;
+    this.drawContext = canvas.getContext('2d', {alpha: false});
+
     this.parentElement = parentElement;
 
     this.parentElement.appendChild(clone);
@@ -163,7 +182,7 @@ class FeatureView {
     this.drawContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  draw1D(i, increment, height, index) {
+  draw1D(i, increment, height, index, imageData) {
     const sample =
       Math.abs(this.featureData.binaryData[Math.round(index)]);
 
@@ -180,16 +199,15 @@ class FeatureView {
       size);
   }
 
-  draw2D(i, increment, height, index) {
+  draw2D(i, increment, height, index, imageData) {
     const roundedIndex = Math.round(index);
     const slice = this.featureData.slice(roundedIndex, roundedIndex + 1);
     const data = slice.binaryData;
     const verticalStride = height / data.length;
-
     for(let j = 0; j < data.length; j++) {
       // KLUDGE: This assumes that all data will be in range 0-1
-      const value = Math.abs(data[j]);
-      const color = `rgba(0, 0, 0, ${value})`;
+      const value = 255 * Math.abs(data[j]);
+      const color = `rgb(${value}, ${value}, ${value})`;
       this.drawContext.fillStyle = color;
       this.drawContext.fillRect(
         this.container.scrollLeft + i,
@@ -199,11 +217,38 @@ class FeatureView {
     }
   }
 
+  draw2D_OPTIMIZED(increment, height, imageData) {
+    console.log(imageData);
+    // The Uint8ClampedArray contains height × width × 4
+    const stride = imageData.width * 4;
+
+    for(let i = 0; i < imageData.data.length; i +=4) {
+      // compute image coordinates
+      const x = (i / 4) % imageData.width;
+      const y = Math.floor((i / 4) / imageData.width);
+
+      // Now, translate pixel coordinates into feature coordinates
+      const xPercent = x / imageData.width;
+      const yPercent = y / imageData.height;
+      const featureX = Math.floor(xPercent * this.featureData.dimensions[0]);
+      const featureY = Math.floor(yPercent * this.featureData.dimensions[1]);
+      const value = this.featureData.item([featureX, featureY]);
+      // TODO: This assumes that all data will be in the range 0-1
+      const imageValue = Math.floor(255 * value);
+      imageData.data[i] = imageValue;
+      imageData.data[i + 1] = imageValue;
+      imageData.data[i + 2] = imageValue;
+      imageData.data[i + 3] = 255;
+    }
+    this.drawContext.putImageData(imageData, this.container.scrollLeft, 0);
+  }
+
   draw(preserveOffset=false) {
     this.canvas.width = this.elementWidth;
     this.canvas.style.width = `${this.zoom * 100}%`;
     this.canvas.height = this.container.clientHeight;
     this.canvas.style.height = '100%';
+
     this.clear();
 
     if(preserveOffset) {
@@ -221,13 +266,24 @@ class FeatureView {
     const stride = this.featureData.length / this.elementWidth;
     const increment = Math.max(1, 1 / stride);
 
+    const imageData = this.drawContext.getImageData(
+      this.container.scrollLeft,
+      0,
+      this.elementWidth,
+      this.container.clientHeight);
+
+    if(this.featureData.rank === 2) {
+      this.draw2D_OPTIMIZED(increment, height, imageData);
+      return;
+    }
+
     for(let i = 0; i < this.containerWidth; i+=increment) {
       const index =
         (this.featureData.length * this.offsetPercent) + (i * stride);
       if (this.featureData.rank === 1) {
-        this.draw1D(i, increment, height, index);
+        this.draw1D(i, increment, height, index, imageData);
       } else if (this.featureData.rank === 2) {
-        this.draw2D(i, increment, height, index);
+        this.draw2D(i, increment, height, index, imageData);
       } else {
         throw new Error('Dimensions greater than 2 not currently supported');
       }
@@ -397,20 +453,17 @@ const handleSubmit = (event) => {
             // });
             .then(data => {
               const {buffer, audioUrl, soundUri, soundId} = data;
-              console.log(audioUrl);
               // KLUDGE: Don't hardcode a user id here
               const promise = annotateClient.getSoundAnnotationsByUser(
-                soundId, '5884c623f7636350fddac5590b582');
+                soundId, '5885075faf2670c23594aed8df8e8');
               return promiseContext(promise, r => ({audioUrl}));
             })
             .then(result => {
-              console.log(result);
               const {data, audioUrl} = result;
               const promise = fetchBinary(data.items[0].data_url);
               return promiseContext(promise, r => ({audioUrl}));
             })
             .then(result => {
-              console.log(result);
               const {data, audioUrl} = result;
               const view = new DataView(data);
               const byteView = new Uint8Array(data);
