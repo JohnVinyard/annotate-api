@@ -108,6 +108,7 @@ class FeatureView {
     const template = document.querySelector('#sound-view-template');
     const clone = document.importNode(template.content, true);
     const canvas = clone.querySelector('canvas');
+    const container = clone.querySelector('.sound-view-container');
 
     promisify(audioUrl).then(audioUrl => {
       this.audioUrl = audioUrl;
@@ -115,12 +116,14 @@ class FeatureView {
     // this.audioUrl = audioUrl;
     this.offsetSeconds = offsetSeconds;
     this.canvas = canvas;
+    this.container = container;
     this.drawContext = canvas.getContext('2d');
     this.parentElement = parentElement;
 
     // TODO: How do I query the document fragment?
-    const appended = this.parentElement.appendChild(clone);
-    this.container = appended.querySelector('.sound-view-container');
+    this.parentElement.appendChild(clone);
+    // this.container = appended.querySelector('.sound-view-container');
+
 
     this.zoom = 1;
     this.featureData = undefined;
