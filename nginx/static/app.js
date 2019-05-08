@@ -1,4 +1,6 @@
 
+const FEATURE = 'audio';
+
 class FeatureData {
   constructor(binaryData, dimensions, sampleFrequency, sampleDuration) {
     this.binaryData = binaryData;
@@ -140,7 +142,7 @@ class FeatureView {
     this.outerContainer = outerContainer;
 
     this.canvas = canvas;
-    this.drawContext = canvas.getContext('2d', {alpha: false});
+    this.drawContext = canvas.getContext('2d');
 
     this.parentElement = parentElement;
 
@@ -182,43 +184,28 @@ class FeatureView {
     this.drawContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  draw1D(i, increment, height, index, imageData) {
-    const sample =
-      Math.abs(this.featureData.binaryData[Math.round(index)]);
+  draw1D(stride, increment, height, imageData) {
+    for(let i = 0; i < this.containerWidth; i++) {
+      const index =
+        (this.featureData.length * this.offsetPercent) + (i * stride);
+      const sample =
+        Math.abs(this.featureData.binaryData[Math.round(index)]);
 
-    // KLUDGE: This assumes that all data will be in range 0-1
-    const value = 0.25 + (sample);
-    const color = `rgba(0, 0, 0, ${value})`;
-    this.drawContext.fillStyle = color;
-
-    const size = sample * height;
-    this.drawContext.fillRect(
-      this.container.scrollLeft + i,
-      (height - size) / 2,
-      increment,
-      size);
-  }
-
-  draw2D(i, increment, height, index, imageData) {
-    const roundedIndex = Math.round(index);
-    const slice = this.featureData.slice(roundedIndex, roundedIndex + 1);
-    const data = slice.binaryData;
-    const verticalStride = height / data.length;
-    for(let j = 0; j < data.length; j++) {
       // KLUDGE: This assumes that all data will be in range 0-1
-      const value = 255 * Math.abs(data[j]);
-      const color = `rgb(${value}, ${value}, ${value})`;
+      const value = 0.25 + (sample);
+      const color = `rgba(0, 0, 0, ${value})`;
       this.drawContext.fillStyle = color;
+
+      const size = sample * height;
       this.drawContext.fillRect(
         this.container.scrollLeft + i,
-        verticalStride * j,
+        (height - size) / 2,
         increment,
-        verticalStride);
+        size);
     }
   }
 
-  draw2D_OPTIMIZED(increment, height, imageData) {
-    console.log(imageData);
+  draw2D(_, increment, height, imageData) {
     // The Uint8ClampedArray contains height × width × 4
     const stride = imageData.width * 4;
 
@@ -228,7 +215,7 @@ class FeatureView {
       const y = Math.floor((i / 4) / imageData.width);
 
       // Now, translate pixel coordinates into feature coordinates
-      const xPercent = x / imageData.width;
+      const xPercent = (this.container.scrollLeft + x) / this.elementWidth;
       const yPercent = y / imageData.height;
       const featureX = Math.floor(xPercent * this.featureData.dimensions[0]);
       const featureY = Math.floor(yPercent * this.featureData.dimensions[1]);
@@ -263,30 +250,22 @@ class FeatureView {
     }
 
     const height = this.container.clientHeight;
+
     const stride = this.featureData.length / this.elementWidth;
     const increment = Math.max(1, 1 / stride);
 
     const imageData = this.drawContext.getImageData(
       this.container.scrollLeft,
       0,
-      this.elementWidth,
+      this.containerWidth,
       this.container.clientHeight);
 
-    if(this.featureData.rank === 2) {
-      this.draw2D_OPTIMIZED(increment, height, imageData);
-      return;
-    }
-
-    for(let i = 0; i < this.containerWidth; i+=increment) {
-      const index =
-        (this.featureData.length * this.offsetPercent) + (i * stride);
-      if (this.featureData.rank === 1) {
-        this.draw1D(i, increment, height, index, imageData);
-      } else if (this.featureData.rank === 2) {
-        this.draw2D(i, increment, height, index, imageData);
-      } else {
-        throw new Error('Dimensions greater than 2 not currently supported');
-      }
+    if (this.featureData.rank === 2) {
+      this.draw2D(stride, increment, height, imageData);
+    } else if(this.featureData.rank === 1) {
+      this.draw1D(stride, increment, height, imageData);
+    } else {
+      throw new Error('Dimensions greater than 2 not currently supported');
     }
   }
 
@@ -441,48 +420,56 @@ const handleSubmit = (event) => {
                    });
                 });
               });
-            })
-            // Build the feature data
-            // .then(data => {
-            //   const {buffer, audioUrl, soundUri} = data;
-            //   const audioData = buffer.getChannelData(0);
-            //   const frequency = 1 / buffer.sampleRate;
-            //   const fd = new FeatureData(
-            //     audioData, [audioData.length], frequency, frequency);
-            //   return {featureData: fd, audioUrl};
-            // });
-            .then(data => {
-              const {buffer, audioUrl, soundUri, soundId} = data;
-              // KLUDGE: Don't hardcode a user id here
-              const promise = annotateClient.getSoundAnnotationsByUser(
-                soundId, '5885075faf2670c23594aed8df8e8');
-              return promiseContext(promise, r => ({audioUrl}));
-            })
-            .then(result => {
-              const {data, audioUrl} = result;
-              const promise = fetchBinary(data.items[0].data_url);
-              return promiseContext(promise, r => ({audioUrl}));
-            })
-            .then(result => {
-              const {data, audioUrl} = result;
-              const view = new DataView(data);
-              const byteView = new Uint8Array(data);
-              const length = new Uint32Array(data, 0, 4)[0];
-              const rawMetadata = String.fromCharCode.apply(
-                null, new Uint8Array(data, 4, length));
-              const metadata = JSON.parse(rawMetadata);
-
-              // TODO: Array type should be dictated by metadata and not
-              // hard-coded
-              const rawFeatures = new Float32Array(
-                byteView.slice(4 + length).buffer);
-              const featureData = new FeatureData(
-                rawFeatures,
-                metadata.shape,
-                metadata.dimensions[0].frequency_seconds,
-                metadata.dimensions[0].duration_seconds);
-              return {featureData, audioUrl};
             });
+
+            if(FEATURE === 'audio') {
+              featureDataPromise = featureDataPromise
+                .then(data => {
+                  const {buffer, audioUrl, soundUri} = data;
+                  const audioData = buffer.getChannelData(0);
+                  const frequency = 1 / buffer.sampleRate;
+                  const fd = new FeatureData(
+                    audioData, [audioData.length], frequency, frequency);
+                  return {featureData: fd, audioUrl};
+                });
+            } else if (FEATURE === 'spectrogram') {
+              featureDataPromise = featureDataPromise
+                .then(data => {
+                  const {buffer, audioUrl, soundUri, soundId} = data;
+                  // KLUDGE: Don't hardcode a user id here
+                  const promise = annotateClient.getSoundAnnotationsByUser(
+                    soundId, '5885075faf2670c23594aed8df8e8');
+                  return promiseContext(promise, r => ({audioUrl}));
+                })
+                .then(result => {
+                  const {data, audioUrl} = result;
+                  const promise = fetchBinary(data.items[0].data_url);
+                  return promiseContext(promise, r => ({audioUrl}));
+                })
+                .then(result => {
+                  const {data, audioUrl} = result;
+                  const view = new DataView(data);
+                  const byteView = new Uint8Array(data);
+                  const length = new Uint32Array(data, 0, 4)[0];
+                  const rawMetadata = String.fromCharCode.apply(
+                    null, new Uint8Array(data, 4, length));
+                  const metadata = JSON.parse(rawMetadata);
+
+                  // TODO: Array type should be dictated by metadata and not
+                  // hard-coded
+                  const rawFeatures = new Float32Array(
+                    byteView.slice(4 + length).buffer);
+                  const featureData = new FeatureData(
+                    rawFeatures,
+                    metadata.shape,
+                    metadata.dimensions[0].frequency_seconds,
+                    metadata.dimensions[0].duration_seconds);
+                  return {featureData, audioUrl};
+                });
+            } else {
+              throw new Error(`Feature ${FEATURE} not supported.`);
+            }
+
 
           // Put the pending promise into the map
           featureDataMapping[annotation.sound] = featureDataPromise;
@@ -507,9 +494,6 @@ const handleSubmit = (event) => {
       });
     });
 }
-
-
-let featureView = null;
 
 document.addEventListener('DOMContentLoaded', function() {
   onClick('#search', handleSubmit);
