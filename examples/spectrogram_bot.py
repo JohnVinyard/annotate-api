@@ -10,6 +10,11 @@ import numpy as np
 import json
 from s3client import ObjectStorageClient
 
+# TODO: Decide on convention for data storage (i.e., time dimension first or
+# feature dimension first
+
+# TODO: add stats to JSON metadata
+
 # TODO: decide on storage format
 
 '''
@@ -23,7 +28,7 @@ shape=(100, 23)
 This is the numpy array layer.
 
 The next layer is the semantic information about each dimension.  For now, I'll
-only support time and "identity" information, so
+only support "time" and "identity" information, so
 dimension_metadata=(
     {type: time, frequency_seconds: 1, duration_seconds: 1},
     {type: identity}
@@ -43,13 +48,6 @@ The storage format will be binary, and will follow the format
 For now, we'll just store the last known id in a textfile on disk with the
 same name as this file
 '''
-
-
-# TODO: Create user
-# TODO: listen for changes
-# TODO: compute features
-# TODO: push features to s3
-# TODO: Create annotations
 
 
 class PersistentValue(object):
@@ -116,7 +114,6 @@ class Listener(object):
         spec = np.dot(FILTER_BANK, windowed.T).T
         spec = np.abs(spec)
         spec = 20 * np.log10(spec + 1)
-        spec = np.flipud(spec)
         spec = np.ascontiguousarray(spec).astype(np.float32)
         print(spec.shape)
 
@@ -137,8 +134,10 @@ class Listener(object):
                 },
                 {
                     'type': 'identity'
-                }
-            )
+                },
+            ),
+            'max_value': float(spec.max()),
+            'min_value': float(spec.min())
         }
         metadata_raw = json.dumps(metadata).encode()
         payload = \
@@ -147,19 +146,19 @@ class Listener(object):
             + spec.tostring()
 
         # push output to s3
-        # data_url = self.s3_client.put_object(
-        #     sound['id'],
-        #     BytesIO(payload),
-        #     'application/octet-stream')
-        # print(f'pushed binary data to {data_url}')
-        #
-        # # create annotation
-        # client.create_annotations(sound['id'], {
-        #     'start_seconds': 0,
-        #     'duration_seconds': sound['duration_seconds'],
-        #     'data_url': data_url
-        # })
-        # print('created annotation')
+        data_url = self.s3_client.put_object(
+            sound['id'],
+            BytesIO(payload),
+            'application/octet-stream')
+        print(f'pushed binary data to {data_url}')
+
+        # create annotation
+        client.create_annotations(sound['id'], {
+            'start_seconds': 0,
+            'duration_seconds': sound['duration_seconds'],
+            'data_url': data_url
+        })
+        print('created annotation')
 
     def _run(self):
         for sound in self._iter_sounds():

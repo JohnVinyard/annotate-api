@@ -1,8 +1,12 @@
 
-const FEATURE = 'audio';
+const FEATURE = 'spectrogram';
+const SPECTROGRAM_BOT_USER_ID = '58877b0ac2376388e5ddf9a5e9b97';
 
 class FeatureData {
-  constructor(binaryData, dimensions, sampleFrequency, sampleDuration) {
+  constructor(
+    binaryData, dimensions, sampleFrequency, sampleDuration, metadata) {
+
+    this.metadata = metadata;
     this.binaryData = binaryData;
     const dimProduct = dimensions.reduce((x, y) => x * y, 1);
     if(dimProduct !== this.binaryData.length) {
@@ -60,7 +64,8 @@ class FeatureData {
       subarray,
       newDimensions,
       this.sampleFrequency,
-      this.sampleDuration
+      this.sampleDuration,
+      this.metadata
     );
   }
 
@@ -207,19 +212,26 @@ class FeatureView {
 
   draw2D(_, increment, height, imageData) {
     // The Uint8ClampedArray contains height × width × 4
-    const stride = imageData.width * 4;
+    const timeDim = this.featureData.dimensions[0];
+    const featureDim = this.featureData.dimensions[1];
+    const stride = 4;
 
-    for(let i = 0; i < imageData.data.length; i +=4) {
+    for(let i = 0; i < imageData.data.length; i += stride) {
       // compute image coordinates
-      const x = (i / 4) % imageData.width;
-      const y = Math.floor((i / 4) / imageData.width);
+      const x = (i / stride) % imageData.width;
+      const y = Math.floor((i / stride) / imageData.width);
 
       // Now, translate pixel coordinates into feature coordinates
       const xPercent = (this.container.scrollLeft + x) / this.elementWidth;
       const yPercent = y / imageData.height;
-      const featureX = Math.floor(xPercent * this.featureData.dimensions[0]);
-      const featureY = Math.floor(yPercent * this.featureData.dimensions[1]);
-      const value = this.featureData.item([featureX, featureY]);
+
+      const timeIndex = Math.floor(xPercent * timeDim);
+      // since the coordinate system goes from top to bottom, we'll need to
+      // invert the order we draw features in
+      const featureIndex = featureDim -  Math.floor(yPercent * featureDim);
+
+      const maxValue = this.featureData.metadata.max_value;
+      const value = this.featureData.item([timeIndex, featureIndex]) / maxValue;
       // TODO: This assumes that all data will be in the range 0-1
       const imageValue = Math.floor(255 * value);
       imageData.data[i] = imageValue;
@@ -438,7 +450,7 @@ const handleSubmit = (event) => {
                   const {buffer, audioUrl, soundUri, soundId} = data;
                   // KLUDGE: Don't hardcode a user id here
                   const promise = annotateClient.getSoundAnnotationsByUser(
-                    soundId, '5885075faf2670c23594aed8df8e8');
+                    soundId, SPECTROGRAM_BOT_USER_ID);
                   return promiseContext(promise, r => ({audioUrl}));
                 })
                 .then(result => {
@@ -463,7 +475,8 @@ const handleSubmit = (event) => {
                     rawFeatures,
                     metadata.shape,
                     metadata.dimensions[0].frequency_seconds,
-                    metadata.dimensions[0].duration_seconds);
+                    metadata.dimensions[0].duration_seconds,
+                    metadata);
                   return {featureData, audioUrl};
                 });
             } else {
