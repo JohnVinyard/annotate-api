@@ -1,5 +1,6 @@
 
 const FEATURE = 'spectrogram';
+// KLUDGE: Don't hardcode a user id here
 const SPECTROGRAM_BOT_USER_ID = '58877b0ac2376388e5ddf9a5e9b97';
 
 class FeatureData {
@@ -9,6 +10,7 @@ class FeatureData {
     this.metadata = metadata;
     this.binaryData = binaryData;
     const dimProduct = dimensions.reduce((x, y) => x * y, 1);
+    console.log(binaryData.length, dimensions, dimProduct);
     if(dimProduct !== this.binaryData.length) {
       throw new RangeError(
         "The product of dimensions must equal binaryData.length");
@@ -70,9 +72,9 @@ class FeatureData {
   }
 
   timeSlice(startSeconds, durationSeconds) {
-    const startIndex = Math.round(startSeconds / this.sampleFrequency);
+    const startIndex = Math.floor(startSeconds / this.sampleFrequency);
     const endIndex =
-      startIndex + Math.round(durationSeconds / this.sampleFrequency);
+      startIndex + Math.floor(durationSeconds / this.sampleFrequency);
     const sliced = this.slice(startIndex, endIndex);
     return sliced;
   }
@@ -448,7 +450,7 @@ const handleSubmit = (event) => {
               featureDataPromise = featureDataPromise
                 .then(data => {
                   const {buffer, audioUrl, soundUri, soundId} = data;
-                  // KLUDGE: Don't hardcode a user id here
+
                   const promise = annotateClient.getSoundAnnotationsByUser(
                     soundId, SPECTROGRAM_BOT_USER_ID);
                   return promiseContext(promise, r => ({audioUrl}));
@@ -490,6 +492,7 @@ const handleSubmit = (event) => {
 
         const slicedPromise = featureDataPromise.then(data => {
           const {featureData, audioUrl} = data;
+          console.log(annotation);
           return featureData.timeSlice(
             annotation.start_seconds, annotation.duration_seconds);
         });
