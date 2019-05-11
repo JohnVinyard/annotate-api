@@ -3,6 +3,19 @@ const FEATURE = 'spectrogram';
 // KLUDGE: Don't hardcode a user id here
 const SPECTROGRAM_BOT_USER_ID = '58877b0ac2376388e5ddf9a5e9b97';
 
+
+const isVisible = (element) => {
+  // Check if the element intersects vertically with window
+  const windowTop = window.scrollY;
+  const windowBottom = windowTop + window.outerHeight;
+  const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
+  const elementBottom = elementTop + element.clientHeight;
+  if(elementBottom < windowTop || elementTop > windowBottom) {
+    return false;
+  }
+  return true;
+};
+
 class FeatureData {
   constructor(
     binaryData, dimensions, sampleFrequency, sampleDuration, metadata) {
@@ -10,7 +23,6 @@ class FeatureData {
     this.metadata = metadata;
     this.binaryData = binaryData;
     const dimProduct = dimensions.reduce((x, y) => x * y, 1);
-    console.log(binaryData.length, dimensions, dimProduct);
     if(dimProduct !== this.binaryData.length) {
       throw new RangeError(
         "The product of dimensions must equal binaryData.length");
@@ -121,18 +133,25 @@ const onResize = (element, func, debounce=100) => {
   debounced(element, 'resize', func, debounce);
 };
 
-const promisify = (value) => {
-  if (value instanceof Promise) {
-    return value;
-  }
-
+const scrolledIntoView = (element) => {
   return new Promise(function(resolve, reject) {
-    return resolve(value);
+
+    if(isVisible(element)) {
+      resolve(element);
+      return;
+    }
+
+    onScroll(document, function checkVisibility(event) {
+      if(isVisible(element)) {
+        document.removeEventListener('scroll', checkVisibility);
+        resolve(element);
+      }
+    }, 100);
   });
 };
 
 class FeatureView {
-  constructor(parentElement, featureData, audioUrl, offsetSeconds=0) {
+  constructor(parentElement, promiseFunc, offsetSeconds=0) {
 
     const template = document.querySelector('#sound-view-template');
     const clone = document.importNode(template.content, true);
@@ -140,47 +159,50 @@ class FeatureView {
     const container = clone.querySelector('.sound-view-container');
     const outerContainer = clone.querySelector('.sound-view-outer-container');
 
-    promisify(audioUrl).then(audioUrl => {
-      this.audioUrl = audioUrl;
-    });
-
     this.offsetSeconds = offsetSeconds;
     this.container = container;
     this.outerContainer = outerContainer;
-
     this.canvas = canvas;
     this.drawContext = canvas.getContext('2d');
-
     this.parentElement = parentElement;
-
     this.parentElement.appendChild(clone);
-
     this.zoom = 1;
     this.featureData = undefined;
-    promisify(featureData).then(featureData => {
-      this.featureData = featureData;
-      this.draw();
-    });
 
-    onScroll(this.container, () => this.draw(false), 100);
-    onResize(window, () => this.draw(true), 100);
+    const id = Math.random();
 
-    onClick(this.outerContainer.querySelector('.sound-view-zoom-in'), () => {
-      this.setZoom(Math.min(20, this.zoom + 1));
-    });
-    onClick(this.outerContainer.querySelector('.sound-view-zoom-out'), () => {
-      this.setZoom(Math.max(1, this.zoom - 1));
-    });
-    onClick(this.canvas, (event) => {
-      // the starting point in seconds relative to this slice
-      const relativeStartSeconds =
-        (event.offsetX / this.elementWidth) * this.featureData.durationSeconds;
-      // the starting point in seconds in the sound as a whole
-      const startSeconds = this.offsetSeconds + relativeStartSeconds;
-      const durationSeconds =
-        Math.min(2.5, this.featureData.durationSeconds - relativeStartSeconds);
-      playAudio(this.audioUrl, context, startSeconds, durationSeconds);
-    });
+    scrolledIntoView(this.container)
+      .then(() => {
+        const [slicedPromise, audioUrlPromise] = promiseFunc();
+
+        audioUrlPromise.then(audioUrl => {
+          this.audioUrl = audioUrl;
+          // This handler depends on the audio being loaded
+          onClick(this.canvas, (event) => {
+            // the starting point in seconds relative to this slice
+            const relativeStartSeconds =
+              (event.offsetX / this.elementWidth) * this.featureData.durationSeconds;
+            // the starting point in seconds in the sound as a whole
+            const startSeconds = this.offsetSeconds + relativeStartSeconds;
+            const durationSeconds =
+              Math.min(2.5, this.featureData.durationSeconds - relativeStartSeconds);
+            playAudio(this.audioUrl, context, startSeconds, durationSeconds);
+          });
+        });
+
+        slicedPromise.then(featureData => {
+          this.featureData = featureData;
+          this.draw();
+          onScroll(this.container, () => this.draw(false), 100);
+          onResize(window, () => this.draw(true), 100);
+          onClick(this.outerContainer.querySelector('.sound-view-zoom-in'), () => {
+            this.setZoom(Math.min(20, this.zoom + 1));
+          });
+          onClick(this.outerContainer.querySelector('.sound-view-zoom-out'), () => {
+            this.setZoom(Math.max(1, this.zoom - 1));
+          });
+        });
+      });
   }
 
   get containerWidth() {
@@ -218,24 +240,25 @@ class FeatureView {
     const featureDim = this.featureData.dimensions[1];
     const stride = 4;
 
+    const timeRatio = timeDim / this.elementWidth;
+    const featureRatio = featureDim / imageData.height;
+
     for(let i = 0; i < imageData.data.length; i += stride) {
       // compute image coordinates
       const x = (i / stride) % imageData.width;
       const y = Math.floor((i / stride) / imageData.width);
 
-      // Now, translate pixel coordinates into feature coordinates
-      const xPercent = (this.container.scrollLeft + x) / this.elementWidth;
-      const yPercent = y / imageData.height;
+      const timeIndex = Math.floor((this.container.scrollLeft + x) * timeRatio);
+      // // since the coordinate system goes from top to bottom, we'll need to
+      // // invert the order we draw features in
+      const featureIndex = featureDim - Math.floor(y * featureRatio);
 
-      const timeIndex = Math.floor(xPercent * timeDim);
-      // since the coordinate system goes from top to bottom, we'll need to
-      // invert the order we draw features in
-      const featureIndex = featureDim -  Math.floor(yPercent * featureDim);
-
+      // normalize to the range 0-1 based on statistics from the metadata
       const maxValue = this.featureData.metadata.max_value;
       const value = this.featureData.item([timeIndex, featureIndex]) / maxValue;
-      // TODO: This assumes that all data will be in the range 0-1
       const imageValue = Math.floor(255 * value);
+
+      // Translate the scalar value into color space
       imageData.data[i] = imageValue;
       imageData.data[i + 1] = imageValue;
       imageData.data[i + 2] = imageValue;
@@ -403,6 +426,94 @@ const promiseContext = (promise, dataFunc) => {
   });
 };
 
+const featurePromise = (annotation, featureDataMapping, searchResults) => {
+  let featureDataPromise = featureDataMapping[annotation.sound];
+  if(featureDataPromise === undefined) {
+    featureDataPromise = annotateClient
+      // Get sound data from the API
+      .getResource(annotation.sound)
+      // Fetch audio data from the remote audio url
+      .then(data => {
+        return new Promise(function(resolve, reject) {
+          return fetchAudio(data.audio_url, context).then(buffer => {
+            resolve({
+              buffer,
+              audioUrl: data.audio_url,
+              soundUri: annotation.sound,
+              soundId: data.id
+             });
+          });
+        });
+      });
+
+      if(FEATURE === 'audio') {
+        featureDataPromise = featureDataPromise
+          .then(data => {
+            const {buffer, audioUrl, soundUri} = data;
+            const audioData = buffer.getChannelData(0);
+            const frequency = 1 / buffer.sampleRate;
+            const fd = new FeatureData(
+              audioData, [audioData.length], frequency, frequency);
+            return {featureData: fd, audioUrl};
+          });
+      } else if (FEATURE === 'spectrogram') {
+        featureDataPromise = featureDataPromise
+          .then(data => {
+            const {buffer, audioUrl, soundUri, soundId} = data;
+
+            const promise = annotateClient.getSoundAnnotationsByUser(
+              soundId, SPECTROGRAM_BOT_USER_ID);
+            return promiseContext(promise, r => ({audioUrl}));
+          })
+          .then(result => {
+            const {data, audioUrl} = result;
+            const promise = fetchBinary(data.items[0].data_url);
+            return promiseContext(promise, r => ({audioUrl}));
+          })
+          .then(result => {
+            const {data, audioUrl} = result;
+            const view = new DataView(data);
+            const byteView = new Uint8Array(data);
+            const length = new Uint32Array(data, 0, 4)[0];
+            const rawMetadata = String.fromCharCode.apply(
+              null, new Uint8Array(data, 4, length));
+            const metadata = JSON.parse(rawMetadata);
+
+            // TODO: Array type should be dictated by metadata and not
+            // hard-coded
+            const rawFeatures = new Float32Array(
+              byteView.slice(4 + length).buffer);
+            const featureData = new FeatureData(
+              rawFeatures,
+              metadata.shape,
+              metadata.dimensions[0].frequency_seconds,
+              metadata.dimensions[0].duration_seconds,
+              metadata);
+            return {featureData, audioUrl};
+          });
+      } else {
+        throw new Error(`Feature ${FEATURE} not supported.`);
+      }
+
+    // Put the pending promise into the map
+    featureDataMapping[annotation.sound] = featureDataPromise;
+  }
+
+  const slicedPromise = featureDataPromise.then(data => {
+    const {featureData, audioUrl} = data;
+    return featureData.timeSlice(
+      annotation.start_seconds, annotation.duration_seconds);
+  });
+
+  const audioUrlPromise = featureDataPromise.then(data => {
+    const {featureData, audioUrl} = data;
+    return audioUrl;
+  });
+
+  return [slicedPromise, audioUrlPromise];
+};
+
+
 const handleSubmit = (event) => {
   const rawQuery = document.querySelector('#search-criteria').value;
 
@@ -417,95 +528,9 @@ const handleSubmit = (event) => {
 
       const featureDataMapping = {};
       data.items.forEach(annotation => {
-        let featureDataPromise = featureDataMapping[annotation.sound];
-        if(featureDataPromise === undefined) {
-          featureDataPromise = annotateClient
-            // Get sound data from the API
-            .getResource(annotation.sound)
-            // Fetch audio data from the remote audio url
-            .then(data => {
-              return new Promise(function(resolve, reject) {
-                return fetchAudio(data.audio_url, context).then(buffer => {
-                  resolve({
-                    buffer,
-                    audioUrl: data.audio_url,
-                    soundUri: annotation.sound,
-                    soundId: data.id
-                   });
-                });
-              });
-            });
-
-            if(FEATURE === 'audio') {
-              featureDataPromise = featureDataPromise
-                .then(data => {
-                  const {buffer, audioUrl, soundUri} = data;
-                  const audioData = buffer.getChannelData(0);
-                  const frequency = 1 / buffer.sampleRate;
-                  const fd = new FeatureData(
-                    audioData, [audioData.length], frequency, frequency);
-                  return {featureData: fd, audioUrl};
-                });
-            } else if (FEATURE === 'spectrogram') {
-              featureDataPromise = featureDataPromise
-                .then(data => {
-                  const {buffer, audioUrl, soundUri, soundId} = data;
-
-                  const promise = annotateClient.getSoundAnnotationsByUser(
-                    soundId, SPECTROGRAM_BOT_USER_ID);
-                  return promiseContext(promise, r => ({audioUrl}));
-                })
-                .then(result => {
-                  const {data, audioUrl} = result;
-                  const promise = fetchBinary(data.items[0].data_url);
-                  return promiseContext(promise, r => ({audioUrl}));
-                })
-                .then(result => {
-                  const {data, audioUrl} = result;
-                  const view = new DataView(data);
-                  const byteView = new Uint8Array(data);
-                  const length = new Uint32Array(data, 0, 4)[0];
-                  const rawMetadata = String.fromCharCode.apply(
-                    null, new Uint8Array(data, 4, length));
-                  const metadata = JSON.parse(rawMetadata);
-
-                  // TODO: Array type should be dictated by metadata and not
-                  // hard-coded
-                  const rawFeatures = new Float32Array(
-                    byteView.slice(4 + length).buffer);
-                  const featureData = new FeatureData(
-                    rawFeatures,
-                    metadata.shape,
-                    metadata.dimensions[0].frequency_seconds,
-                    metadata.dimensions[0].duration_seconds,
-                    metadata);
-                  return {featureData, audioUrl};
-                });
-            } else {
-              throw new Error(`Feature ${FEATURE} not supported.`);
-            }
-
-
-          // Put the pending promise into the map
-          featureDataMapping[annotation.sound] = featureDataPromise;
-        }
-
-        const slicedPromise = featureDataPromise.then(data => {
-          const {featureData, audioUrl} = data;
-          console.log(annotation);
-          return featureData.timeSlice(
-            annotation.start_seconds, annotation.duration_seconds);
-        });
-
-        const audioUrlPromise = featureDataPromise.then(data => {
-          const {featureData, audioUrl} = data;
-          return audioUrl;
-        });
-
         new FeatureView(
           searchResults,
-          slicedPromise,
-          audioUrlPromise,
+          () => featurePromise(annotation, featureDataMapping, searchResults),
           annotation.start_seconds);
       });
     });
