@@ -1,7 +1,7 @@
 
 const FEATURE = 'spectrogram';
 // KLUDGE: Don't hardcode a user id here
-const SPECTROGRAM_BOT_USER_ID = '588c2a1d0be84c69361d638210a8e';
+const SPECTROGRAM_BOT_USER_ID = '588c90c235f6d186490f28085ac84';
 
 
 const isVisible = (element) => {
