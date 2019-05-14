@@ -1,17 +1,6 @@
 
 let app = null;
 
-const isVisible = (element) => {
-  // Check if the element intersects vertically with window
-  const windowTop = window.scrollY;
-  const windowBottom = windowTop + window.outerHeight;
-  const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
-  const elementBottom = elementTop + element.clientHeight;
-  if(elementBottom < windowTop || elementTop > windowBottom) {
-    return false;
-  }
-  return true;
-};
 
 class FeatureData {
   constructor(
@@ -128,6 +117,19 @@ const onScroll = (element, func, debounce=100) => {
 
 const onResize = (element, func, debounce=100) => {
   debounced(element, 'resize', func, debounce);
+};
+
+
+const isVisible = (element) => {
+  // Check if the element intersects vertically with window
+  const windowTop = window.scrollY;
+  const windowBottom = windowTop + window.outerHeight;
+  const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
+  const elementBottom = elementTop + element.clientHeight;
+  if(elementBottom < windowTop || elementTop > windowBottom) {
+    return false;
+  }
+  return true;
 };
 
 const scrolledIntoView = (element) => {
