@@ -1,8 +1,9 @@
 
 const FEATURE = 'spectrogram';
 // KLUDGE: Don't hardcode a user id here
-const SPECTROGRAM_BOT_USER_ID = '588c90c235f6d186490f28085ac84';
+// const SPECTROGRAM_BOT_USER_ID = '588cc2fac47df38e89ce41497bac8';
 
+let app = null;
 
 const isVisible = (element) => {
   // Check if the element intersects vertically with window
@@ -363,6 +364,11 @@ class AnnotateApiClient {
       `/sounds/${soundId}/annotations?created_by=${userId}&page_size=${pageSize}`;
     return this.getResource(url);
   }
+
+  getFeatureBots(pageSize=100) {
+    const url = `/users?user_type=featurebot&page_size=${pageSize}`
+    return this.getResource(url);
+  }
 }
 
 
@@ -462,7 +468,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
             const {buffer, audioUrl, soundUri, soundId} = data;
 
             const promise = annotateClient.getSoundAnnotationsByUser(
-              soundId, SPECTROGRAM_BOT_USER_ID);
+              soundId, app.currentFeature.id);
             return promiseContext(promise, r => ({audioUrl}));
           })
           .then(result => {
@@ -514,28 +520,44 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
 };
 
 
-const handleSubmit = (event) => {
-  const rawQuery = document.querySelector('#search-criteria').value;
-
-  annotateClient.getAnnotations(rawQuery)
-    .then(data => {
-      const searchResults = document.querySelector('#search-results');
-
-      // clear the results
-      while(searchResults.firstChild) {
-        searchResults.firstChild.remove();
-      }
-
-      const featureDataMapping = {};
-      data.items.forEach(annotation => {
-        new FeatureView(
-          searchResults,
-          () => featurePromise(annotation, featureDataMapping, searchResults),
-          annotation.start_seconds);
-      });
-    });
-}
-
 document.addEventListener('DOMContentLoaded', function() {
-  onClick('#search', handleSubmit);
+  app = new Vue({
+    el: '#app',
+    data: {
+      features: [],
+      currentFeature: null,
+      query: null,
+      results: [],
+    },
+    methods: {
+      handleSubmit: function() {
+        annotateClient.getAnnotations(this.query)
+          .then(data => {
+            const searchResults = document.querySelector('#search-results');
+
+            // clear the results
+            while(searchResults.firstChild) {
+              searchResults.firstChild.remove();
+            }
+
+            const featureDataMapping = {};
+            this.results = data.items.map(annotation => {
+              return new FeatureView(
+                searchResults,
+                () => featurePromise(annotation, featureDataMapping, searchResults),
+                annotation.start_seconds);
+            });
+          });
+      },
+      changeFeature: function() {
+        this.handleSubmit();
+      }
+    }
+  });
+
+  annotateClient.getFeatureBots()
+    .then(data => {
+      app.features = data.items;
+      app.currentFeature = app.features[0];
+    });
 });

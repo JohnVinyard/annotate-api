@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Annotate UI</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script type="text/javascript" src="app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css" />
     <link rel="stylesheet" href="/static/style.css" />
@@ -30,15 +31,26 @@
             <div class="column col-11"></div>
         </div>
     </header>
-    <main>
+    <main id="app">
+
+        <!-- Feature selection -->
+        {{ currentFeature ? currentFeature.user_name : undefined }}
+        <select id="feature-bots" v-model="currentFeature" @change="changeFeature">
+          <option v-for="feature in features" v-bind:value="feature">
+            {{ feature.user_name }}
+          </option>
+        </select>
+
+        <!-- Search -->
         <section class="container">
             <div class="columns">
                 <div class="column col-12">
                     <input
                             id="search-criteria"
                             type="text"
-                            placeholder="tags" />
-                    <input id="search" type="submit" />
+                            placeholder="tags"
+                            v-model="query" />
+                    <input id="search" type="submit" v-on:click="handleSubmit" />
                 </div>
             </div>
             <div class="columns">
