@@ -1,12 +1,13 @@
 import numpy as np
 import json
-import zounds
 from io import BytesIO
 import time
 import argparse
 from cli import DefaultArgumentParser
 from client import Client
 from s3client import ObjectStorageClient
+from zounds.persistence import DimensionEncoder, DimensionDecoder
+import zounds
 
 
 class PersistentValue(object):
@@ -31,27 +32,11 @@ class BinaryData(object):
         self.arr = arr_with_units
 
     def packed_format(self):
-        # adhering to the convention that the time dimension will be first
-
-        time_dim = self.arr.dimensions[0]
-        window_freq_seconds = \
-            time_dim.frequency / zounds.Seconds(1)
-        window_duration_seconds = \
-            time_dim.duration / zounds.Seconds(1)
-
+        encoder = DimensionEncoder()
         metadata = {
             'type': str(self.arr.dtype),
             'shape': self.arr.shape,
-            'dimensions': (
-                {
-                    'type': 'time',
-                    'frequency_seconds': window_freq_seconds,
-                    'duration_seconds': window_duration_seconds
-                },
-                {
-                    'type': 'identity'
-                },
-            ),
+            'dimensions': list(encoder.encode(self.arr.dimensions)),
             'max_value': float(self.arr.max()),
             'min_value': float(self.arr.min())
         }
@@ -64,6 +49,20 @@ class BinaryData(object):
 
     def packed_file_like_object(self):
         return BytesIO(self.packed_format())
+
+    @staticmethod
+    def unpack(packed_array_with_units):
+        x = packed_array_with_units
+        json_length = np.fromstring(x[:4], dtype=np.uint32)[0]
+        data = json.loads(x[4: json_length + 4])
+        raw = np.fromstring(
+            x[json_length + 4:],
+            dtype=np.dtype(data['dtype']),
+            shape=data['shape'])
+        dim_decoder = DimensionDecoder()
+        arr = zounds.ArrayWithUnits(
+            raw, list(dim_decoder.decode(data['dimensions'])))
+        return arr
 
 
 class MetaListener(type):
