@@ -147,6 +147,24 @@ const scrolledIntoView = (element) => {
   });
 };
 
+Vue.component('feature-view', {
+  data: function() {
+    return {
+      zoom: 1,
+      featureData: undefined
+    };
+  },
+  methods: {
+    zoomIn: function() {
+      this.zoom = Math.min(20, this.zoom + 1);
+    },
+    zoomOut: function() {
+      this.zoom = Math.max(1, this.zoom - 1);
+    }
+  },
+  template: '#sound-view-template'
+});
+
 class FeatureView {
   constructor(parentElement, promiseFunc, offsetSeconds=0) {
 
@@ -535,7 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const featureDataMapping = {};
-            this.results = data.items.map(annotation => {
+            data.items.forEach(annotation => {
               return new FeatureView(
                 searchResults,
                 () => featurePromise(annotation, featureDataMapping, searchResults),

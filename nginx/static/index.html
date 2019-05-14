@@ -12,10 +12,9 @@
 
     <template id="sound-view-template">
         <div class="sound-view-outer-container">
-
             <div class="sound-view-controls">
-                <div class="sound-view-zoom-in">+</div>
-                <div class="sound-view-zoom-out">-</div>
+                <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
+                <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
             </div>
 
             <div class="sound-view-container">
@@ -31,8 +30,8 @@
             <div class="column col-11"></div>
         </div>
     </header>
-    <main id="app">
 
+    <main id="app">
         <!-- Feature selection -->
         {{ currentFeature ? currentFeature.user_name : undefined }}
         <select id="feature-bots" v-model="currentFeature" @change="changeFeature">
@@ -53,14 +52,17 @@
                     <input id="search" type="submit" v-on:click="handleSubmit" />
                 </div>
             </div>
-            <div class="columns">
-                <div class="column col-12">
-                    <ul id="search-results">
-
-                    </ul>
-                </div>
-            </div>
         </section>
     </main>
+
+    <section class="container">
+      <div class="columns">
+          <div class="column col-12">
+              <ul id="search-results">
+
+              </ul>
+          </div>
+      </div>
+    </section>
 </body>
 </html>
