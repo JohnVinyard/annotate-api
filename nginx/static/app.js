@@ -1,8 +1,4 @@
 
-const FEATURE = 'spectrogram';
-// KLUDGE: Don't hardcode a user id here
-// const SPECTROGRAM_BOT_USER_ID = '588cc2fac47df38e89ce41497bac8';
-
 let app = null;
 
 const isVisible = (element) => {
@@ -452,7 +448,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
         });
       });
 
-      if(FEATURE === 'audio') {
+      if(app.currentFeature.user_name === 'audio') {
         featureDataPromise = featureDataPromise
           .then(data => {
             const {buffer, audioUrl, soundUri} = data;
@@ -462,7 +458,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
               audioData, [audioData.length], frequency, frequency);
             return {featureData: fd, audioUrl};
           });
-      } else if (FEATURE === 'spectrogram') {
+      } else {
         featureDataPromise = featureDataPromise
           .then(data => {
             const {buffer, audioUrl, soundUri, soundId} = data;
@@ -497,8 +493,6 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
               metadata);
             return {featureData, audioUrl};
           });
-      } else {
-        throw new Error(`Feature ${FEATURE} not supported.`);
       }
 
     // Put the pending promise into the map
@@ -557,7 +551,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   annotateClient.getFeatureBots()
     .then(data => {
-      app.features = data.items;
+      app.features = [{user_name: 'audio'}].concat(data.items);
       app.currentFeature = app.features[0];
     });
 });
