@@ -64,6 +64,17 @@ class Client(object):
         self._upsert_user(
             'featurebot', user_name, email, password, about_me, info_url)
 
+    def get_user(self, user_name):
+        resource = urljoin(self.hostname, '/users')
+        resp = self.session.get(
+            resource,
+            params={'page_size': 1, 'user_name': user_name})
+        resp.raise_for_status()
+        try:
+            return resp.json()['items'][0]
+        except IndexError:
+            raise KeyError(f'No user with name {user_name}')
+
     def create_sound(
             self,
             audio_url,
@@ -105,6 +116,14 @@ class Client(object):
     def get_sounds(self, low_id=None, page_size=100):
         resp = self.session.get(
             f'{self.hostname}/sounds',
+            params={'low_id': low_id, 'page_size': page_size}
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_annotations(self, user, low_id=None, page_size=100):
+        resp = self.session.get(
+            f'{self.hostname}/users/{user}/annotations',
             params={'low_id': low_id, 'page_size': page_size}
         )
         resp.raise_for_status()

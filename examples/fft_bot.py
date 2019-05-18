@@ -1,14 +1,14 @@
 import requests
 import zounds
 from io import BytesIO
-from bot_helper import BinaryData, main, Listener
+from bot_helper import BinaryData, main, SoundListener
 import numpy as np
 
 SAMPLE_RATE = zounds.SR11025()
 FILTER_BANK_KERNEL_SIZE = 512
 
 
-class FFTListener(Listener):
+class FFTListener(SoundListener):
     def __init__(self, client, s3_client, page_size=3):
         super().__init__(client, s3_client, page_size)
 

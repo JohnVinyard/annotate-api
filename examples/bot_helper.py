@@ -57,8 +57,7 @@ class BinaryData(object):
         data = json.loads(x[4: json_length + 4])
         raw = np.fromstring(
             x[json_length + 4:],
-            dtype=np.dtype(data['dtype']),
-            shape=data['shape'])
+            dtype=np.dtype(data['type'])).reshape(data['shape'])
         dim_decoder = DimensionDecoder()
         arr = zounds.ArrayWithUnits(
             raw, list(dim_decoder.decode(data['dimensions'])))
@@ -71,28 +70,29 @@ class MetaListener(type):
         cls.low_id = PersistentValue(f'{cls.__name__}.dat')
 
 
-class Listener(object, metaclass=MetaListener):
-    def __init__(self, client, s3_client, page_size=3):
+class BaseListener(object, metaclass=MetaListener):
+    def __init__(self, get_resources_func, s3_client, page_size=3):
         super().__init__()
+        self.get_resources_func = get_resources_func
         self.s3_client = s3_client
-        self.client = client
         self.page_size = page_size
 
-    def _iter_sounds(self):
+    def _iter_resources(self):
         while True:
             time.sleep(1)
-            data = self.client.get_sounds(self.low_id, self.page_size)
+            # data = self.client.get_sounds(self.low_id, self.page_size)
+            data = self.get_resources_func(self.low_id, self.page_size)
             for item in data['items']:
                 yield item
 
-    def _process_sound(self, sound):
+    def _process_resource(self, resource):
         raise NotImplementedError()
 
     def _run(self):
-        for sound in self._iter_sounds():
-            print(sound['id'])
-            self._process_sound(sound)
-            self.low_id = sound['id']
+        for resource in self._iter_resources():
+            print(resource['id'])
+            self._process_resource(resource)
+            self.low_id = resource['id']
 
     def run(self):
         try:
@@ -106,6 +106,32 @@ class Listener(object, metaclass=MetaListener):
     def __exit__(self, exc_type, exc_val, exc_tb):
         print('Exiting')
         pass
+
+
+class SoundListener(BaseListener):
+    def __init__(self, client, s3_client, page_size=3):
+        self.client = client
+        super().__init__(client.get_sounds, s3_client, page_size)
+
+    def _process_sound(self, sound):
+        raise NotImplementedError()
+
+    def _process_resource(self, resource):
+        return self._process_sound(resource)
+
+
+class AnnotationListener(BaseListener):
+    def __init__(self, client, bot_id, s3_client, page_size=3):
+        f = lambda low_id, page_size: \
+            client.get_annotations(bot_id, low_id, page_size)
+        self.client = client
+        super().__init__(f, s3_client, page_size)
+
+    def _process_annotation(self, annotation):
+        raise NotImplementedError()
+
+    def _process_resource(self, resource):
+        return self._process_annotation(resource)
 
 
 def main(

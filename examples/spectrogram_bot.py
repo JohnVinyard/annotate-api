@@ -2,7 +2,7 @@ import requests
 import zounds
 from io import BytesIO
 import numpy as np
-from bot_helper import BinaryData, main, Listener
+from bot_helper import BinaryData, main, SoundListener
 
 N_FREQUENCY_BANDS = 512
 SAMPLE_RATE = zounds.SR11025()
@@ -19,7 +19,7 @@ FILTER_BANK *= zounds.AWeighting()
 FILTER_BANK = np.array(FILTER_BANK)
 
 
-class SpectrogramListener(Listener):
+class SpectrogramListener(SoundListener):
     def __init__(self, client, s3_client, page_size=3):
         super().__init__(client, s3_client, page_size)
 
@@ -43,7 +43,7 @@ class SpectrogramListener(Listener):
         spec = np.ascontiguousarray(spec).astype(np.float32)
         spec = zounds.ArrayWithUnits(spec, [
             zounds.TimeDimension(*windowing_sample_rate),
-            zounds.IdentityDimension()
+            zounds.FrequencyDimension(scale)
         ])
         print(spec.shape, spec.dimensions)
 
