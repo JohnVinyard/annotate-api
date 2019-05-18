@@ -448,6 +448,54 @@ const promiseContext = (promise, dataFunc) => {
   });
 };
 
+const timeFactors = {
+  'ps': 1e12
+}
+
+const decodeBase64EncodedTimeValue = (s, unit) => {
+  const timeFactor = timeFactors[unit];
+
+  if(timeFactor === undefined) {
+    throw new Error(`No time factor defined for time unit: ${unit}`);
+  }
+
+	const decoded = atob(s);
+  const encoded = new Uint8Array(decoded.split('').map(x => x.charCodeAt()));
+  const arr = new BigUint64Array(encoded.buffer);
+  const value = Number(arr[0]);
+  return value / timeFactor;
+};
+
+const unpackFeatureData = (data) => {
+  const view = new DataView(data);
+  const byteView = new Uint8Array(data);
+  const length = new Uint32Array(data, 0, 4)[0];
+
+  // TODO: Should I use TextDecoder here?
+  const rawMetadata = String.fromCharCode.apply(
+    null, new Uint8Array(data, 4, length));
+  const metadata = JSON.parse(rawMetadata);
+
+  // Decode the sample frequency and duration of the first time dimension
+  const timeDimension = metadata.dimensions[0];
+  const [rawFrequency, freqUnit] = timeDimension.data.frequency;
+  const [rawDuration, durationUnit] = timeDimension.data.duration;
+
+  const freq = decodeBase64EncodedTimeValue(rawFrequency, freqUnit);
+  const duration = decodeBase64EncodedTimeValue(rawDuration, durationUnit);
+  console.log(freq, duration);
+
+  // TODO: Array type should be dictated by metadata and not
+  // hard-coded
+  const rawFeatures = new Float32Array(byteView.slice(4 + length).buffer);
+  return featureData = new FeatureData(
+    rawFeatures,
+    metadata.shape,
+    freq,
+    duration,
+    metadata);
+};
+
 const featurePromise = (annotation, featureDataMapping, searchResults) => {
   let featureDataPromise = featureDataMapping[annotation.sound];
   if(featureDataPromise === undefined) {
@@ -494,23 +542,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
           })
           .then(result => {
             const {data, audioUrl} = result;
-            const view = new DataView(data);
-            const byteView = new Uint8Array(data);
-            const length = new Uint32Array(data, 0, 4)[0];
-            const rawMetadata = String.fromCharCode.apply(
-              null, new Uint8Array(data, 4, length));
-            const metadata = JSON.parse(rawMetadata);
-
-            // TODO: Array type should be dictated by metadata and not
-            // hard-coded
-            const rawFeatures = new Float32Array(
-              byteView.slice(4 + length).buffer);
-            const featureData = new FeatureData(
-              rawFeatures,
-              metadata.shape,
-              metadata.dimensions[0].frequency_seconds,
-              metadata.dimensions[0].duration_seconds,
-              metadata);
+            const featureData = unpackFeatureData(data);
             return {featureData, audioUrl};
           });
       }
