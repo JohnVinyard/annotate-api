@@ -483,7 +483,6 @@ const unpackFeatureData = (data) => {
 
   const freq = decodeBase64EncodedTimeValue(rawFrequency, freqUnit);
   const duration = decodeBase64EncodedTimeValue(rawDuration, durationUnit);
-  console.log(freq, duration);
 
   // TODO: Array type should be dictated by metadata and not
   // hard-coded
