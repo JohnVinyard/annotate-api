@@ -281,6 +281,24 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.assertEqual(1, len(items[-1]))
         self.assertEqual(10, sum(len(item) for item in items))
 
+    def test_can_filter_users_by_user_name(self):
+        requesting_user, _ = self.create_user()
+        auth = self._get_auth(requesting_user)
+
+        for _ in range(10):
+            self.create_user(user_type='human')
+
+        user_name = 'interesting_user'
+        self.create_user(user_name=user_name)
+        resp = requests.get(
+            self.users_resource(),
+            params={'page_size': 100, 'user_name': user_name})
+        self.assertEqual(client.OK, resp.status_code)
+        data = resp.json()
+        self.assertEqual(1, len(data['items']))
+        self.assertEqual(1, data['total_count'])
+        self.assertEqual(user_name, data['items'][0]['user_name'])
+
     def test_can_view_most_data_about_self_when_listing_users(self):
         user1, user1_location = self.create_user()
         user2, user2_location = self.create_user()

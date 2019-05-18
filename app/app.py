@@ -255,7 +255,7 @@ class SoundAnnotationsResource(object):
 
         created_by = req.get_param('created_by')
         if created_by is not None:
-            partial_user =  User.partial_hydrate(id=created_by)
+            partial_user = User.partial_hydrate(id=created_by)
             user_query = (Annotation.created_by == partial_user)
             query = query & user_query
             additional_params['created_by'] = created_by
@@ -330,16 +330,22 @@ class UsersResource(object):
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
-        user_type = req.get_param(User.user_type.name)
+        query = User.deleted == False
 
-        base_query = User.deleted == False
+        additional_params = {}
+
+        user_type = req.get_param(User.user_type.name)
         if user_type:
             try:
-                query = (base_query & (User.user_type == user_type))
+                query = (query & (User.user_type == user_type))
             except ValueError as e:
                 raise falcon.HTTPBadRequest(e.args[0])
-        else:
-            query = base_query
+            additional_params[User.user_type.name] = user_type
+
+        user_name = req.get_param(User.user_name.name)
+        if user_name is not None:
+            query = query & (User.user_name == user_name)
+            additional_params[User.user_name.name] = user_name
 
         list_entity(
             req,
@@ -349,7 +355,7 @@ class UsersResource(object):
             query,
             User.date_created.descending(),
             '/users?{encoded_params}',
-            additional_params={User.user_type.name: user_type})
+            additional_params=additional_params)
 
 
 class SoundResource(object):
