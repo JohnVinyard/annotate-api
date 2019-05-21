@@ -5,7 +5,6 @@ from enum import Enum
 
 
 class JsonEncoder(json.JSONEncoder):
-
     def __init__(self, convert_to_links):
         super().__init__()
         self.convert_to_links = convert_to_links
@@ -29,11 +28,12 @@ class JSONHandler(BaseHandler):
         super().__init__()
         self.encoder = JsonEncoder(convert_to_links)
 
-    def deserialize(self, raw):
+    def deserialize(self, raw, content_type, content_length):
         return json.loads(raw.decode())
 
-    def serialize(self, obj):
+    def serialize(self, obj, content_type):
         return self.encoder.encode(obj).encode()
+
 
 __all__ = [
     JSONHandler
