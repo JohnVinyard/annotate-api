@@ -80,7 +80,6 @@ class BaseListener(object, metaclass=MetaListener):
     def _iter_resources(self):
         while True:
             time.sleep(1)
-            # data = self.client.get_sounds(self.low_id, self.page_size)
             data = self.get_resources_func(self.low_id, self.page_size)
             for item in data['items']:
                 yield item
@@ -121,9 +120,11 @@ class SoundListener(BaseListener):
 
 
 class AnnotationListener(BaseListener):
-    def __init__(self, client, bot_id, s3_client, page_size=3):
+    def __init__(self, subscribed_to, client, s3_client, page_size=3):
+        self.bot = client.get_user(subscribed_to)
+        print('subscribed to user', self.bot)
         f = lambda low_id, page_size: \
-            client.get_annotations(bot_id, low_id, page_size)
+            client.get_annotations(self.bot['id'], low_id, page_size)
         self.client = client
         super().__init__(f, s3_client, page_size)
 

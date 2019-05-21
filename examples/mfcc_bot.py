@@ -1,71 +1,55 @@
 import requests
 import zounds
-from io import BytesIO
 import numpy as np
-from bot_helper import BinaryData, main, Listener
+from bot_helper import BinaryData, main, AnnotationListener
 from scipy.fftpack import dct
+import os
 
-
-N_FREQUENCY_BANDS = 512
+N_FREQUENCY_BANDS = 200
 SAMPLE_RATE = zounds.SR11025()
 frequency_band = zounds.FrequencyBand(20, SAMPLE_RATE.nyquist)
 scale = zounds.MelScale(frequency_band, N_FREQUENCY_BANDS)
-FILTER_BANK_KERNEL_SIZE = 512
-FILTER_BANK = zounds.spectral.morlet_filter_bank(
-    SAMPLE_RATE,
-    FILTER_BANK_KERNEL_SIZE,
-    scale,
-    scaling_factor=np.linspace(0.1, 1.0, len(scale)),
-    normalize=True)
-FILTER_BANK *= zounds.AWeighting()
-FILTER_BANK = np.array(FILTER_BANK)
 
 
-class MFCCListener(Listener):
+class MFCCListener(AnnotationListener):
     def __init__(self, client, s3_client, page_size=3):
-        super().__init__(client, s3_client, page_size)
+        super().__init__('fft', client, s3_client, page_size)
 
-    def _process_sound(self, sound):
-        # fetch audio
-        resp = requests.get(sound['audio_url'])
-        raw_audio = BytesIO(resp.content)
+    def _process_annotation(self, annotation):
+        # fetch the fft data
+        resp = requests.get(annotation['data_url'])
+        fft_feature = BinaryData.unpack(resp.content)
 
-        # processing pipeline to compute spectrograms
-        samples = zounds.AudioSamples.from_file(raw_audio).mono
-        samples = samples.mono
-        samples = zounds.soundfile.resample(samples, SAMPLE_RATE)
-        windowing_sample_rate = zounds.SampleRate(
-            frequency=(FILTER_BANK_KERNEL_SIZE // 2) * SAMPLE_RATE.frequency,
-            duration=FILTER_BANK_KERNEL_SIZE * SAMPLE_RATE.frequency)
-        windowed = samples.sliding_window(windowing_sample_rate)
-        windowed = np.asarray(windowed)
-        spec = np.dot(FILTER_BANK, windowed.T).T
-        spec = np.abs(spec)
-        spec = 20 * np.log10(spec + 1)
-        spec = np.ascontiguousarray(spec).astype(np.float32)
-
-        mfcc = np.abs(dct(spec, axis=1)[:, 1: 14])
-
+        # compute the chroma feature
+        mel_spectrogram = scale.apply(
+            fft_feature,
+            zounds.HanningWindowingFunc())
+        mel_spectrogram = zounds.ArrayWithUnits(mel_spectrogram, [
+            fft_feature.dimensions[0],
+            zounds.FrequencyDimension(scale)
+        ])
+        mel_spectrogram = 20 * np.log10(mel_spectrogram + 1)
+        mfcc = np.abs(dct(mel_spectrogram, axis=1)[:, 1: 14])
         mfcc = zounds.ArrayWithUnits(mfcc, [
-            zounds.TimeDimension(*windowing_sample_rate),
+            fft_feature.dimensions[0],
             zounds.IdentityDimension()
         ]).astype(np.float32)
 
-        print(mfcc.shape, mfcc.dimensions)
-
+        # pack the chroma data and create the resources
         binary_data = BinaryData(mfcc)
+        sound_id = os.path.split(annotation['sound'])[-1]
 
         # push output to s3
         data_url = self.s3_client.put_object(
-            sound['id'],
+            sound_id,
             binary_data.packed_file_like_object(),
             'application/octet-stream')
         print(f'pushed binary data to {data_url}')
 
         # create annotation
-        self.client.create_annotations(sound['id'], {
-            'start_seconds': 0,
-            'duration_seconds': sound['duration_seconds'],
+        self.client.create_annotations(sound_id, {
+            'start_seconds': annotation['start_seconds'],
+            'duration_seconds': annotation['duration_seconds'],
             'data_url': data_url
         })
         print('created annotation')
