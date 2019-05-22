@@ -292,7 +292,8 @@ class UserTests(BaseTests, unittest2.TestCase):
         self.create_user(user_name=user_name)
         resp = requests.get(
             self.users_resource(),
-            params={'page_size': 100, 'user_name': user_name})
+            params={'page_size': 100, 'user_name': user_name},
+            auth=auth)
         self.assertEqual(client.OK, resp.status_code)
         data = resp.json()
         self.assertEqual(1, len(data['items']))
