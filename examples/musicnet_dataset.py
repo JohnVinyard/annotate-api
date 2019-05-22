@@ -88,7 +88,6 @@ def add_sounds(data_dir, labels_dir, metadata, tags):
             raise RuntimeError(f'Unexpected {status} encountered')
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser(parents=[
         DatasetArgumentParser()
     ])
