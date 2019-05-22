@@ -320,6 +320,7 @@ class UserAnnotationResource(object):
 
 
 class UsersResource(object):
+
     def on_post(self, req, resp, session):
         """
         Create a new user
@@ -369,6 +370,7 @@ class SoundResource(object):
 
 
 class UserResource(object):
+
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
         get_entity(resp, session, actor, User.active_user_query(user_id))
@@ -401,6 +403,7 @@ api = application = falcon.API(middleware=[
     SessionMiddleware(
         app_entity_links, users_repo, sounds_repo, annotations_repo)
 ])
+api.req_options.strip_url_path_trailing_slash = True
 
 extra_handlers = falcon.media.Handlers({
     'application/json': JSONHandler(app_entity_links),
