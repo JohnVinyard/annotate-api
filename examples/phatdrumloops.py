@@ -8,8 +8,9 @@ import urllib
 from io import BytesIO
 import soundfile
 from http import client
-import logging
-logging.getLogger().setLevel(logging.INFO)
+from log import module_logger
+
+logger = module_logger(__file__)
 
 
 pattern = re.compile('href="(?P<uri>/audio/wav/[^\.]+\.wav)"')
@@ -51,7 +52,7 @@ if __name__ == '__main__':
         resp = requests.get(url, headers={'Range': 'bytes=0-'})
         bio = BytesIO(resp.content)
         url = object_storage_client.put_object(_id, bio, 'audio/wav')
-        logging.info(f'Pushed audio data for {url} to s3')
+        logger.info(f'Pushed audio data for {url} to s3')
         bio.seek(0)
         try:
             info = soundfile.info(bio)
@@ -64,7 +65,7 @@ if __name__ == '__main__':
             license_type='https://creativecommons.org/licenses/by-nc-nd/4.0',
             title=_id,
             duration_seconds=info.duration)
-        logging.info(f'Created sound resource {sound_uri}')
+        logger.info(f'Created sound resource {sound_uri}')
         if status == client.CREATED:
             annotate_client.create_annotations(
                 sound_id,
@@ -74,9 +75,9 @@ if __name__ == '__main__':
                     'tags': ['drums']
                 }
             )
-            logging.info(f'Created annotation for {sound_uri}')
+            logger.info(f'Created annotation for {sound_uri}')
         elif status == client.CONFLICT:
-            logging.warning(
+            logger.warning(
                 f'Already created sound and annotation for {sound_uri}')
             # we've already created this sound and annotation
             pass
