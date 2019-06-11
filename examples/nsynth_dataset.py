@@ -7,6 +7,9 @@ from client import Client
 from cli import DatasetArgumentParser
 from http import client
 from s3client import ObjectStorageClient
+from log import module_logger
+
+logger = module_logger(__file__)
 
 
 def get_metadata(json_path):
@@ -30,7 +33,7 @@ if __name__ == '__main__':
     ])
     args = parser.parse_args()
 
-    annotate_client = Client(args.annotate_api_endpoint)
+    annotate_client = Client(args.annotate_api_endpoint, logger=logger)
 
     with open('nsynth.md', 'r') as f:
         about_me = f.read()
@@ -63,7 +66,7 @@ if __name__ == '__main__':
         # push the audio data to s3
         with open(full_path, 'rb') as f:
             url = object_storage_client.put_object(key, f, 'audio/wav')
-            print(f'Created s3 resource at {url}')
+            logger.info(f'Created s3 resource at {url}')
 
         duration_seconds = soundfile.info(full_path).duration
         status, sound_uri, sound_id = annotate_client.create_sound(
@@ -88,8 +91,8 @@ if __name__ == '__main__':
                     'duration_seconds': duration_seconds,
                     'tags': metadata[key]
                 })
-            print(f'Sound and annotation for {sound_id} created')
+            logger.info(f'Sound and annotation for {sound_id} created')
         elif status == client.CONFLICT:
-            print('Sound and annotation already created')
+            logger.info('Sound and annotation already created')
         else:
             raise RuntimeError(f'Unexpected {resp.status_code} encountered')

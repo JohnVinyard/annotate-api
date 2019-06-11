@@ -3,14 +3,17 @@ import zounds
 from io import BytesIO
 from bot_helper import BinaryData, main, SoundListener
 import numpy as np
+from log import module_logger
+
+logger = module_logger(__file__)
 
 SAMPLE_RATE = zounds.SR11025()
 FILTER_BANK_KERNEL_SIZE = 512
 
 
 class FFTListener(SoundListener):
-    def __init__(self, client, s3_client, page_size=3):
-        super().__init__(client, s3_client, page_size)
+    def __init__(self, client, s3_client, page_size=3, logger=None):
+        super().__init__(client, s3_client, page_size, logger)
 
     def _process_sound(self, sound):
         # fetch audio
@@ -37,7 +40,7 @@ class FFTListener(SoundListener):
             sound['id'],
             binary_data.packed_file_like_object(),
             'application/octet-stream')
-        print(f'pushed binary data to {data_url}')
+        logger.info(f'pushed binary data to {data_url}')
 
         # create annotation
         self.client.create_annotations(sound['id'], {
@@ -45,7 +48,7 @@ class FFTListener(SoundListener):
             'duration_seconds': sound['duration_seconds'],
             'data_url': data_url
         })
-        print('created annotation')
+        logger.info('created annotation')
 
 
 if __name__ == '__main__':
@@ -55,4 +58,5 @@ if __name__ == '__main__':
         email='john.vinyard+fft@gmail.com',
         about_me='I compute short-time FFTs!',
         info_url='https://en.wikipedia.org/wiki/Short-time_Fourier_transform',
-        listener_cls=FFTListener)
+        listener_cls=FFTListener,
+        logger=logger)

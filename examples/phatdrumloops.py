@@ -10,6 +10,7 @@ import soundfile
 from http import client
 from log import module_logger
 
+
 logger = module_logger(__file__)
 
 
@@ -20,7 +21,7 @@ if __name__ == '__main__':
         DefaultArgumentParser()
     ])
     args = parser.parse_args()
-    annotate_client = Client(args.annotate_api_endpoint)
+    annotate_client = Client(args.annotate_api_endpoint, logger=logger)
 
     bucket_name = 'PhatDrumLoops'
     info_url = 'http://www.phatdrumloops.com/about.php'

@@ -4,6 +4,9 @@ import numpy as np
 from bot_helper import BinaryData, main, AnnotationListener
 from scipy.fftpack import dct
 import os
+from log import module_logger
+
+logger = module_logger(__file__)
 
 N_FREQUENCY_BANDS = 200
 SAMPLE_RATE = zounds.SR11025()
@@ -12,8 +15,8 @@ scale = zounds.MelScale(frequency_band, N_FREQUENCY_BANDS)
 
 
 class MFCCListener(AnnotationListener):
-    def __init__(self, client, s3_client, page_size=3):
-        super().__init__('fft', client, s3_client, page_size)
+    def __init__(self, client, s3_client, page_size=3, logger=None):
+        super().__init__('fft', client, s3_client, page_size, logger=logger)
 
     def _process_annotation(self, annotation):
         # fetch the fft data
@@ -44,7 +47,7 @@ class MFCCListener(AnnotationListener):
             sound_id,
             binary_data.packed_file_like_object(),
             'application/octet-stream')
-        print(f'pushed binary data to {data_url}')
+        logger.info(f'pushed binary data to {data_url}')
 
         # create annotation
         self.client.create_annotations(sound_id, {
@@ -52,7 +55,7 @@ class MFCCListener(AnnotationListener):
             'duration_seconds': annotation['duration_seconds'],
             'data_url': data_url
         })
-        print('created annotation')
+        logger.info('created annotation')
 
 
 if __name__ == '__main__':
@@ -62,4 +65,5 @@ if __name__ == '__main__':
         email='john.vinyard+mfcc@gmail.com',
         about_me='I compute MFCCfeatures!',
         info_url='https://en.wikipedia.org/wiki/Mel-frequency_cepstrum',
-        listener_cls=MFCCListener)
+        listener_cls=MFCCListener,
+        logger=logger)

@@ -3,6 +3,9 @@ import zounds
 from io import BytesIO
 import numpy as np
 from bot_helper import BinaryData, main, SoundListener
+from log import module_logger
+
+logger = module_logger(__file__)
 
 N_FREQUENCY_BANDS = 512
 SAMPLE_RATE = zounds.SR11025()
@@ -20,8 +23,8 @@ FILTER_BANK = np.array(FILTER_BANK)
 
 
 class SpectrogramListener(SoundListener):
-    def __init__(self, client, s3_client, page_size=3):
-        super().__init__(client, s3_client, page_size)
+    def __init__(self, client, s3_client, page_size=3, logger=None):
+        super().__init__(client, s3_client, page_size, logger)
 
     def _process_sound(self, sound):
         # fetch audio
@@ -45,7 +48,6 @@ class SpectrogramListener(SoundListener):
             zounds.TimeDimension(*windowing_sample_rate),
             zounds.FrequencyDimension(scale)
         ])
-        print(spec.shape, spec.dimensions)
 
         binary_data = BinaryData(spec)
 
@@ -54,7 +56,7 @@ class SpectrogramListener(SoundListener):
             sound['id'],
             binary_data.packed_file_like_object(),
             'application/octet-stream')
-        print(f'pushed binary data to {data_url}')
+        logger.info(f'pushed binary data to {data_url}')
 
         # create annotation
         self.client.create_annotations(sound['id'], {
@@ -62,7 +64,7 @@ class SpectrogramListener(SoundListener):
             'duration_seconds': sound['duration_seconds'],
             'data_url': data_url
         })
-        print('created annotation')
+        logger.info('created annotation')
 
 
 if __name__ == '__main__':
@@ -72,4 +74,5 @@ if __name__ == '__main__':
         email='john.vinyard+spectrogram@gmail.com',
         about_me='I compute spectrograms!',
         info_url='https://en.wikipedia.org/wiki/Spectrogram',
-        listener_cls=SpectrogramListener)
+        listener_cls=SpectrogramListener,
+        logger=logger)

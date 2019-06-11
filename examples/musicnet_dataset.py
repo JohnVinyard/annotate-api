@@ -7,6 +7,9 @@ from csv import DictReader
 from zounds.util import midi_to_note, midi_instrument
 from s3client import ObjectStorageClient
 import soundfile
+from log import module_logger
+
+logger = module_logger(__file__)
 
 
 def slugify(s):
@@ -58,7 +61,7 @@ def add_sounds(data_dir, labels_dir, metadata, tags):
         # push audio data to s3
         with open(audio_path, 'rb') as f:
             url = object_storage_client.put_object(_id, f, 'audio/wav')
-            print(f'pushed {url} to s3')
+            logger.info(f'pushed {url} to s3')
 
         # create a sound
         info = soundfile.info(audio_path)
@@ -87,12 +90,13 @@ def add_sounds(data_dir, labels_dir, metadata, tags):
         else:
             raise RuntimeError(f'Unexpected {status} encountered')
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[
         DatasetArgumentParser()
     ])
     args = parser.parse_args()
-    annotate_client = Client(args.annotate_api_endpoint)
+    annotate_client = Client(args.annotate_api_endpoint, logger=logger)
 
     bucket_name = 'MusicNet'
     info_url = 'https://homes.cs.washington.edu/~thickstn/musicnet.html'

@@ -71,8 +71,9 @@ class MetaListener(type):
 
 
 class BaseListener(object, metaclass=MetaListener):
-    def __init__(self, get_resources_func, s3_client, page_size=3):
+    def __init__(self, get_resources_func, s3_client, page_size=3, logger=None):
         super().__init__()
+        self.logger = logger
         self.get_resources_func = get_resources_func
         self.s3_client = s3_client
         self.page_size = page_size
@@ -89,7 +90,7 @@ class BaseListener(object, metaclass=MetaListener):
 
     def _run(self):
         for resource in self._iter_resources():
-            print(resource['id'])
+            self.logger.info(resource['id'])
             self._process_resource(resource)
             self.low_id = resource['id']
 
@@ -103,14 +104,14 @@ class BaseListener(object, metaclass=MetaListener):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print('Exiting')
+        self.logger.info('Exiting')
         pass
 
 
 class SoundListener(BaseListener):
-    def __init__(self, client, s3_client, page_size=3):
+    def __init__(self, client, s3_client, page_size=3, logger=None):
         self.client = client
-        super().__init__(client.get_sounds, s3_client, page_size)
+        super().__init__(client.get_sounds, s3_client, page_size, logger)
 
     def _process_sound(self, sound):
         raise NotImplementedError()
@@ -119,14 +120,35 @@ class SoundListener(BaseListener):
         return self._process_sound(resource)
 
 
+def retry(func, timeout_seconds, delay=1.0):
+    def x(*args, **kwargs):
+        start = time.time()
+        elapsed = time.time() - start
+        while elapsed < timeout_seconds:
+            try:
+                return func(*args, **kwargs)
+            except:
+                time.sleep(delay)
+            elapsed = time.time() - start
+
+    return x
+
+
 class AnnotationListener(BaseListener):
-    def __init__(self, subscribed_to, client, s3_client, page_size=3):
-        self.bot = client.get_user(subscribed_to)
-        print('subscribed to user', self.bot)
+    def __init__(
+            self,
+            subscribed_to,
+            client,
+            s3_client,
+            page_size=3,
+            logger=None):
+
+        self.bot = retry(client.get_user, 30)(subscribed_to)
+        logger.info(f'subscribed to user {self.bot}')
         f = lambda low_id, page_size: \
             client.get_annotations(self.bot['id'], low_id, page_size)
         self.client = client
-        super().__init__(f, s3_client, page_size)
+        super().__init__(f, s3_client, page_size, logger)
 
     def _process_annotation(self, annotation):
         raise NotImplementedError()
@@ -142,10 +164,12 @@ def main(
         about_me,
         info_url,
         listener_cls,
-        page_size=3):
+        page_size=3,
+        logger=None):
+
     parser = argparse.ArgumentParser(parents=[DefaultArgumentParser()])
     args = parser.parse_args()
-    client = Client(args.annotate_api_endpoint)
+    client = Client(args.annotate_api_endpoint, logger=logger)
 
     object_storage_client = ObjectStorageClient(
         endpoint=args.s3_endpoint,
@@ -164,5 +188,6 @@ def main(
         about_me,
         info_url)
 
-    with listener_cls(client, object_storage_client, page_size).run():
+    with listener_cls(
+            client, object_storage_client, page_size, logger=logger).run():
         pass

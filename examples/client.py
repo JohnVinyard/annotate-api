@@ -5,11 +5,12 @@ import os
 
 
 class Client(object):
-    def __init__(self, hostname, auth=None):
+    def __init__(self, hostname, auth=None, logger=None):
         super().__init__()
         self.hostname = hostname
         self.session = requests.Session()
         self.session.auth = auth
+        self.logger = logger
 
     @property
     def auth(self):
@@ -41,9 +42,9 @@ class Client(object):
         resource = urljoin(self.hostname, '/users')
         resp = requests.post(resource, json=user_data)
         if resp.status_code == client.CREATED:
-            print(f'Created user {user_name}')
+            self.logger.info(f'Created user {user_name}')
         elif resp.status_code == client.CONFLICT:
-            print(f'user {user_name} already exists')
+            self.logger.info(f'user {user_name} already exists')
             uri = urljoin(self.hostname, resp.headers['location'])
             update_data = {
                 'password': password,
@@ -51,7 +52,7 @@ class Client(object):
             }
             resp = requests.patch(uri, json=update_data, auth=auth)
             resp.raise_for_status()
-            print(f'Updated user {user_name}')
+            self.logger.info(f'Updated user {user_name}')
         self.session.auth = auth
 
     def upsert_dataset(
