@@ -55,6 +55,10 @@ class Client(object):
             self.logger.info(f'Updated user {user_name}')
         self.session.auth = auth
 
+    def upsert_user(self, user_name, email, password, about_me, info_url):
+        self._upsert_user(
+            'human', user_name, email, password, about_me, info_url)
+
     def upsert_dataset(
             self, user_name, email, password, about_me, info_url=None):
         self._upsert_user(

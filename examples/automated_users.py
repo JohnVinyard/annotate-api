@@ -31,7 +31,7 @@ class Process(subprocess.Popen):
         ]
 
         for item in kwargs.items():
-            cli_args.extend(item)
+            cli_args.extend(filter(lambda x: bool(x), item))
 
         super().__init__(
             cli_args,
@@ -77,15 +77,18 @@ if __name__ == '__main__':
     processes = ProcessCollection(
 
         # datasets
-        process('phatdrumloops.py'),
-        process(
-            'musicnet_dataset.py',
-            **{'--metadata-path': '/hdd/musicnet'}),
+        # process('phatdrumloops.py'),
+        # process(
+        #     'musicnet_dataset.py',
+        #     **{'--metadata-path': '/hdd/musicnet'}),
 
         # bots
-        process('chroma_bot.py'),
+        # process('chroma_bot.py'),
         process('fft_bot.py'),
         process('mfcc_bot.py'),
-        process('spectrogram_bot.py')
+        # process('spectrogram_bot.py')
+
+        # indexers
+        process('indexer.py', **{'--train': ''})
     )
     print(processes.wait())
