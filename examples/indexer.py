@@ -34,6 +34,9 @@ from bot_helper import BinaryData, retry
 import argparse
 import requests
 import numpy as np
+import threading
+import time
+from sklearn.cluster import MiniBatchKMeans
 
 logger = module_logger(__file__)
 
@@ -90,14 +93,39 @@ def infinite_feature_stream(client):
         arr = zounds.ArrayWithUnits(arr, dims)
 
         _id = item['id']
-        logger.info(f'{_id} {arr.shape}')
-        print(arr.dimensions)
         yield _id, arr
 
 
-def train_model(client):
-    for item in infinite_feature_stream(client):
-        pass
+def fill_reservoir(client, reservoir):
+    for _id, arr in infinite_feature_stream(client):
+        logger.info(f'pushing {_id} into reservoir')
+        reservoir.add(arr)
+
+
+def train_model(client, n_iterations=10000, batch_size=256):
+    reservoir = zounds.learn.Reservoir(10000, dtype=np.float32)
+    t = threading.Thread(
+        target=fill_reservoir, args=(client, reservoir), daemon=True)
+    t.start()
+
+    model = MiniBatchKMeans(
+        n_clusters=128,
+        max_iter=n_iterations,
+        batch_size=batch_size)
+
+    batch = 0
+    while batch < n_iterations:
+        try:
+            train_data = reservoir.get_batch(batch_size)
+            model.partial_fit(train_data.reshape((train_data.shape[0], -1)))
+            batch += 1
+            logger.info(f'Training on batch {batch} of {n_iterations}')
+        except ValueError as e:
+            logger.error(e)
+            time.sleep(1)
+            continue
+
+    # TODO: Persist the model somewhere
 
 
 if __name__ == '__main__':
