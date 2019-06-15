@@ -89,6 +89,9 @@ if __name__ == '__main__':
         # process('spectrogram_bot.py')
 
         # indexers
-        process('indexer.py', **{'--train': ''})
+        process('indexer.py', **{
+            '--train': '',
+            '--iterations': str(100)
+        })
     )
     print(processes.wait())

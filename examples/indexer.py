@@ -71,41 +71,54 @@ def mfcc_stream(client):
 
 
 def infinite_mfcc_stream(client):
+    """
+    Loop over MFCC annotations endlessly
+    """
     while True:
         yield from mfcc_stream(client)
 
 
+def compute_feature(annotation):
+    resp = requests.get(annotation['data_url'])
+    arr = BinaryData.unpack(resp.content)
+
+    # sliding window
+    _, arr = arr.sliding_window_with_leftovers(3, 1, dopad=True)
+    dims = arr.dimensions
+
+    # unit norm
+    orig_shape = arr.shape
+    arr = arr.reshape((arr.shape[0], -1))
+    norms = np.linalg.norm(arr, axis=-1, keepdims=True)
+    arr /= (norms + 1e-8)
+    arr = arr.reshape(orig_shape)
+    arr = zounds.ArrayWithUnits(arr, dims)
+
+    return arr
+
+
 def infinite_feature_stream(client):
     for item in infinite_mfcc_stream(client):
-        resp = requests.get(item['data_url'])
-        arr = BinaryData.unpack(resp.content)
-
-        # sliding window
-        _, arr = arr.sliding_window_with_leftovers(3, 1, dopad=True)
-        dims = arr.dimensions
-
-        # unit norm
-        orig_shape = arr.shape
-        arr = arr.reshape((arr.shape[0], -1))
-        norms = np.linalg.norm(arr, axis=-1, keepdims=True)
-        arr /= (norms + 1e-8)
-        arr = arr.reshape(orig_shape)
-        arr = zounds.ArrayWithUnits(arr, dims)
-
+        arr = compute_feature(item)
         _id = item['id']
         yield _id, arr
 
 
-def fill_reservoir(client, reservoir):
+def fill_reservoir(client, reservoir, should_stop):
     for _id, arr in infinite_feature_stream(client):
+        if should_stop:
+            break
         logger.info(f'pushing {_id} into reservoir')
         reservoir.add(arr)
 
 
 def train_model(client, n_iterations=10000, batch_size=256):
     reservoir = zounds.learn.Reservoir(10000, dtype=np.float32)
+    should_stop = []
     t = threading.Thread(
-        target=fill_reservoir, args=(client, reservoir), daemon=True)
+        target=fill_reservoir,
+        args=(client, reservoir, should_stop),
+        daemon=True)
     t.start()
 
     model = MiniBatchKMeans(
@@ -125,7 +138,24 @@ def train_model(client, n_iterations=10000, batch_size=256):
             time.sleep(1)
             continue
 
-    # TODO: Persist the model somewhere
+    should_stop.append(True)
+    return model
+
+
+def build_index(client, model):
+    for annotation in mfcc_stream(client):
+        feature = compute_feature(annotation)
+        _, windowed = feature.sliding_window_with_leftovers(42, dopad=True)
+        original_shape = windowed.shape[:2]
+        flattened_dim = windowed.shape[-2] * windowed.shape[-1]
+        windowed = windowed.reshape((-1, flattened_dim))
+        cluster_ids = model.predict(windowed)
+        sparse = np.zeros((len(cluster_ids), model.n_clusters), dtype=np.uint8)
+        sparse[np.arange(len(cluster_ids)), cluster_ids] = 1
+        sparse = sparse.reshape(original_shape + (-1,))
+        pooled = sparse.max(axis=1)
+        packed = np.packbits(pooled, axis=-1).view(np.uint64)
+        # TODO: build time slices for each entry
 
 
 if __name__ == '__main__':
@@ -133,6 +163,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--train',
         action='store_true')
+    parser.add_argument(
+        '--iterations',
+        type=int,
+        default=10000)
     args = parser.parse_args()
 
     api_client = Client(args.annotate_api_endpoint, logger=logger)
@@ -146,4 +180,6 @@ if __name__ == '__main__':
         'https://example.com')
 
     if args.train:
-        train_model(api_client)
+        model = train_model(api_client, n_iterations=args.iterations)
+
+    build_index(api_client, model)
