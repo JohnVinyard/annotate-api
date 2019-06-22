@@ -21,11 +21,12 @@ Questions/Things to consider
     - In practice, the resources needed in the learning and indexing phases
         are likely to be very different.  Figure out a simple workflow for this
     - Unlike cochlea, where the index was baked in, codes for the fixed length
-        segments won't be returned from every search, so indexes should be
-        capable of computing features on the fly and/or accepting just a sound
-        id and time stamp, locating the correct feature, and performing the
-        search
+        segments won't be returned from other possible searches, so indexes
+        should be capable of computing features on the fly and/or accepting
+        just a sound id and time stamp, locating the correct feature, and
+        performing the search
 """
+
 import zounds
 from log import module_logger
 from client import Client
@@ -39,15 +40,6 @@ import time
 from sklearn.cluster import MiniBatchKMeans
 
 logger = module_logger(__file__)
-
-'''
-Training:
-
-- One thread will begin pulling annotations and placing them into our reservoir
-- Another thread will begin pulling batches from the reservoir and training the
-  model
-
-'''
 
 
 def mfcc_stream(client):
@@ -143,19 +135,44 @@ def train_model(client, n_iterations=10000, batch_size=256):
 
 
 def build_index(client, model):
+    chunks = []
+    current_offset = 0
+    offsets = []
+    ids = []
+    sound_offsets = {}
+
     for annotation in mfcc_stream(client):
         feature = compute_feature(annotation)
+
+        # TODO: magic number 42
         _, windowed = feature.sliding_window_with_leftovers(42, dopad=True)
+
+        # TODO: This is being set repeatedly because I don't have the times
+        # factored out
+        frequency = windowed.dimensions[0].frequency
+
         original_shape = windowed.shape[:2]
         flattened_dim = windowed.shape[-2] * windowed.shape[-1]
         windowed = windowed.reshape((-1, flattened_dim))
+
         cluster_ids = model.predict(windowed)
+
         sparse = np.zeros((len(cluster_ids), model.n_clusters), dtype=np.uint8)
         sparse[np.arange(len(cluster_ids)), cluster_ids] = 1
         sparse = sparse.reshape(original_shape + (-1,))
+
         pooled = sparse.max(axis=1)
+
+        # TODO: This should be encapsulated in an index class
         packed = np.packbits(pooled, axis=-1).view(np.uint64)
-        # TODO: build time slices for each entry
+        chunks.append(packed)
+        offsets.append(current_offset)
+        ids.append(annotation['sound'])
+        sound_offsets[annotation['sound']] = current_offset
+        current_offset += len(packed)
+
+    index = np.concatenate(chunks)
+    return index, offsets, ids, sound_offsets
 
 
 if __name__ == '__main__':
@@ -182,4 +199,4 @@ if __name__ == '__main__':
     if args.train:
         model = train_model(api_client, n_iterations=args.iterations)
 
-    build_index(api_client, model)
+    index, offsets, ids, sound_offsets = build_index(api_client, model)
