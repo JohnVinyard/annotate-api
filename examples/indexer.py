@@ -38,6 +38,9 @@ import numpy as np
 import threading
 import time
 from sklearn.cluster import MiniBatchKMeans
+from gunicorn.app.base import BaseApplication
+import falcon
+import base64
 
 logger = module_logger(__file__)
 
@@ -136,9 +139,8 @@ def train_model(client, n_iterations=10000, batch_size=256):
 
 def build_index(client, model):
     chunks = []
+    time_slices = []
     current_offset = 0
-    offsets = []
-    ids = []
     sound_offsets = {}
 
     for annotation in mfcc_stream(client):
@@ -149,7 +151,9 @@ def build_index(client, model):
 
         # TODO: This is being set repeatedly because I don't have the times
         # factored out
-        frequency = windowed.dimensions[0].frequency
+        time_dimension = windowed.dimensions[0]
+        frequency = time_dimension.frequency
+        duration = time_dimension.duration
 
         original_shape = windowed.shape[:2]
         flattened_dim = windowed.shape[-2] * windowed.shape[-1]
@@ -163,17 +167,87 @@ def build_index(client, model):
 
         pooled = sparse.max(axis=1)
 
-        # TODO: This should be encapsulated in an index class
+        # TODO: This should all be encapsulated in an index class
         packed = np.packbits(pooled, axis=-1).view(np.uint64)
         chunks.append(packed)
-        offsets.append(current_offset)
-        ids.append(annotation['sound'])
-        sound_offsets[annotation['sound']] = current_offset
+        sound_id = annotation['sound']
+        logger.info(f'building index for {sound_id}')
+        time_slices.extend(
+            (sound_id, zounds.TimeSlice(start=i * frequency, duration=duration))
+            for i in range(len(packed)))
+        sound_offsets[sound_id] = current_offset
         current_offset += len(packed)
 
     index = np.concatenate(chunks)
-    return index, offsets, ids, sound_offsets
+    return frequency, index, time_slices, sound_offsets
 
+
+class StandaloneApplication(BaseApplication):
+    def __init__(self, app, bind):
+        self.application = app
+        self.bind = bind
+        super(StandaloneApplication, self).__init__()
+
+    def load_config(self):
+        self.cfg.set('bind', self.bind)
+
+    def load(self):
+        return self.application
+
+
+class IndexResource(object):
+    def __init__(self, frequency, index, time_slices, sound_offsets, user_uri):
+        self.sound_offsets = sound_offsets
+        self.user_uri = user_uri
+        self.frequency = frequency
+        self.index = index
+        self.time_slices = time_slices
+
+    def _get_code(self, sound, seconds):
+        frequency = self.frequency / zounds.Seconds(1)
+        offset = self.sound_offsets[sound]
+        window_index = offset + int(seconds / frequency)
+        return self.index[window_index]
+
+    def _transform_indices(self, indices):
+        for index in indices:
+            sound_id, time_slice = self.time_slices[index]
+            start = time_slice.start / zounds.Seconds(1)
+            duration = time_slice.duration / zounds.Seconds(1)
+            data = {
+                'created_by': self.user_uri,
+                'sound': sound_id,
+                'start_seconds': start,
+                'duration_seconds': duration,
+                'end_seconds': start + duration
+            }
+            yield data
+
+    def on_get(self, req, resp):
+        """
+        Queries will arrive in one of two forms:
+            - a sound id and a point in time
+            - a base-64 encoded packed code
+        """
+        sound = req.get_param('sound')
+        seconds = req.get_param_as_float('seconds')
+        nresults = req.get_param_as_int('nresults') or 10
+
+        if sound and seconds is not None:
+            # TODO: errors here should result in a reasonable HTTP error code
+            code = self._get_code(sound, seconds)
+        else:
+            encoded = req.get_param('code')
+            binary = base64.urlsafe_b64decode(encoded)
+            code = np.fromstring(binary, dtype=np.uint64)
+
+        dist = zounds.nputil.packed_hamming_distance(code, self.index)
+        indices = np.argsort(dist)[:nresults]
+        resp.media = {
+            'total_count': len(indices),
+            'items': list(self._transform_indices(indices))
+        }
+        resp.set_header('Access-Control-Allow-Origin', '*')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[DefaultArgumentParser()])
@@ -184,19 +258,35 @@ if __name__ == '__main__':
         '--iterations',
         type=int,
         default=10000)
+    parser.add_argument(
+        '--bind',
+        default='0.0.0.0:8080')
     args = parser.parse_args()
 
     api_client = Client(args.annotate_api_endpoint, logger=logger)
     # TODO: Should I introduce an indexer user type, since anonymous access
     # isn't allowed?
-    api_client.upsert_user(
+    user_uri = api_client.upsert_user(
         'mfcc_index',
         'john.vinyard+mfcc_index@gmail.com',
         args.password,
         'I index MFCC features',
         'https://example.com')
 
+    # train the model
     if args.train:
         model = train_model(api_client, n_iterations=args.iterations)
 
-    index, offsets, ids, sound_offsets = build_index(api_client, model)
+    # build the index
+    # TODO: The index should be built in another thread, so that new sounds
+    # are inserted as they arrive, forever
+    frequency, index, time_slices, sound_offsets = \
+        build_index(api_client, model)
+    logger.info(f'built index of size {len(index)}')
+
+    # serve the index over HTTP
+    api = falcon.API()
+    api.add_route('/', IndexResource(
+        frequency, index, time_slices, sound_offsets, user_uri))
+    logger.info(f'serving index on port {args.bind}')
+    StandaloneApplication(api, args.bind).run()

@@ -77,10 +77,10 @@ if __name__ == '__main__':
     processes = ProcessCollection(
 
         # datasets
-        # process('phatdrumloops.py'),
-        # process(
-        #     'musicnet_dataset.py',
-        #     **{'--metadata-path': '/hdd/musicnet'}),
+        process('phatdrumloops.py'),
+        process(
+            'musicnet_dataset.py',
+            **{'--metadata-path': '/hdd/musicnet'}),
 
         # bots
         # process('chroma_bot.py'),
@@ -91,7 +91,8 @@ if __name__ == '__main__':
         # indexers
         process('indexer.py', **{
             '--train': '',
-            '--iterations': str(100)
+            '--iterations': str(10000),
+            '--bind': '0.0.0.0:8080'
         })
     )
     print(processes.wait())

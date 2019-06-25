@@ -42,15 +42,21 @@
 
         <!-- Search -->
         <section class="container">
+
             <div class="columns">
                 <div class="column col-12">
                     <input
                             id="search-criteria"
                             type="text"
                             placeholder="tags"
-                            v-model="query" />
+                            v-model="textQuery"
+                            @keyup="queryChange" />
                     <input id="search" type="submit" v-on:click="handleSubmit" />
                 </div>
+            </div>
+
+            <div v-on:click="remoteSearch">
+              {{ candidateQuery ? candidateQuery.soundUri : undefined }}
             </div>
         </section>
     </main>

@@ -41,11 +41,12 @@ class Client(object):
 
         resource = urljoin(self.hostname, '/users')
         resp = requests.post(resource, json=user_data)
+        location = resp.headers['location']
         if resp.status_code == client.CREATED:
             self.logger.info(f'Created user {user_name}')
         elif resp.status_code == client.CONFLICT:
             self.logger.info(f'user {user_name} already exists')
-            uri = urljoin(self.hostname, resp.headers['location'])
+            uri = urljoin(self.hostname, location)
             update_data = {
                 'password': password,
                 'about_me': user_data['about_me']
@@ -54,19 +55,20 @@ class Client(object):
             resp.raise_for_status()
             self.logger.info(f'Updated user {user_name}')
         self.session.auth = auth
+        return location
 
     def upsert_user(self, user_name, email, password, about_me, info_url):
-        self._upsert_user(
+        return self._upsert_user(
             'human', user_name, email, password, about_me, info_url)
 
     def upsert_dataset(
             self, user_name, email, password, about_me, info_url=None):
-        self._upsert_user(
+        return self._upsert_user(
             'dataset', user_name, email, password, about_me, info_url)
 
     def upsert_featurebot(
             self, user_name, email, password, about_me, info_url=None):
-        self._upsert_user(
+        return self._upsert_user(
             'featurebot', user_name, email, password, about_me, info_url)
 
     def get_user(self, user_name):

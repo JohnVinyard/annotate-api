@@ -9,6 +9,7 @@ class FeatureData {
     this.metadata = metadata;
     this.binaryData = binaryData;
     const dimProduct = dimensions.reduce((x, y) => x * y, 1);
+
     if(dimProduct !== this.binaryData.length) {
       throw new RangeError(
         "The product of dimensions must equal binaryData.length");
@@ -53,9 +54,9 @@ class FeatureData {
     const startIndex =
       start === undefined ? 0 : start * stride;
     const endIndex =
-      end === undefined ? this.binaryData.length : end * stride;
+      end === undefined ? this.binaryData.length : Math.min(this.binaryData.length, end * stride);
 
-    const newFirstDimension = (endIndex - startIndex) / stride;
+    let newFirstDimension = (endIndex - startIndex) / stride;
     const newDimensions = [newFirstDimension].concat(latterDimensions);
 
     const subarray = this.binaryData.subarray(startIndex, endIndex);
@@ -168,7 +169,7 @@ Vue.component('feature-view', {
 });
 
 class FeatureView {
-  constructor(parentElement, promiseFunc, offsetSeconds=0) {
+  constructor(parentElement, promiseFunc, soundUri, offsetSeconds=0) {
 
     const template = document.querySelector('#sound-view-template');
     const clone = document.importNode(template.content, true);
@@ -176,6 +177,7 @@ class FeatureView {
     const container = clone.querySelector('.sound-view-container');
     const outerContainer = clone.querySelector('.sound-view-outer-container');
 
+    this.soundUri = soundUri;
     this.offsetSeconds = offsetSeconds;
     this.container = container;
     this.outerContainer = outerContainer;
@@ -203,6 +205,12 @@ class FeatureView {
             const startSeconds = this.offsetSeconds + relativeStartSeconds;
             const durationSeconds =
               Math.min(2.5, this.featureData.durationSeconds - relativeStartSeconds);
+
+            const candidateQueryEvent = new CustomEvent(
+              'candidateQuery',
+              { detail: {soundUri: this.soundUri, startSeconds}});
+            document.dispatchEvent(candidateQueryEvent);
+
             playAudio(this.audioUrl, context, startSeconds, durationSeconds);
           });
         });
@@ -571,12 +579,24 @@ document.addEventListener('DOMContentLoaded', function() {
     data: {
       features: [],
       currentFeature: null,
+      textQuery: null,
       query: null,
       results: [],
+      candidateQuery: null,
+      remoteSearchHost: 'http://localhost:8080'
     },
     methods: {
+
+      queryChange: function(event) {
+        this.query = () => annotateClient.getAnnotations(this.textQuery);
+      },
+
+      changeFeature: function() {
+        this.handleSubmit();
+      },
+
       handleSubmit: function() {
-        annotateClient.getAnnotations(this.query)
+        this.query()
           .then(data => {
             const searchResults = document.querySelector('#search-results');
 
@@ -587,16 +607,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const featureDataMapping = {};
             data.items.forEach(annotation => {
+              const fp = () => featurePromise(
+                annotation,
+                featureDataMapping,
+                searchResults,
+                annotation.sound);
               return new FeatureView(
                 searchResults,
-                () => featurePromise(annotation, featureDataMapping, searchResults),
+                fp,
+                annotation.sound,
                 annotation.start_seconds);
             });
           });
       },
-      changeFeature: function() {
+
+      remoteSearch: function() {
+        const soundUri = this.candidateQuery.soundUri;
+        const startSeconds = this.candidateQuery.seconds;
+        const host = this.remoteSearchHost;
+        const uri = `${host}?sound=${soundUri}&seconds=${startSeconds}`;
+        this.textQuery = '';
+        this.query = () => fetch(uri).then(data => data.json());
         this.handleSubmit();
-      }
+      },
     }
   });
 
@@ -605,4 +638,9 @@ document.addEventListener('DOMContentLoaded', function() {
       app.features = [{user_name: 'audio'}].concat(data.items);
       app.currentFeature = app.features[0];
     });
+
+  document.addEventListener('candidateQuery', e => {
+    console.log('Candidate Query', e.detail);
+    app.candidateQuery = e.detail;
+  });
 });
