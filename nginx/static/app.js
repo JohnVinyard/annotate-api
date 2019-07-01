@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       remoteSearch: function() {
         const soundUri = this.candidateQuery.soundUri;
-        const startSeconds = this.candidateQuery.seconds;
+        const startSeconds = this.candidateQuery.startSeconds;
         const host = this.remoteSearchHost;
         const uri = `${host}?sound=${soundUri}&seconds=${startSeconds}`;
         this.textQuery = '';

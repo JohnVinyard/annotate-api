@@ -92,7 +92,8 @@ if __name__ == '__main__':
         process('indexer.py', **{
             '--train': '',
             '--iterations': str(10000),
-            '--bind': '0.0.0.0:8080'
+            '--bind': '0.0.0.0:8080',
+            '--index-server-port': '8081'
         })
     )
     print(processes.wait())

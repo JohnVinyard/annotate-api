@@ -1,4 +1,5 @@
 """
+# TODO: Move these comments down into the __main__ method
 
 Learning Phase
     - Stream MFCC features, maintaining a reservoir of N samples
@@ -40,12 +41,14 @@ import time
 from sklearn.cluster import MiniBatchKMeans
 from gunicorn.app.base import BaseApplication
 import falcon
-import base64
+import os
+from multiprocessing.connection import Listener, Client as TcpClient
+import json
 
 logger = module_logger(__file__)
 
 
-def mfcc_stream(client):
+def mfcc_stream(client, wait_for_new=False):
     bot = retry(client.get_user, 30)('mfcc')
 
     low_id = None
@@ -60,7 +63,7 @@ def mfcc_stream(client):
             return low, items
 
     low_id, items = fetch(low_id)
-    while items:
+    while items or wait_for_new:
         yield from items
         low_id, items = fetch(low_id)
 
@@ -77,6 +80,7 @@ def compute_feature(annotation):
     resp = requests.get(annotation['data_url'])
     arr = BinaryData.unpack(resp.content)
 
+    # TODO: Consider a larger "shingle" size
     # sliding window
     _, arr = arr.sliding_window_with_leftovers(3, 1, dopad=True)
     dims = arr.dimensions
@@ -137,71 +141,65 @@ def train_model(client, n_iterations=10000, batch_size=256):
     return model
 
 
-def build_index(client, model):
-    chunks = []
-    time_slices = []
-    current_offset = 0
-    sound_offsets = {}
-
-    for annotation in mfcc_stream(client):
-        feature = compute_feature(annotation)
-
-        # TODO: magic number 42
-        _, windowed = feature.sliding_window_with_leftovers(42, dopad=True)
-
-        # TODO: This is being set repeatedly because I don't have the times
-        # factored out
-        time_dimension = windowed.dimensions[0]
-        frequency = time_dimension.frequency
-        duration = time_dimension.duration
-
-        original_shape = windowed.shape[:2]
-        flattened_dim = windowed.shape[-2] * windowed.shape[-1]
-        windowed = windowed.reshape((-1, flattened_dim))
-
-        cluster_ids = model.predict(windowed)
-
-        sparse = np.zeros((len(cluster_ids), model.n_clusters), dtype=np.uint8)
-        sparse[np.arange(len(cluster_ids)), cluster_ids] = 1
-        sparse = sparse.reshape(original_shape + (-1,))
-
-        pooled = sparse.max(axis=1)
-
-        # TODO: This should all be encapsulated in an index class
-        packed = np.packbits(pooled, axis=-1).view(np.uint64)
-        chunks.append(packed)
-        sound_id = annotation['sound']
-        logger.info(f'building index for {sound_id}')
-        time_slices.extend(
-            (sound_id, zounds.TimeSlice(start=i * frequency, duration=duration))
-            for i in range(len(packed)))
-        sound_offsets[sound_id] = current_offset
-        current_offset += len(packed)
-
-    index = np.concatenate(chunks)
-    return frequency, index, time_slices, sound_offsets
-
-
-class StandaloneApplication(BaseApplication):
-    def __init__(self, app, bind):
-        self.application = app
-        self.bind = bind
-        super(StandaloneApplication, self).__init__()
-
-    def load_config(self):
-        self.cfg.set('bind', self.bind)
-
-    def load(self):
-        return self.application
-
-
-class IndexResource(object):
-    def __init__(self, frequency, index, time_slices, sound_offsets, user_uri):
-        self.sound_offsets = sound_offsets
+class Index(threading.Thread):
+    def __init__(self, client, model, user_uri):
+        super().__init__(daemon=True)
         self.user_uri = user_uri
-        self.frequency = frequency
-        self.index = index
-        self.time_slices = time_slices
+        self.model = model
+        self.client = client
+        self.index = None
+        self.time_slices = []
+        self.current_offset = 0
+        self.sound_offsets = {}
+        self.window_size_frames = 42
+        self.frequency = self._fetch_frequency()
+
+    def __len__(self):
+        return len(self.index)
+
+    def _fetch_frequency(self):
+        annotation = next(mfcc_stream(self.client))
+        feature = compute_feature(annotation)
+        _, windowed = feature.sliding_window_with_leftovers(42, dopad=True)
+        return windowed.dimensions[0].frequency
+
+    def run(self):
+        for annotation in mfcc_stream(self.client, wait_for_new=True):
+            feature = compute_feature(annotation)
+
+            _, windowed = feature.sliding_window_with_leftovers(
+                self.window_size_frames, dopad=True)
+
+            time_dimension = windowed.dimensions[0]
+            duration = time_dimension.duration
+
+            original_shape = windowed.shape[:2]
+            flattened_dim = windowed.shape[-2] * windowed.shape[-1]
+            windowed = windowed.reshape((-1, flattened_dim))
+
+            cluster_ids = self.model.predict(windowed)
+
+            sparse = np.zeros(
+                (len(cluster_ids), model.n_clusters), dtype=np.uint8)
+            sparse[np.arange(len(cluster_ids)), cluster_ids] = 1
+            sparse = sparse.reshape(original_shape + (-1,))
+
+            pooled = sparse.max(axis=1)
+
+            packed = np.packbits(pooled, axis=-1).view(np.uint64)
+            if self.index is None:
+                self.index = packed
+            else:
+                self.index = np.concatenate([self.index, packed])
+            sound_id = annotation['sound']
+            logger.info(
+                f'building index for {sound_id} from process {os.getpid()}')
+            self.time_slices.extend(
+                (sound_id,
+                 zounds.TimeSlice(start=i * self.frequency, duration=duration))
+                for i in range(len(packed)))
+            self.sound_offsets[sound_id] = self.current_offset
+            self.current_offset += len(packed)
 
     def _get_code(self, sound, seconds):
         frequency = self.frequency / zounds.Seconds(1)
@@ -223,31 +221,68 @@ class IndexResource(object):
             }
             yield data
 
+    def search(self, sound, seconds, nresults=10):
+        logger.info(f'searching from process {os.getpid()}')
+        code = self._get_code(sound, seconds)
+        dist = zounds.nputil.packed_hamming_distance(code, self.index)
+        indices = np.argsort(dist)[:nresults]
+        return list(self._transform_indices(indices))
+
+
+class StandaloneApplication(BaseApplication):
+    def __init__(self, app, bind):
+        self.application = app
+        self.bind = bind
+        super(StandaloneApplication, self).__init__()
+
+    def load_config(self):
+        self.cfg.set('bind', self.bind)
+        self.cfg.set('preload_app', True)
+
+    def load(self):
+        return self.application
+
+
+class IndexResource(object):
+    def __init__(self, index_server_address):
+        self.index_server_address = index_server_address
+
     def on_get(self, req, resp):
-        """
-        Queries will arrive in one of two forms:
-            - a sound id and a point in time
-            - a base-64 encoded packed code
-        """
+        resp.set_header('Access-Control-Allow-Origin', '*')
+
         sound = req.get_param('sound')
         seconds = req.get_param_as_float('seconds')
         nresults = req.get_param_as_int('nresults') or 10
 
-        if sound and seconds is not None:
-            # TODO: errors here should result in a reasonable HTTP error code
-            code = self._get_code(sound, seconds)
-        else:
-            encoded = req.get_param('code')
-            binary = base64.urlsafe_b64decode(encoded)
-            code = np.fromstring(binary, dtype=np.uint64)
+        connection = TcpClient(self.index_server_address)
+        query_data = {'sound': sound, 'seconds': seconds, 'nresults': nresults}
+        connection.send_bytes(json.dumps(query_data).encode())
+        raw_resp = connection.recv_bytes()
+        results = json.loads(raw_resp.decode())
 
-        dist = zounds.nputil.packed_hamming_distance(code, self.index)
-        indices = np.argsort(dist)[:nresults]
         resp.media = {
-            'total_count': len(indices),
-            'items': list(self._transform_indices(indices))
+            'total_count': len(results),
+            'items': results
         }
-        resp.set_header('Access-Control-Allow-Origin', '*')
+
+
+class IndexServer(Listener):
+    def __init__(self, address, index):
+        super().__init__(address)
+        self.index = index
+        self.thread = threading.Thread(target=self.run, daemon=True)
+        self.thread.start()
+        logger.info('Started index TCP server')
+
+    def run(self):
+        while True:
+            connection = self.accept()
+            raw_query = connection.recv_bytes().decode()
+            query = json.loads(raw_query)
+            results = self.index.search(**query)
+            connection.send_bytes(json.dumps(results).encode())
+            connection.close()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[DefaultArgumentParser()])
@@ -261,6 +296,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--bind',
         default='0.0.0.0:8080')
+    parser.add_argument(
+        '--index-server-port',
+        default=8081,
+        type=int)
     args = parser.parse_args()
 
     api_client = Client(args.annotate_api_endpoint, logger=logger)
@@ -277,16 +316,15 @@ if __name__ == '__main__':
     if args.train:
         model = train_model(api_client, n_iterations=args.iterations)
 
-    # build the index
-    # TODO: The index should be built in another thread, so that new sounds
-    # are inserted as they arrive, forever
-    frequency, index, time_slices, sound_offsets = \
-        build_index(api_client, model)
-    logger.info(f'built index of size {len(index)}')
+    # begin to build the index, and start up an index server that will host
+    # the in-memory index and respond to requests from HTTP workers
+    index_server_address = ('', args.index_server_port)
+    index = Index(api_client, model, user_uri)
+    index.start()
+    index_server = IndexServer(index_server_address, index)
 
-    # serve the index over HTTP
+    # serve the index over HTTP using a standalone gunicorn application
     api = falcon.API()
-    api.add_route('/', IndexResource(
-        frequency, index, time_slices, sound_offsets, user_uri))
+    api.add_route('/', IndexResource(index_server_address))
     logger.info(f'serving index on port {args.bind}')
     StandaloneApplication(api, args.bind).run()
