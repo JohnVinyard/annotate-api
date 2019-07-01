@@ -47,6 +47,9 @@ import json
 
 logger = module_logger(__file__)
 
+SHINGLE_SIZE = 10
+WINDOW_SIZE = 42
+
 
 def mfcc_stream(client, wait_for_new=False):
     bot = retry(client.get_user, 30)('mfcc')
@@ -82,7 +85,7 @@ def compute_feature(annotation):
 
     # TODO: Consider a larger "shingle" size
     # sliding window
-    _, arr = arr.sliding_window_with_leftovers(3, 1, dopad=True)
+    _, arr = arr.sliding_window_with_leftovers(SHINGLE_SIZE, 1, dopad=True)
     dims = arr.dimensions
 
     # unit norm
@@ -151,7 +154,7 @@ class Index(threading.Thread):
         self.time_slices = []
         self.current_offset = 0
         self.sound_offsets = {}
-        self.window_size_frames = 42
+        self.window_size_frames = WINDOW_SIZE
         self.frequency = self._fetch_frequency()
 
     def __len__(self):
@@ -237,7 +240,6 @@ class StandaloneApplication(BaseApplication):
 
     def load_config(self):
         self.cfg.set('bind', self.bind)
-        self.cfg.set('preload_app', True)
 
     def load(self):
         return self.application
