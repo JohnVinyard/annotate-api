@@ -633,6 +633,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  // TODO: Only feature bots that create full-length, dense scalar or vector
+  // features should be included in this list.  How can those be filtered out?
   annotateClient.getFeatureBots()
     .then(data => {
       app.features = [{user_name: 'audio'}].concat(data.items);

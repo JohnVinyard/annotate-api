@@ -110,7 +110,6 @@ def fill_reservoir(client, reservoir, should_stop):
     for _id, arr in infinite_feature_stream(client):
         if should_stop:
             break
-        logger.info(f'pushing {_id} into reservoir')
         reservoir.add(arr)
 
 
@@ -134,7 +133,8 @@ def train_model(client, n_iterations=10000, batch_size=256):
             train_data = reservoir.get_batch(batch_size)
             model.partial_fit(train_data.reshape((train_data.shape[0], -1)))
             batch += 1
-            logger.info(f'Training on batch {batch} of {n_iterations}')
+            if batch % 100 == 0:
+                logger.info(f'Training on batch {batch} of {n_iterations}')
         except ValueError as e:
             logger.error(e)
             time.sleep(1)

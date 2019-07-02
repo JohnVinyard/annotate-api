@@ -3,7 +3,6 @@ import zounds
 import numpy as np
 from bot_helper import BinaryData, main, AnnotationListener
 from scipy.fftpack import dct
-import os
 from log import module_logger
 
 logger = module_logger(__file__)
@@ -40,7 +39,7 @@ class MFCCListener(AnnotationListener):
 
         # pack the chroma data and create the resources
         binary_data = BinaryData(mfcc)
-        sound_id = os.path.split(annotation['sound'])[-1]
+        sound_id = self._sound_id_from_uri(annotation['sound'])
 
         # push output to s3
         data_url = self.s3_client.put_object(

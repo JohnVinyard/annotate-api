@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import json
 from io import BytesIO
@@ -149,6 +150,9 @@ class AnnotationListener(BaseListener):
             client.get_annotations(self.bot['id'], low_id, page_size)
         self.client = client
         super().__init__(f, s3_client, page_size, logger)
+
+    def _sound_id_from_uri(self, sound_uri):
+        return os.path.split(sound_uri)[-1]
 
     def _process_annotation(self, annotation):
         raise NotImplementedError()

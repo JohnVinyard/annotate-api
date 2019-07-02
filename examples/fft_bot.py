@@ -21,7 +21,7 @@ class FFTListener(SoundListener):
         raw_audio = BytesIO(resp.content)
 
         # processing pipeline to compute spectrograms
-        samples = zounds.AudioSamples.from_file(raw_audio).mono
+        samples = zounds.AudioSamples.from_file(raw_audio)
         samples = samples.mono
         samples = zounds.soundfile.resample(samples, SAMPLE_RATE)
 
