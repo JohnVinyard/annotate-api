@@ -1,6 +1,7 @@
 import falcon
 from model import User, ContextualValue, Sound, Annotation
-from httphelper import decode_auth_header, SessionMiddleware, EntityLinks
+from httphelper import \
+    decode_auth_header, SessionMiddleware, EntityLinks, CorsMiddleware
 from customjson import JSONHandler
 import urllib
 from errors import \
@@ -405,6 +406,7 @@ def permissions_error(ex, req, resp, params):
 class Application(falcon.API):
     def __init__(self, users_repo, sounds_repo, annotations_repo):
         super().__init__(middleware=[
+            CorsMiddleware(),
             SessionMiddleware(
                 app_entity_links, users_repo, sounds_repo, annotations_repo)
         ])

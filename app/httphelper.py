@@ -27,6 +27,13 @@ class EntityLinks(object):
         return link_template.format(**format_dict)
 
 
+class CorsMiddleware(object):
+    def process_response(self, req, resp, resource, req_succeeded):
+        resp.set_header('Access-Control-Allow-Origin', '*')
+        resp.set_header(
+            'Access-Control-Allow-Methods', 'POST, GET, DELETE, PATCH')
+
+
 class SessionMiddleware(object):
     def __init__(self, link_converter, *repositories):
         super().__init__()

@@ -11,6 +11,7 @@ import requests
 import http
 import urllib
 import argparse
+import uuid
 
 
 class AlwaysUpdateException(Exception):
@@ -121,9 +122,9 @@ class Requirement(object):
 
 
 class PackagedPythonApp(Requirement):
-    def __init__(self, path, environment_name):
+    def __init__(self, path):
         super().__init__()
-        self.environment_name = environment_name
+        self.environment_name = path
         self.path = path
 
     def fulfilled(self):
@@ -256,8 +257,18 @@ class LambdaExecutionRole(BaseRole):
 
 
 class LambdaApi(Requirement):
-    def __init__(self, function_name, packaged_app, execution_role, db):
+    def __init__(
+            self,
+            function_name,
+            packaged_app,
+            execution_role,
+            db,
+            function_module_name='main',
+            entry_point_name='lambda_handler'):
+
         super().__init__(packaged_app, execution_role, db)
+        self.entry_point_name = entry_point_name
+        self.function_module_name = function_module_name
         self.db = db
         self.function_name = function_name
         self.execution_role = execution_role
@@ -281,7 +292,7 @@ class LambdaApi(Requirement):
             FunctionName=self.function_name,
             Runtime='python3.6',
             Role=role_arn,
-            Handler='main.lambda_handler',
+            Handler=f'{self.function_module_name}.{self.entry_point_name}',
             Code={
                 'ZipFile': zip_data
             },
@@ -333,6 +344,14 @@ class ApiGateway(Requirement):
         api = next(filter(lambda x: x['name'] == self.name, resp['items']))
         return api
 
+    def _root_resource_id(self):
+        api_id = self._fetch_api()['id']
+        resources = self.client.get_resources(restApiId=api_id)
+        root_resource = \
+            next(filter(lambda item: item['path'] == '/', resources['items']))
+        root_resource_id = root_resource['id']
+        return api_id, root_resource_id
+
     def fulfilled(self):
         try:
             self._fetch_api()
@@ -342,13 +361,9 @@ class ApiGateway(Requirement):
 
     @retry(tries=100, delay=10)
     def data(self):
-        api_id = self._fetch_api()['id']
-        resources = self.client.get_resources(restApiId=api_id)
-        root_resource = \
-            next(filter(lambda item: item['path'] == '/', resources['items']))
-        root_resource_id = root_resource['id']
+        api_id, root_resource_id = self._root_resource_id()
         return {
-            'api_id': self._fetch_api()['id'],
+            'api_id': api_id,
             'root_resource_id': root_resource_id,
             'lambda_function_name': self.lambda_function.function_name
         }
@@ -362,6 +377,14 @@ class ApiGateway(Requirement):
                 'types': ['EDGE']
             }
         )
+
+        # TODO: This should be a separate requirement
+        api_id, root_resource_id = self._root_resource_id()
+        self.client.put_method(
+            restApiId=api_id,
+            resourceId=root_resource_id,
+            httpMethod='ANY',
+            authorizationType='NONE')
 
 
 class ApiProxyResource(Requirement):
@@ -396,7 +419,8 @@ class ApiProxyResource(Requirement):
         data = self.api_gateway.data()
         return {
             'resource_id': resource['id'],
-            'api_id': self.api_gateway.data()['api_id'],
+            'api_id': data['api_id'],
+            'root_resource_id': data['root_resource_id'],
             'lambda_function_name': data['lambda_function_name']
         }
 
@@ -458,6 +482,16 @@ class ApiIntegration(Requirement):
         self.client.put_integration(
             restApiId=data['api_id'],
             resourceId=data['resource_id'],
+            httpMethod='ANY',
+            type='AWS_PROXY',
+            integrationHttpMethod='POST',
+            uri=uri,
+            credentials=role_arn)
+
+        # TODO: This should be a separate requirement
+        self.client.put_integration(
+            restApiId=data['api_id'],
+            resourceId=data['root_resource_id'],
             httpMethod='ANY',
             type='AWS_PROXY',
             integrationHttpMethod='POST',
@@ -672,6 +706,14 @@ if __name__ == '__main__':
         '--db-user-password',
         required=True
     )
+    parser.add_argument(
+        '--lambda-function-module-name',
+        default='main'
+    )
+    parser.add_argument(
+        '--lambda-function-entry-point',
+        default='lambda_handler'
+    )
     args = parser.parse_args()
 
     # database
@@ -685,11 +727,17 @@ if __name__ == '__main__':
         db_user_password=args.db_user_password)
 
     # application code
-    packaged_app = PackagedPythonApp('fakeapp', 'fakeapp')
+    packaged_app = PackagedPythonApp('app')
 
     # lambda
     execution_role = LambdaExecutionRole()
-    lambda_api = LambdaApi('api', packaged_app, execution_role, db)
+    lambda_api = LambdaApi(
+        'api',
+        packaged_app,
+        execution_role,
+        db,
+        args.lambda_function_module_name,
+        args.lambda_function_entry_point)
 
     # api gateway
     api = ApiGateway(
@@ -709,22 +757,42 @@ if __name__ == '__main__':
     uri = data['uri']
     print(uri)
 
-    # put document
-    resp = requests.put(
-        os.path.join(uri, 'test/hal'), json={'data': 'hal incandenza'})
+    resp = requests.get(uri)
     print(resp.status_code)
     print(resp.json())
 
-    resp = requests.get(os.path.join(uri, 'test/hal'))
-    print(resp.status_code)
+    user_data = {
+        'user_name': 'John',
+        'password': 'password',
+        'user_type': 'human',
+        'email': 'john.vinyard@gmail.com',
+        'about_me': 'Up and coming tennis star'
+    }
+
+    resp = requests.post(os.path.join(uri, 'users'), json=user_data)
+    print(resp)
+
+    user_uri = resp.headers['location']
+    resp = requests.get(os.path.join(uri, user_uri[1:]), auth=('John', 'password'))
+    print(resp)
     print(resp.json())
 
-    resp = requests.put(
-        os.path.join(uri, 'test/blah/hal'),
-        json={'data': 'hal incandenza', 'other_data': 'blah'})
-    print(resp.status_code)
-    print(resp.json())
-
-    resp = requests.get(os.path.join(uri, 'test/blah/hal'))
-    print(resp.status_code)
-    print(resp.json())
+    # # put document
+    # resp = requests.put(
+    #     os.path.join(uri, 'test/hal'), json={'data': 'hal incandenza'})
+    # print(resp.status_code)
+    # print(resp.json())
+    #
+    # resp = requests.get(os.path.join(uri, 'test/hal'))
+    # print(resp.status_code)
+    # print(resp.json())
+    #
+    # resp = requests.put(
+    #     os.path.join(uri, 'test/blah/hal'),
+    #     json={'data': 'hal incandenza', 'other_data': 'blah'})
+    # print(resp.status_code)
+    # print(resp.json())
+    #
+    # resp = requests.get(os.path.join(uri, 'test/blah/hal'))
+    # print(resp.status_code)
+    # print(resp.json())
