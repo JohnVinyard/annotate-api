@@ -1,0 +1,5 @@
+falcon
+gunicorn
+pymongo
+pytz
+falcon-lambda

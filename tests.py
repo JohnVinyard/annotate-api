@@ -181,6 +181,9 @@ class SmokeTests(BaseTests, unittest2.TestCase):
         self.assertIn('totalAnnotations', data)
         self.assertIn('totalUsers', data)
 
+    def test_root_resource_includes_cors_headers(self):
+        self.fail()
+
 
 class UserTests(BaseTests, unittest2.TestCase):
     """

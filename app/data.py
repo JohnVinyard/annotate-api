@@ -7,47 +7,6 @@ from model import User, UserType, Sound, Annotation
 from errors import DuplicateEntityException
 from mapping import UserMapper, SoundMapper, AnnotationMapper
 
-client = MongoClient('mongo')
-db = client.annotate
-
-
-def index_model(mapped_field, unique=False):
-    key = mapped_field.storage_name
-    return IndexModel(key, name=key, unique=unique)
-
-
-db.users.create_indexes([
-    index_model(UserMapper.user_type),
-    index_model(UserMapper.password),
-    index_model(UserMapper.user_name, unique=True),
-    index_model(UserMapper.email, unique=True)
-])
-
-db.sounds.create_indexes([
-    index_model(SoundMapper.created_by),
-    index_model(SoundMapper.audio_url, unique=True),
-    index_model(SoundMapper.tags)
-])
-
-db.annotations.create_indexes([
-    index_model(AnnotationMapper.created_by),
-    index_model(AnnotationMapper.sound_id),
-    index_model(AnnotationMapper.tags),
-    IndexModel([
-        (AnnotationMapper.sound_id.storage_name, ASCENDING),
-        (AnnotationMapper.start_seconds.storage_name, ASCENDING)
-    ], name='start_seconds'),
-    IndexModel([
-        (AnnotationMapper.sound_id.storage_name, ASCENDING),
-        (AnnotationMapper.end_seconds.storage_name, ASCENDING)
-    ], name='end_seconds')
-
-])
-
-users_db = db.users
-sounds_db = db.sounds
-annotations_db = db.annotations
-
 
 # TODO: Does BaseRepository need cls and mapper arguments anymore?
 class MongoRepository(BaseRepository):
@@ -184,12 +143,48 @@ class AnnotationRepository(MongoRepository):
         super().__init__(Annotation, AnnotationMapper, collection)
 
 
-users_repo = UserRepository(users_db)
-sounds_repo = SoundRepository(sounds_db)
-annotations_repo = AnnotationRepository(annotations_db)
+def build_repositories(connection_string):
+    client = MongoClient(connection_string)
+    db = client.annotate
 
-__all__ = [
-    users_repo,
-    sounds_repo,
-    annotations_repo
-]
+    def index_model(mapped_field, unique=False):
+        key = mapped_field.storage_name
+        return IndexModel(key, name=key, unique=unique)
+
+    db.users.create_indexes([
+        index_model(UserMapper.user_type),
+        index_model(UserMapper.password),
+        index_model(UserMapper.user_name, unique=True),
+        index_model(UserMapper.email, unique=True)
+    ])
+
+    db.sounds.create_indexes([
+        index_model(SoundMapper.created_by),
+        index_model(SoundMapper.audio_url, unique=True),
+        index_model(SoundMapper.tags)
+    ])
+
+    db.annotations.create_indexes([
+        index_model(AnnotationMapper.created_by),
+        index_model(AnnotationMapper.sound_id),
+        index_model(AnnotationMapper.tags),
+        IndexModel([
+            (AnnotationMapper.sound_id.storage_name, ASCENDING),
+            (AnnotationMapper.start_seconds.storage_name, ASCENDING)
+        ], name='start_seconds'),
+        IndexModel([
+            (AnnotationMapper.sound_id.storage_name, ASCENDING),
+            (AnnotationMapper.end_seconds.storage_name, ASCENDING)
+        ], name='end_seconds')
+
+    ])
+
+    users_db = db.users
+    sounds_db = db.sounds
+    annotations_db = db.annotations
+
+    users_repo = UserRepository(users_db)
+    sounds_repo = SoundRepository(sounds_db)
+    annotations_repo = AnnotationRepository(annotations_db)
+
+    return users_repo, sounds_repo, annotations_repo

@@ -1,5 +1,4 @@
 import falcon
-from data import users_repo, sounds_repo, annotations_repo, NoCriteria
 from model import User, ContextualValue, Sound, Annotation
 from httphelper import decode_auth_header, SessionMiddleware, EntityLinks
 from customjson import JSONHandler
@@ -320,7 +319,6 @@ class UserAnnotationResource(object):
 
 
 class UsersResource(object):
-
     def on_post(self, req, resp, session):
         """
         Create a new user
@@ -370,7 +368,6 @@ class SoundResource(object):
 
 
 class UserResource(object):
-
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
         get_entity(resp, session, actor, User.active_user_query(user_id))
@@ -399,36 +396,35 @@ class UserResource(object):
 
 app_entity_links = AppEntityLinks()
 
-api = application = falcon.API(middleware=[
-    SessionMiddleware(
-        app_entity_links, users_repo, sounds_repo, annotations_repo)
-])
-api.req_options.strip_url_path_trailing_slash = True
-
-extra_handlers = falcon.media.Handlers({
-    'application/json': JSONHandler(app_entity_links),
-})
-
-api.resp_options.media_handlers = extra_handlers
-
-# public endpoints
-api.add_route('/', RootResource(users_repo, sounds_repo, annotations_repo))
-api.add_route('/users', UsersResource())
-api.add_route(USER_URI_TEMPLATE, UserResource())
-api.add_route('/sounds', SoundsResource())
-api.add_route(SOUND_URI_TEMPLATE, SoundResource())
-api.add_route('/sounds/{sound_id}/annotations', SoundAnnotationsResource())
-api.add_route('/users/{user_id}/sounds', UserSoundsResource())
-api.add_route('/users/{user_id}/annotations', UserAnnotationResource())
-api.add_route('/annotations', AnnotationsResource())
-
 
 # custom errors
 def permissions_error(ex, req, resp, params):
     raise falcon.HTTPForbidden(ex.args[0])
 
 
-api.add_error_handler(PermissionsError, permissions_error)
-api.add_error_handler(
-    CompositeValidationError, composite_validation_error)
-api.add_error_handler(EntityNotFoundError, not_found_error)
+class Application(falcon.API):
+    def __init__(self, users_repo, sounds_repo, annotations_repo):
+        super().__init__(middleware=[
+            SessionMiddleware(
+                app_entity_links, users_repo, sounds_repo, annotations_repo)
+        ])
+        self.req_options.strip_url_path_trailing_slash = True
+        self.resp_options.media_handlers = falcon.media.Handlers({
+            'application/json': JSONHandler(app_entity_links),
+        })
+        self.add_route(
+            '/', RootResource(users_repo, sounds_repo, annotations_repo))
+        self.add_route('/users', UsersResource())
+        self.add_route(USER_URI_TEMPLATE, UserResource())
+        self.add_route('/sounds', SoundsResource())
+        self.add_route(SOUND_URI_TEMPLATE, SoundResource())
+        self.add_route(
+            '/sounds/{sound_id}/annotations', SoundAnnotationsResource())
+        self.add_route('/users/{user_id}/sounds', UserSoundsResource())
+        self.add_route('/users/{user_id}/annotations', UserAnnotationResource())
+        self.add_route('/annotations', AnnotationsResource())
+
+        self.add_error_handler(PermissionsError, permissions_error)
+        self.add_error_handler(
+            CompositeValidationError, composite_validation_error)
+        self.add_error_handler(EntityNotFoundError, not_found_error)

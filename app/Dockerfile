@@ -16,6 +16,7 @@ RUN pip install falcon gunicorn pymongo pytz
 
 COPY *.py remote/
 
-CMD gunicorn app:application \
+CMD gunicorn dev:application \
     --bind 0.0.0.0:8000 --workers 4 --max-requests 1000 \
-    --max-requests-jitter 150 --reload --chdir remote/
+    --max-requests-jitter 150 --reload --chdir remote/ \
+    --env connection_string=mongo
