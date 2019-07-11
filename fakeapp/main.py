@@ -1,15 +1,15 @@
 from falcon_lambda import logger, wsgi
 import logging
+from app import Application
+import pymongo
+import os
 
 logger.setup_lambda_logger(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-
-from app import Application
-try:
-    api = Application()
-except Exception as e:
-    log.error(e)
+mongo_connection_string = os.environ['connection_string']
+mongo_client = pymongo.MongoClient(mongo_connection_string)
+api = Application(mongo_client)
 
 
 def lambda_handler(event, context):

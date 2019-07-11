@@ -8,9 +8,9 @@ import sys
 import shutil
 import json
 import requests
-
-LINUX_IMAGE = 'ami-04169656fea786776'
-REGION = boto3.session.Session().region_name
+import http
+import urllib
+import argparse
 
 
 class AlwaysUpdateException(Exception):
@@ -256,8 +256,9 @@ class LambdaExecutionRole(BaseRole):
 
 
 class LambdaApi(Requirement):
-    def __init__(self, function_name, packaged_app, execution_role):
-        super().__init__(packaged_app, execution_role)
+    def __init__(self, function_name, packaged_app, execution_role, db):
+        super().__init__(packaged_app, execution_role, db)
+        self.db = db
         self.function_name = function_name
         self.execution_role = execution_role
         self.packaged_app = packaged_app
@@ -269,6 +270,11 @@ class LambdaApi(Requirement):
     def fulfilled(self):
         raise AlwaysUpdateException()
 
+    def _environment_variables(self):
+        return {
+            'connection_string': db.data()['connection_string']
+        }
+
     @retry(tries=10, delay=2)
     def _create_function(self, role_arn, zip_data):
         self.client.create_function(
@@ -278,6 +284,9 @@ class LambdaApi(Requirement):
             Handler='main.lambda_handler',
             Code={
                 'ZipFile': zip_data
+            },
+            Environment={
+                'Variables': self._environment_variables()
             }
         )
 
@@ -288,6 +297,12 @@ class LambdaApi(Requirement):
             self.client.update_function_code(
                 FunctionName=self.function_name,
                 ZipFile=zip_data
+            )
+            self.client.update_function_configuration(
+                FunctionName=self.function_name,
+                Environment={
+                    'Variables': self._environment_variables()
+                }
             )
             print('updated function')
         except self.client.exceptions.ResourceNotFoundException:
@@ -420,12 +435,13 @@ class ApiResourceMethod(Requirement):
 
 
 class ApiIntegration(Requirement):
-    def __init__(self, api_resource_method, proxy_role):
+    def __init__(self, region, api_resource_method, proxy_role):
         super().__init__(api_resource_method, proxy_role)
         self.proxy_role = proxy_role
         self.client = boto3.client('apigateway')
         self.lambda_client = boto3.client('lambda')
         self.api_resource_method = api_resource_method
+        self.region = region
         self.uri_template = \
             'arn:aws:apigateway:{aws-region}:lambda:path/{api-version}/functions/arn:aws:lambda:{aws-region}:{aws-acct-id}:function:{lambda-function-name}/invocations'
 
@@ -433,7 +449,7 @@ class ApiIntegration(Requirement):
         data = self.api_resource_method.data()
         # TODO: There's some hard-coded stuff that should be factored out
         uri = self.uri_template.format(**{
-            'aws-region': REGION,
+            'aws-region': self.region,
             'api-version': self.lambda_client.meta.service_model.api_version,
             'lambda-function-name': data['lambda_function_name'],
             'aws-acct-id': boto3.client('sts').get_caller_identity()['Account']
@@ -468,11 +484,12 @@ class ApiIntegration(Requirement):
 
 
 class Deployment(Requirement):
-    def __init__(self, integration):
+    def __init__(self, region, integration):
         super().__init__(integration)
         self.integration = integration
         self.client = boto3.client('apigateway')
         self.stage_name = 'test'
+        self.region = region
 
     def _get_deployment(self):
         data = self.integration.data()
@@ -500,7 +517,7 @@ class Deployment(Requirement):
         data = self.integration.data()
         api_id = data['api_id']
         uri = \
-            f'https://{api_id}.execute-api.{REGION}.amazonaws.com/{self.stage_name}/'
+            f'https://{api_id}.execute-api.{self.region}.amazonaws.com/{self.stage_name}/'
         return {
             'deployment_id': deployment['id'],
             'api_id': data['api_id'],
@@ -510,43 +527,204 @@ class Deployment(Requirement):
         }
 
 
-# https://github.com/boto/boto3/issues/572
-# https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
+class Database(Requirement):
+    def __init__(
+            self,
+            project,
+            username,
+            api_key,
+            cluster_name,
+            instance_size,
+            db_user_name,
+            db_user_password):
+
+        super().__init__()
+        self.db_user_password = db_user_password
+        self.db_user_name = db_user_name
+        self.instance_size = instance_size
+        self.cluster_name = cluster_name
+        self.api_key = api_key
+        self.username = username
+        self.project = project
+        self.base_url = 'https://cloud.mongodb.com/api/atlas/v1.0/'
+
+    def _get_project_id(self):
+        resp = requests.get(
+            url=os.path.join(self.base_url, f'groups'),
+            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
+        )
+        return next(filter(
+            lambda x: x['name'] == self.project, resp.json()['results']))['id']
+
+    def _get_cluster(self):
+        project_id = self._get_project_id()
+        url = os.path.join(
+            self.base_url, f'groups/{project_id}/clusters/{self.cluster_name}')
+        resp = requests.get(
+            url=url,
+            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key))
+        resp.raise_for_status()
+        return resp
+
+    def fulfilled(self):
+        try:
+            self._get_cluster()
+            return True
+        except Exception:
+            return False
+
+    # TODO: This should be three separate dependencies
+    def fulfill(self):
+        # create the cluster
+        project_id = self._get_project_id()
+        resp = requests.post(
+            url=os.path.join(self.base_url, f'groups/{project_id}/clusters'),
+            json={
+                'name': self.cluster_name,
+                'providerSettings': {
+                    'instanceSizeName': self.instance_size,
+                    'providerName': 'TENANT',
+                    'backingProviderName': 'AWS',
+                    'regionName': 'US_EAST_1'
+                }
+            },
+            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
+        )
+        print(f'Cluster creation response {resp}')
+        resp.raise_for_status()
+
+        # create the whitelist
+        resp = requests.post(
+            url=os.path.join(self.base_url, f'groups/{project_id}/whitelist'),
+            json=[
+                {
+                    'cidrBlock': '0.0.0.0/0',
+
+                }
+            ],
+            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
+        )
+        print(f'Whitelist creation response {resp}')
+        if resp.status_code not in (http.client.CREATED, http.client.CONFLICT):
+            resp.raise_for_status()
+
+        # create db user
+        resp = requests.post(
+            url=os.path.join(self.base_url, f'groups/{project_id}/databaseUsers'),
+            json={
+                'databaseName': 'admin',
+                'groupId': project_id,
+                'roles': [
+                    {
+                        'databaseName': 'admin',
+                        'roleName': 'atlasAdmin'
+                    }
+                ],
+                'username': self.db_user_name,
+                'password': self.db_user_password
+            },
+            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
+        )
+        print(f'User creation response {resp}')
+        if resp.status_code not in (http.client.CREATED, http.client.CONFLICT):
+            resp.raise_for_status()
+
+    @retry(tries=100, delay=10)
+    def data(self):
+        cluster_data = self._get_cluster().json()
+        parsed = urllib.parse.urlparse(cluster_data['mongoURIWithOptions'])
+        netloc = f'{self.db_user_name}:{self.db_user_password}@{parsed.netloc}'
+        parsed = parsed._replace(netloc=netloc)
+        connection_string = urllib.parse.urlunparse(parsed)
+        return {
+            'connection_string': connection_string
+        }
+
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--aws-region',
+        default=boto3.session.Session().region_name)
+    parser.add_argument(
+        '--aws-vpc-id',
+        default=boto3.client('ec2').describe_vpcs()['Vpcs'][0]['VpcId']
+    )
+    parser.add_argument(
+        '--atlas-api-key',
+        required=True)
+    parser.add_argument(
+        '--atlas-username',
+        required=True)
+    parser.add_argument(
+        '--mongodb-cluster-name',
+        required=True
+    )
+    parser.add_argument(
+        '--atlas-cluster-size',
+        default='M2'
+    )
+    parser.add_argument(
+        '--db-user-name',
+        required=True
+    )
+    parser.add_argument(
+        '--db-user-password',
+        required=True
+    )
+    args = parser.parse_args()
+
+    # database
+    db = Database(
+        project='Project 0',
+        username=args.atlas_username,
+        api_key=args.atlas_api_key,
+        cluster_name=args.mongodb_cluster_name,
+        instance_size=args.atlas_cluster_size,
+        db_user_name=args.db_user_name,
+        db_user_password=args.db_user_password)
+
+    # application code
     packaged_app = PackagedPythonApp('fakeapp', 'fakeapp')
+
+    # lambda
     execution_role = LambdaExecutionRole()
-    lambda_api = LambdaApi('api', packaged_app, execution_role)
+    lambda_api = LambdaApi('api', packaged_app, execution_role, db)
+
+    # api gateway
     api = ApiGateway(
         'cochlea_api',
         'gateway to cochlea annotation api',
         '1.0',
         lambda_api)
-
     proxy_resource = ApiProxyResource(api)
-
     proxy_role = ApiGatewayProxyRole()
     method = ApiResourceMethod(proxy_resource)
-    integration = ApiIntegration(method, proxy_role)
-    deployment = Deployment(integration)
+    integration = ApiIntegration(args.aws_region, method, proxy_role)
+    deployment = Deployment(args.aws_region, integration)
     deployment()
 
+    # test deployment
     data = deployment.data()
     uri = data['uri']
     print(uri)
 
-    resp = requests.get(os.path.join(uri, 'test'))
+    # put document
+    resp = requests.put(
+        os.path.join(uri, 'test/hal'), json={'data': 'hal incandenza'})
     print(resp.status_code)
     print(resp.json())
 
-    resp = requests.post(os.path.join(uri, 'test'), json={'dog': 'cat'})
+    resp = requests.get(os.path.join(uri, 'test/hal'))
     print(resp.status_code)
     print(resp.json())
 
-    resp = requests.get(os.path.join(uri, 'test/blah'))
+    resp = requests.put(
+        os.path.join(uri, 'test/blah/hal'),
+        json={'data': 'hal incandenza', 'other_data': 'blah'})
     print(resp.status_code)
     print(resp.json())
 
-    resp = requests.post(os.path.join(uri, 'test/blah'), json={'dog': 'cat'})
+    resp = requests.get(os.path.join(uri, 'test/blah/hal'))
     print(resp.status_code)
     print(resp.json())
