@@ -11,7 +11,6 @@ import requests
 import http
 import urllib
 import argparse
-import uuid
 
 
 class AlwaysUpdateException(Exception):
@@ -378,14 +377,6 @@ class ApiGateway(Requirement):
             }
         )
 
-        # TODO: This should be a separate requirement
-        api_id, root_resource_id = self._root_resource_id()
-        self.client.put_method(
-            restApiId=api_id,
-            resourceId=root_resource_id,
-            httpMethod='ANY',
-            authorizationType='NONE')
-
 
 class ApiProxyResource(Requirement):
     def __init__(self, api_gateway):
@@ -425,25 +416,26 @@ class ApiProxyResource(Requirement):
         }
 
 
-class ApiResourceMethod(Requirement):
-    def __init__(self, proxy_resource):
-        super().__init__(proxy_resource)
-        self.proxy_resource = proxy_resource
+class BaseApiResourceMethod(Requirement):
+    def __init__(self, resource, resource_name):
+        super().__init__(resource)
+        self.resource_name = resource_name
+        self.resource = resource
         self.client = boto3.client('apigateway')
 
     def fulfill(self):
-        data = self.proxy_resource.data()
+        data = self.resource.data()
         self.client.put_method(
             restApiId=data['api_id'],
-            resourceId=data['resource_id'],
+            resourceId=data[self.resource_name],
             httpMethod='ANY',
             authorizationType='NONE')
 
     def _fetch_method(self):
-        data = self.proxy_resource.data()
+        data = self.resource.data()
         return self.client.get_method(
             restApiId=data['api_id'],
-            resourceId=data['resource_id'],
+            resourceId=data[self.resource_name],
             httpMethod='ANY')
 
     def fulfilled(self):
@@ -454,13 +446,24 @@ class ApiResourceMethod(Requirement):
 
     @retry(tries=100, delay=10)
     def data(self):
-        data = self.proxy_resource.data()
+        data = self.resource.data()
         return data
 
 
-class ApiIntegration(Requirement):
-    def __init__(self, region, api_resource_method, proxy_role):
+class RootResourceMethod(BaseApiResourceMethod):
+    def __init__(self, api_gateway):
+        super().__init__(api_gateway, 'root_resource_id')
+
+
+class ProxyResourceMethod(BaseApiResourceMethod):
+    def __init__(self, proxy_resource):
+        super().__init__(proxy_resource, 'resource_id')
+
+
+class BaseApiIntegration(Requirement):
+    def __init__(self, region, api_resource_method, proxy_role, resource_name):
         super().__init__(api_resource_method, proxy_role)
+        self.resource_name = resource_name
         self.proxy_role = proxy_role
         self.client = boto3.client('apigateway')
         self.lambda_client = boto3.client('lambda')
@@ -481,17 +484,7 @@ class ApiIntegration(Requirement):
         role_arn = self.proxy_role.data()['role_arn']
         self.client.put_integration(
             restApiId=data['api_id'],
-            resourceId=data['resource_id'],
-            httpMethod='ANY',
-            type='AWS_PROXY',
-            integrationHttpMethod='POST',
-            uri=uri,
-            credentials=role_arn)
-
-        # TODO: This should be a separate requirement
-        self.client.put_integration(
-            restApiId=data['api_id'],
-            resourceId=data['root_resource_id'],
+            resourceId=data[self.resource_name],
             httpMethod='ANY',
             type='AWS_PROXY',
             integrationHttpMethod='POST',
@@ -502,7 +495,7 @@ class ApiIntegration(Requirement):
         data = self.api_resource_method.data()
         return self.client.get_integration(
             restApiId=data['api_id'],
-            resourceId=data['resource_id'],
+            resourceId=data[self.resource_name],
             httpMethod='ANY')
 
     def fulfilled(self):
@@ -517,16 +510,29 @@ class ApiIntegration(Requirement):
         return data
 
 
+class RootResourceInegration(BaseApiIntegration):
+    def __init__(self, region, api_resource_methd, proxy_role):
+        super().__init__(
+            region, api_resource_methd, proxy_role, 'root_resource_id')
+
+
+class ProxyResourceIntegration(BaseApiIntegration):
+    def __init__(self, region, api_resource_methd, proxy_role):
+        super().__init__(
+            region, api_resource_methd, proxy_role, 'resource_id')
+
+
 class Deployment(Requirement):
-    def __init__(self, region, integration):
-        super().__init__(integration)
-        self.integration = integration
+    def __init__(self, region, root_integration, proxy_integration):
+        super().__init__(root_integration, proxy_integration)
+        self.proxy_integration = proxy_integration
+        self.root_integration = root_integration
         self.client = boto3.client('apigateway')
         self.stage_name = 'test'
         self.region = region
 
     def _get_deployment(self):
-        data = self.integration.data()
+        data = self.proxy_integration.data()
         deployments = self.client.get_deployments(
             restApiId=data['api_id']
         )
@@ -539,7 +545,7 @@ class Deployment(Requirement):
             return False
 
     def fulfill(self):
-        data = self.integration.data()
+        data = self.proxy_integration.data()
         self.client.create_deployment(
             restApiId=data['api_id'],
             stageName=self.stage_name
@@ -548,7 +554,7 @@ class Deployment(Requirement):
     @retry(tries=100, delay=10)
     def data(self):
         deployment = self._get_deployment()
-        data = self.integration.data()
+        data = self.proxy_integration.data()
         api_id = data['api_id']
         uri = \
             f'https://{api_id}.execute-api.{self.region}.amazonaws.com/{self.stage_name}/'
@@ -559,6 +565,36 @@ class Deployment(Requirement):
             'lambda_function_name': data['lambda_function_name'],
             'uri': uri
         }
+
+
+class DatabaseWhitelist(Requirement):
+    def __init__(self):
+        super().__init__()
+
+    def fulfill(self):
+        pass
+
+    def fulfilled(self):
+        pass
+
+    @retry(tries=100, delay=10)
+    def data(self):
+        pass
+
+
+class DatabaseAdmin(Requirement):
+    def __init__(self):
+        super().__init__()
+
+    def fulfilled(self):
+        pass
+
+    def fulfill(self):
+        pass
+
+    @retry(tries=100, delay=10)
+    def data(self):
+        pass
 
 
 class Database(Requirement):
@@ -747,9 +783,20 @@ if __name__ == '__main__':
         lambda_api)
     proxy_resource = ApiProxyResource(api)
     proxy_role = ApiGatewayProxyRole()
-    method = ApiResourceMethod(proxy_resource)
-    integration = ApiIntegration(args.aws_region, method, proxy_role)
-    deployment = Deployment(args.aws_region, integration)
+
+    # method = ApiResourceMethod(proxy_resource)
+    # integration = ApiIntegration(args.aws_region, method, proxy_role)
+
+    root_method = RootResourceMethod(api)
+    proxy_method = ProxyResourceMethod(proxy_resource)
+
+    root_integration = RootResourceInegration(
+        args.aws_region, root_method, proxy_role)
+    proxy_integration = ProxyResourceIntegration(
+        args.aws_region, proxy_method, proxy_role)
+
+    deployment = Deployment(
+        args.aws_region, root_integration, proxy_integration)
     deployment()
 
     # test deployment
@@ -776,23 +823,3 @@ if __name__ == '__main__':
     resp = requests.get(os.path.join(uri, user_uri[1:]), auth=('John', 'password'))
     print(resp)
     print(resp.json())
-
-    # # put document
-    # resp = requests.put(
-    #     os.path.join(uri, 'test/hal'), json={'data': 'hal incandenza'})
-    # print(resp.status_code)
-    # print(resp.json())
-    #
-    # resp = requests.get(os.path.join(uri, 'test/hal'))
-    # print(resp.status_code)
-    # print(resp.json())
-    #
-    # resp = requests.put(
-    #     os.path.join(uri, 'test/blah/hal'),
-    #     json={'data': 'hal incandenza', 'other_data': 'blah'})
-    # print(resp.status_code)
-    # print(resp.json())
-    #
-    # resp = requests.get(os.path.join(uri, 'test/blah/hal'))
-    # print(resp.status_code)
-    # print(resp.json())
