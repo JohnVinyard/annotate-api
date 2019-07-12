@@ -10,6 +10,7 @@ import json
 import requests
 import http
 import urllib
+import urllib.parse
 import argparse
 
 
@@ -125,9 +126,10 @@ class PackagedPythonApp(Requirement):
         super().__init__()
         self.environment_name = path
         self.path = path
+        self.zipfile = None
 
     def fulfilled(self):
-        raise AlwaysUpdateException()
+        return self.zipfile is not None
 
     def fulfill(self):
         create_venv = f'python3 -m venv {self.environment_name} --without-pip'
@@ -137,8 +139,9 @@ class PackagedPythonApp(Requirement):
         command = \
             f'{create_venv} && {activate_venv} && {update_pip} && {install}'
         os.system(command)
+        self.zipfile = self._build_zipfile()
 
-    def data(self):
+    def _build_zipfile(self):
         bio = BytesIO()
         with ZipFile(bio, mode='w') as zipfile:
 
@@ -166,7 +169,12 @@ class PackagedPythonApp(Requirement):
         shutil.rmtree(os.path.join(self.path, 'lib'))
         os.unlink(os.path.join(self.path, 'lib64'))
         os.remove(os.path.join(self.path, 'pyvenv.cfg'))
-        return {'zipfile': bio}
+        self.zipfile = bio
+        return self.zipfile
+
+    def data(self):
+        self.zipfile.seek(0)
+        return {'zipfile': self.zipfile}
 
 
 class BaseRole(Requirement):
@@ -567,72 +575,138 @@ class Deployment(Requirement):
         }
 
 
-class DatabaseWhitelist(Requirement):
-    def __init__(self):
-        super().__init__()
-
-    def fulfill(self):
-        pass
-
-    def fulfilled(self):
-        pass
-
-    @retry(tries=100, delay=10)
-    def data(self):
-        pass
-
-
-class DatabaseAdmin(Requirement):
-    def __init__(self):
-        super().__init__()
-
-    def fulfilled(self):
-        pass
-
-    def fulfill(self):
-        pass
-
-    @retry(tries=100, delay=10)
-    def data(self):
-        pass
-
-
-class Database(Requirement):
-    def __init__(
-            self,
-            project,
-            username,
-            api_key,
-            cluster_name,
-            instance_size,
-            db_user_name,
-            db_user_password):
-
-        super().__init__()
-        self.db_user_password = db_user_password
-        self.db_user_name = db_user_name
-        self.instance_size = instance_size
-        self.cluster_name = cluster_name
+class BaseAtlasRequirement(Requirement):
+    def __init__(self, username, api_key, project_name, *reqs):
+        super().__init__(*reqs)
+        self.project_name = project_name
         self.api_key = api_key
         self.username = username
-        self.project = project
         self.base_url = 'https://cloud.mongodb.com/api/atlas/v1.0/'
+        self._project_id = None
 
-    def _get_project_id(self):
+    @property
+    def project_id(self):
+        if self._project_id is not None:
+            return self._project_id
+
         resp = requests.get(
             url=os.path.join(self.base_url, f'groups'),
-            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
+            auth=self.auth
         )
-        return next(filter(
-            lambda x: x['name'] == self.project, resp.json()['results']))['id']
+        self._project_id = next(filter(
+            lambda x: x['name'] == self.project_name,
+            resp.json()['results']))['id']
+        return self._project_id
+
+    @property
+    def auth(self):
+        return requests.auth.HTTPDigestAuth(self.username, self.api_key)
+
+
+class DatabaseWhitelist(BaseAtlasRequirement):
+    def __init__(self, username, api_key, project_name):
+        super().__init__(username, api_key, project_name)
+        self.cidr_block = '0.0.0.0/0'
+
+    def fulfill(self):
+        uri = os.path.join(self.base_url, f'groups/{self.project_id}/whitelist')
+        resp = requests.post(
+            url=uri,
+            json=[
+                {
+                    'cidrBlock': self.cidr_block,
+                }
+            ],
+            auth=self.auth)
+        resp.raise_for_status()
+
+    def _fetch(self):
+        cidr_block = urllib.parse.quote_plus(self.cidr_block)
+        uri = os.path.join(
+            self.base_url, f'groups/{self.project_id}/whitelist/{cidr_block}')
+        resp = requests.get(uri, auth=self.auth)
+        return resp
+
+    def fulfilled(self):
+        resp = self._fetch()
+        return resp.status_code == http.client.OK
+
+    @retry(tries=100, delay=10)
+    def data(self):
+        return self._fetch().json()
+
+
+class DatabaseAdmin(BaseAtlasRequirement):
+    def __init__(
+            self,
+            username,
+            api_key,
+            project_name,
+            db_user_name,
+            db_user_password):
+        super().__init__(username, api_key, project_name)
+        self.db_user_password = db_user_password
+        self.db_user_name = db_user_name
+
+    def _fetch(self):
+        uri = os.path.join(
+            self.base_url,
+            f'groups/{self.project_id}/databaseUsers/admin/{self.db_user_name}')
+        resp = requests.get(uri, auth=self.auth)
+        return resp
+
+    def fulfilled(self):
+        resp = self._fetch()
+        return resp.status_code == http.client.OK
+
+    def fulfill(self):
+        uri = os.path.join(
+            self.base_url, f'groups/{self.project_id}/databaseUsers')
+        resp = requests.post(
+            url=uri,
+            json={
+                'databaseName': 'admin',
+                'groupId': self.project_id,
+                'roles': [
+                    {
+                        'databaseName': 'admin',
+                        'roleName': 'atlasAdmin'
+                    }
+                ],
+                'username': self.db_user_name,
+                'password': self.db_user_password
+            },
+            auth=self.auth)
+        resp.raise_for_status()
+
+    @retry(tries=100, delay=10)
+    def data(self):
+        return {
+            'db_user_name': self.db_user_name,
+            'db_user_password': self.db_user_password
+        }
+
+
+class Database(BaseAtlasRequirement):
+    def __init__(
+            self,
+            username,
+            api_key,
+            project,
+            cluster_name,
+            instance_size,
+            whitelist,
+            db_user):
+
+        super().__init__(username, api_key, project, whitelist, db_user)
+        self.instance_size = instance_size
+        self.cluster_name = cluster_name
+        self.db_user = db_user
 
     def _get_cluster(self):
-        project_id = self._get_project_id()
         url = os.path.join(
-            self.base_url, f'groups/{project_id}/clusters/{self.cluster_name}')
-        resp = requests.get(
-            url=url,
-            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key))
+            self.base_url, f'groups/{self.project_id}/clusters/{self.cluster_name}')
+        resp = requests.get(url=url, auth=self.auth)
         resp.raise_for_status()
         return resp
 
@@ -643,12 +717,10 @@ class Database(Requirement):
         except Exception:
             return False
 
-    # TODO: This should be three separate dependencies
     def fulfill(self):
         # create the cluster
-        project_id = self._get_project_id()
         resp = requests.post(
-            url=os.path.join(self.base_url, f'groups/{project_id}/clusters'),
+            url=os.path.join(self.base_url, f'groups/{self.project_id}/clusters'),
             json={
                 'name': self.cluster_name,
                 'providerSettings': {
@@ -658,52 +730,20 @@ class Database(Requirement):
                     'regionName': 'US_EAST_1'
                 }
             },
-            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
-        )
+            auth=self.auth)
         print(f'Cluster creation response {resp}')
         resp.raise_for_status()
-
-        # create the whitelist
-        resp = requests.post(
-            url=os.path.join(self.base_url, f'groups/{project_id}/whitelist'),
-            json=[
-                {
-                    'cidrBlock': '0.0.0.0/0',
-
-                }
-            ],
-            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
-        )
-        print(f'Whitelist creation response {resp}')
-        if resp.status_code not in (http.client.CREATED, http.client.CONFLICT):
-            resp.raise_for_status()
-
-        # create db user
-        resp = requests.post(
-            url=os.path.join(self.base_url, f'groups/{project_id}/databaseUsers'),
-            json={
-                'databaseName': 'admin',
-                'groupId': project_id,
-                'roles': [
-                    {
-                        'databaseName': 'admin',
-                        'roleName': 'atlasAdmin'
-                    }
-                ],
-                'username': self.db_user_name,
-                'password': self.db_user_password
-            },
-            auth=requests.auth.HTTPDigestAuth(self.username, self.api_key)
-        )
-        print(f'User creation response {resp}')
-        if resp.status_code not in (http.client.CREATED, http.client.CONFLICT):
-            resp.raise_for_status()
 
     @retry(tries=100, delay=10)
     def data(self):
         cluster_data = self._get_cluster().json()
         parsed = urllib.parse.urlparse(cluster_data['mongoURIWithOptions'])
-        netloc = f'{self.db_user_name}:{self.db_user_password}@{parsed.netloc}'
+
+        user_data = self.db_user.data()
+        db_user_name = user_data['db_user_name']
+        db_user_password = user_data['db_user_password']
+
+        netloc = f'{db_user_name}:{db_user_password}@{parsed.netloc}'
         parsed = parsed._replace(netloc=netloc)
         connection_string = urllib.parse.urlunparse(parsed)
         return {
@@ -727,40 +767,47 @@ if __name__ == '__main__':
         '--atlas-username',
         required=True)
     parser.add_argument(
+        '--atlas-project-name',
+        default='Project 0')
+    parser.add_argument(
         '--mongodb-cluster-name',
-        required=True
-    )
+        required=True)
     parser.add_argument(
         '--atlas-cluster-size',
-        default='M2'
-    )
+        default='M2')
     parser.add_argument(
         '--db-user-name',
-        required=True
-    )
+        required=True)
     parser.add_argument(
         '--db-user-password',
-        required=True
-    )
+        required=True)
     parser.add_argument(
         '--lambda-function-module-name',
-        default='main'
-    )
+        default='main')
     parser.add_argument(
         '--lambda-function-entry-point',
-        default='lambda_handler'
-    )
+        default='lambda_handler')
     args = parser.parse_args()
 
     # database
+    db_admin = DatabaseAdmin(
+        args.atlas_username,
+        args.atlas_api_key,
+        args.atlas_project_name,
+        args.db_user_name,
+        args.db_user_password)
+    db_whitelist = DatabaseWhitelist(
+        args.atlas_username,
+        args.atlas_api_key,
+        args.atlas_project_name)
     db = Database(
-        project='Project 0',
-        username=args.atlas_username,
-        api_key=args.atlas_api_key,
+        args.atlas_username,
+        args.atlas_api_key,
+        args.atlas_project_name,
         cluster_name=args.mongodb_cluster_name,
         instance_size=args.atlas_cluster_size,
-        db_user_name=args.db_user_name,
-        db_user_password=args.db_user_password)
+        whitelist=db_whitelist,
+        db_user=db_admin)
 
     # application code
     packaged_app = PackagedPythonApp('app')
@@ -783,9 +830,6 @@ if __name__ == '__main__':
         lambda_api)
     proxy_resource = ApiProxyResource(api)
     proxy_role = ApiGatewayProxyRole()
-
-    # method = ApiResourceMethod(proxy_resource)
-    # integration = ApiIntegration(args.aws_region, method, proxy_role)
 
     root_method = RootResourceMethod(api)
     proxy_method = ProxyResourceMethod(proxy_resource)

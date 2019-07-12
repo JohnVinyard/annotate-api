@@ -53,7 +53,8 @@ class RootResource(object):
         resp.media = {
             'totalSounds': session.count(Sound.all_query()),
             'totalAnnotations': session.count(Annotation.all_query()),
-            'totalUsers': session.count(User.all_query())
+            'totalUsers': session.count(User.all_query()),
+            'status': 'OK'
         }
         resp.status = falcon.HTTP_200
 
