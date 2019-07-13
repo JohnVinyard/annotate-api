@@ -1,5 +1,5 @@
 import requests
-from urllib.parse import urljoin
+from urllib.parse import urlparse, urlunparse
 from http import client
 import os
 
@@ -7,7 +7,12 @@ import os
 class Client(object):
     def __init__(self, hostname, auth=None, logger=None):
         super().__init__()
-        self.hostname = hostname
+
+        self.parsed = urlparse(hostname)
+
+        self.hostname = self.parsed.netloc
+        self.base_path = self.parsed.path
+
         self.session = requests.Session()
         self.session.auth = auth
         self.logger = logger
@@ -19,6 +24,11 @@ class Client(object):
     @auth.setter
     def auth(self, value):
         self.session.auth = value
+
+    def uri(self, path):
+        parsed = self.parsed._replace(
+            path=os.path.join(self.parsed.path, path))
+        return urlunparse(parsed)
 
     def _upsert_user(
             self,
@@ -38,15 +48,15 @@ class Client(object):
             'info_url': info_url
         }
         auth = (user_data['user_name'], user_data['password'])
-
-        resource = urljoin(self.hostname, '/users')
+        resource = self.uri('users')
         resp = requests.post(resource, json=user_data)
         location = resp.headers['location']
         if resp.status_code == client.CREATED:
             self.logger.info(f'Created user {user_name}')
         elif resp.status_code == client.CONFLICT:
             self.logger.info(f'user {user_name} already exists')
-            uri = urljoin(self.hostname, location)
+            # uri = urljoin(self.hostname, location)
+            uri = self.uri(location[1:])
             update_data = {
                 'password': password,
                 'about_me': user_data['about_me']
@@ -72,7 +82,7 @@ class Client(object):
             'featurebot', user_name, email, password, about_me, info_url)
 
     def get_user(self, user_name):
-        resource = urljoin(self.hostname, '/users')
+        resource = self.uri('users')
         resp = self.session.get(
             resource,
             params={'page_size': 1, 'user_name': user_name})
@@ -91,8 +101,9 @@ class Client(object):
             duration_seconds,
             tags=None):
 
+        uri = self.uri('sounds')
         resp = self.session.post(
-            f'{self.hostname}/sounds',
+            uri,
             json={
                 'audio_url': audio_url,
                 'info_url': info_url,
@@ -112,8 +123,9 @@ class Client(object):
             resp.raise_for_status()
 
     def create_annotations(self, sound_id, *annotations):
+        uri = self.uri(f'sounds/{sound_id}/annotations')
         resp = self.session.post(
-            f'{self.hostname}/sounds/{sound_id}/annotations',
+            uri,
             json={
                 'annotations': annotations
             }
@@ -121,16 +133,18 @@ class Client(object):
         return resp.status_code
 
     def get_sounds(self, low_id=None, page_size=100):
+        uri = self.uri('sounds')
         resp = self.session.get(
-            f'{self.hostname}/sounds',
+            uri,
             params={'low_id': low_id, 'page_size': page_size}
         )
         resp.raise_for_status()
         return resp.json()
 
     def get_annotations(self, user, low_id=None, page_size=100):
+        uri = self.uri(f'users/{user}/annotations')
         resp = self.session.get(
-            f'{self.hostname}/users/{user}/annotations',
+            uri,
             params={'low_id': low_id, 'page_size': page_size}
         )
         resp.raise_for_status()
