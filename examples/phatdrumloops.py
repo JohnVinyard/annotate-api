@@ -23,7 +23,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     annotate_client = Client(args.annotate_api_endpoint, logger=logger)
 
-    bucket_name = 'PhatDrumLoops'
+    bucket_name = 'phat-drum-loops'
     info_url = 'http://www.phatdrumloops.com/about.php'
 
     object_storage_client = ObjectStorageClient(
