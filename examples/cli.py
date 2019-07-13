@@ -14,7 +14,7 @@ class DefaultArgumentParser(argparse.ArgumentParser):
             help='scheme, hostname and optional port for annotation API')
         self.add_argument(
             '--s3-endpoint',
-            required=True,
+            required=False,
             help='scheme, hostname and optional port of s3 endpoint')
         self.add_argument(
             '--s3-region',
