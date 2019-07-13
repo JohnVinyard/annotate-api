@@ -348,9 +348,14 @@ const context = new (window.AudioContext || window.webkitAudioContext)();
 
 class AnnotateApiClient {
 
-  constructor(username, password) {
+  constructor(username, password, apiHost) {
     this.username = username;
     this.password = password;
+    this.apiHost = '';
+  }
+
+  buildUri(path) {
+    return this.apiHost + path;
   }
 
   get authHeaderValue() {
@@ -365,32 +370,35 @@ class AnnotateApiClient {
   }
 
   getResource(url) {
-    return fetch(url, {headers: this.authHeaders}).then(resp => resp.json());
+    return fetch(url, {headers: this.authHeaders, mode: 'cors'})
+      .then(resp => resp.json());
   }
 
   getSounds(pageSize=100) {
-    const url = `/sounds?page_size=${pageSize}`;
+    const url = this.buildUri(`/sounds?page_size=${pageSize}`);
     return this.getResource(url);
   }
 
   getSound(soundId) {
-    const url = `/sounds/${soundId}`;
+    const url = this.buildUri(`/sounds/${soundId}`);
     return this.getResource(url);
   }
 
   getAnnotations(rawQuery, pageSize=100) {
-    const url = `/annotations?tags=${rawQuery}&page_size=${pageSize}`;
+    const url = this.buildUrl(
+      `/annotations?tags=${rawQuery}&page_size=${pageSize}`);
     return this.getResource(url);
   }
 
   getSoundAnnotationsByUser(soundId, userId, pageSize=100) {
-    const url =
-      `/sounds/${soundId}/annotations?created_by=${userId}&page_size=${pageSize}`;
+    const url = this.buildUri(
+      `/sounds/${soundId}/annotations?created_by=${userId}&page_size=${pageSize}`);
     return this.getResource(url);
   }
 
   getFeatureBots(pageSize=100) {
-    const url = `/users?user_type=featurebot&page_size=${pageSize}`
+    const url = this.buildUri(
+      `/users?user_type=featurebot&page_size=${pageSize}`);
     return this.getResource(url);
   }
 }

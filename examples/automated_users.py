@@ -27,8 +27,10 @@ class Process(subprocess.Popen):
             'python', '-u', filename,
             '--password', password,
             '--annotate-api-endpoint', annotate_endpoint,
-            '--s3-endpoint', s3_endpoint or ''
         ]
+
+        if s3_endpoint:
+            cli_args.extend(*['--s3-endpoint', s3_endpoint])
 
         for item in kwargs.items():
             cli_args.extend(filter(lambda x: bool(x), item))
