@@ -27,7 +27,7 @@ class Process(subprocess.Popen):
             'python', '-u', filename,
             '--password', password,
             '--annotate-api-endpoint', annotate_endpoint,
-            '--s3-endpoint', s3_endpoint
+            '--s3-endpoint', s3_endpoint or ''
         ]
 
         for item in kwargs.items():
@@ -60,7 +60,7 @@ if __name__ == '__main__':
         help='scheme, hostname and optional port for annotation API')
     parser.add_argument(
         '--s3-endpoint',
-        required=True,
+        default=None,
         help='scheme, hostname and optional port of s3 endpoint')
     args = parser.parse_args()
 
@@ -77,24 +77,24 @@ if __name__ == '__main__':
     processes = ProcessCollection(
 
         # datasets
-        process('phatdrumloops.py'),
+        # process('phatdrumloops.py'),
         process(
             'musicnet_dataset.py',
             **{'--metadata-path': '/hdd/musicnet'}),
 
         # bots
-        # process('chroma_bot.py'),
+        process('chroma_bot.py'),
         process('fft_bot.py'),
-        process('mfcc_bot.py'),
-        process('onset_bot.py'),
+        # process('mfcc_bot.py'),
+        # process('onset_bot.py'),
         # process('spectrogram_bot.py')
 
         # indexers
-        process('indexer.py', **{
-            '--train': '',
-            '--iterations': str(10000),
-            '--bind': '0.0.0.0:8080',
-            '--index-server-port': '8081'
-        })
+        # process('indexer.py', **{
+        #     '--train': '',
+        #     '--iterations': str(10000),
+        #     '--bind': '0.0.0.0:8080',
+        #     '--index-server-port': '8081'
+        # })
     )
     print(processes.wait())

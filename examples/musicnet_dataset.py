@@ -98,7 +98,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     annotate_client = Client(args.annotate_api_endpoint, logger=logger)
 
-    bucket_name = 'MusicNet'
+    bucket_name = 'music-net'
     info_url = 'https://homes.cs.washington.edu/~thickstn/musicnet.html'
 
     object_storage_client = ObjectStorageClient(

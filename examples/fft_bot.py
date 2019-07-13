@@ -54,7 +54,7 @@ class FFTListener(SoundListener):
 if __name__ == '__main__':
     main(
         user_name='fft',
-        bucket_name='FFTBot',
+        bucket_name='fft-bot',
         email='john.vinyard+fft@gmail.com',
         about_me='I compute short-time FFTs!',
         info_url='https://en.wikipedia.org/wiki/Short-time_Fourier_transform',

@@ -51,7 +51,7 @@ class ChromaListener(AnnotationListener):
 if __name__ == '__main__':
     main(
         user_name='chroma',
-        bucket_name='ChromaBot',
+        bucket_name='chroma-bot',
         email='john.vinyard+chroma@gmail.com',
         about_me='I compute chroma features!',
         info_url='https://en.wikipedia.org/wiki/Chroma_feature',
