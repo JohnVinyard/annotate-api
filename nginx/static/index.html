@@ -33,6 +33,19 @@
     </header>
 
     <main id="app">
+
+        <!-- Credentials -->
+        <section>
+          <label for="username">User name</label>
+          <input name="username" type="text" v-model.lazy="userName" />
+          <label for="password">Password</label>
+          <input
+              name="password"
+              v-bind:type="showPassword ? 'text' : 'password'"
+              v-model.lazy="password" />
+          <label for="show-password">Show password?</label>
+          <input type="checkbox" name="show-password" v-model="showPassword" />
+        </section>
         <!-- Feature selection -->
         {{ currentFeature ? currentFeature.user_name : undefined }}
         <select id="feature-bots" v-model="currentFeature" @change="changeFeature">

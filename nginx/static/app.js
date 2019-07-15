@@ -54,7 +54,8 @@ class FeatureData {
     const startIndex =
       start === undefined ? 0 : start * stride;
     const endIndex =
-      end === undefined ? this.binaryData.length : Math.min(this.binaryData.length, end * stride);
+      end === undefined ?
+      this.binaryData.length : Math.min(this.binaryData.length, end * stride);
 
     let newFirstDimension = (endIndex - startIndex) / stride;
     const newDimensions = [newFirstDimension].concat(latterDimensions);
@@ -451,9 +452,6 @@ const playAudio = (url, context, start, duration) => {
     });
 };
 
-const annotateClient = new AnnotateApiClient(
-  'musicnet', 'password', cochleaAppSettings.apiHost);
-
 const promiseContext = (promise, dataFunc) => {
   return new Promise(function(resolve, reject) {
     return promise.then(data => {
@@ -515,9 +513,9 @@ const unpackFeatureData = (data) => {
 const featurePromise = (annotation, featureDataMapping, searchResults) => {
   let featureDataPromise = featureDataMapping[annotation.sound];
   if(featureDataPromise === undefined) {
-    featureDataPromise = annotateClient
+    featureDataPromise = app.annotateClient()
       // Get sound data from the API
-      .getResource(annotateClient.buildUri(annotation.sound))
+      .getResource(app.annotateClient().buildUri(annotation.sound))
       // Fetch audio data from the remote audio url
       .then(data => {
         return new Promise(function(resolve, reject) {
@@ -547,7 +545,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
           .then(data => {
             const {buffer, audioUrl, soundUri, soundId} = data;
 
-            const promise = annotateClient.getSoundAnnotationsByUser(
+            const promise = app.annotateClient().getSoundAnnotationsByUser(
               soundId, app.currentFeature.id);
             return promiseContext(promise, r => ({audioUrl}));
           })
@@ -592,12 +590,40 @@ document.addEventListener('DOMContentLoaded', function() {
       query: null,
       results: [],
       candidateQuery: null,
-      remoteSearchHost: cochleaAppSettings.remoteSearchHost
+      remoteSearchHost: cochleaAppSettings.remoteSearchHost,
+      userName: null,
+      password: null,
+      showPassword: false
+    },
+    watch: {
+      userName: function(val) {
+        this.fetchFeatures();
+      },
+      password: function(val) {
+        this.fetchFeatures();
+      }
     },
     methods: {
+      fetchFeatures: function() {
+        if(!this.userName || !this.password) {
+          return;
+        }
+        // TODO: Only feature bots that create full-length, dense scalar or vector
+        // features should be included in this list.  How can those be filtered out?
+        app.annotateClient().getFeatureBots()
+          .then(data => {
+            app.features = [{user_name: 'audio'}].concat(data.items);
+            app.currentFeature = app.features[0];
+          });
+      },
+
+      annotateClient: function() {
+        return new AnnotateApiClient(
+          this.userName, this.password, cochleaAppSettings.apiHost);
+      },
 
       queryChange: function(event) {
-        this.query = () => annotateClient.getAnnotations(this.textQuery);
+        this.query = () => this.annotateClient().getAnnotations(this.textQuery);
       },
 
       changeFeature: function() {
@@ -641,14 +667,6 @@ document.addEventListener('DOMContentLoaded', function() {
       },
     }
   });
-
-  // TODO: Only feature bots that create full-length, dense scalar or vector
-  // features should be included in this list.  How can those be filtered out?
-  annotateClient.getFeatureBots()
-    .then(data => {
-      app.features = [{user_name: 'audio'}].concat(data.items);
-      app.currentFeature = app.features[0];
-    });
 
   document.addEventListener('candidateQuery', e => {
     console.log('Candidate Query', e.detail);

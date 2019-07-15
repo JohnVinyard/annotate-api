@@ -134,7 +134,6 @@ class Client(object):
                     'annotations': annotations[i: i + step]
                 }
             )
-            print('ANNOTATION RESPONSE', len(annotations), resp)
         return resp.status_code
 
     def get_sounds(self, low_id=None, page_size=100):
