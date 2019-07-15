@@ -351,7 +351,7 @@ class AnnotateApiClient {
   constructor(username, password, apiHost) {
     this.username = username;
     this.password = password;
-    this.apiHost = '';
+    this.apiHost = apiHost;
   }
 
   buildUri(path) {
@@ -385,7 +385,7 @@ class AnnotateApiClient {
   }
 
   getAnnotations(rawQuery, pageSize=100) {
-    const url = this.buildUrl(
+    const url = this.buildUri(
       `/annotations?tags=${rawQuery}&page_size=${pageSize}`);
     return this.getResource(url);
   }
@@ -451,7 +451,8 @@ const playAudio = (url, context, start, duration) => {
     });
 };
 
-const annotateClient = new AnnotateApiClient('phatdrumloops', 'password');
+const annotateClient = new AnnotateApiClient(
+  'musicnet', 'password', window.cochleaApp.settings.apiHost);
 
 const promiseContext = (promise, dataFunc) => {
   return new Promise(function(resolve, reject) {
@@ -591,7 +592,7 @@ document.addEventListener('DOMContentLoaded', function() {
       query: null,
       results: [],
       candidateQuery: null,
-      remoteSearchHost: 'http://localhost:8080'
+      remoteSearchHost: window.cochleaApp.settings.remoteSearchHost
     },
     methods: {
 

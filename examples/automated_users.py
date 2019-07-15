@@ -30,7 +30,7 @@ class Process(subprocess.Popen):
         ]
 
         if s3_endpoint:
-            cli_args.extend(*['--s3-endpoint', s3_endpoint])
+            cli_args.extend(['--s3-endpoint', s3_endpoint])
 
         for item in kwargs.items():
             cli_args.extend(filter(lambda x: bool(x), item))
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         # bots
         process('chroma_bot.py'),
         process('fft_bot.py'),
-        # process('mfcc_bot.py'),
+        process('mfcc_bot.py'),
         # process('onset_bot.py'),
         # process('spectrogram_bot.py')
 

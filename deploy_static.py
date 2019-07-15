@@ -142,6 +142,8 @@ if __name__ == '__main__':
     css = StaticResource(bucket, 'nginx/static/style.css', 'text/css')
     javascript = StaticResource(
         bucket, 'nginx/static/app.js', 'text/javascript')
-    static_app = StaticApp(bucket, cors, html, css, javascript)
+    settings = StaticResource(
+        bucket, 'nginx/static/settings.js', 'text/javascript')
+    static_app = StaticApp(bucket, cors, html, css, javascript, settings)
     static_app()
     print(static_app.data())
