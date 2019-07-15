@@ -452,7 +452,7 @@ const playAudio = (url, context, start, duration) => {
 };
 
 const annotateClient = new AnnotateApiClient(
-  'musicnet', 'password', window.cochleaApp.settings.apiHost);
+  'musicnet', 'password', cochleaAppSettings.apiHost);
 
 const promiseContext = (promise, dataFunc) => {
   return new Promise(function(resolve, reject) {
@@ -517,7 +517,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
   if(featureDataPromise === undefined) {
     featureDataPromise = annotateClient
       // Get sound data from the API
-      .getResource(annotation.sound)
+      .getResource(annotateClient.buildUri(annotation.sound))
       // Fetch audio data from the remote audio url
       .then(data => {
         return new Promise(function(resolve, reject) {
@@ -592,7 +592,7 @@ document.addEventListener('DOMContentLoaded', function() {
       query: null,
       results: [],
       candidateQuery: null,
-      remoteSearchHost: window.cochleaApp.settings.remoteSearchHost
+      remoteSearchHost: cochleaAppSettings.remoteSearchHost
     },
     methods: {
 

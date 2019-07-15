@@ -5,6 +5,7 @@ import os
 from botocore.config import Config
 from botocore import UNSIGNED
 import json
+import argparse
 
 
 class S3Bucket(Requirement):
@@ -118,6 +119,16 @@ class StaticResource(Requirement):
         return {'uri': uri}
 
 
+class SettingsResource(StaticResource):
+    def __init__(self, bucket, local_path, content_type, settings):
+        super().__init__(bucket, local_path, content_type)
+        self.settings = settings
+
+    def _get_file_contents(self):
+        data = json.dumps(self.settings, indent=4)
+        return f'var cochleaAppSettings = {data};'.encode()
+
+
 class StaticApp(Requirement):
     def __init__(self, bucket, cors, *static_resources):
         super().__init__(bucket, cors, *static_resources)
@@ -136,14 +147,26 @@ class StaticApp(Requirement):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--api-host',
+        required=True)
+    parser.add_argument(
+        '--remote-search-host',
+        required=True)
+    args = parser.parse_args()
+
     bucket = S3Bucket('cochlea-static-app', 'us-west-1')
     cors = CorsConfig(bucket)
     html = StaticResource(bucket, 'nginx/static/index.html', 'text/html')
     css = StaticResource(bucket, 'nginx/static/style.css', 'text/css')
     javascript = StaticResource(
         bucket, 'nginx/static/app.js', 'text/javascript')
-    settings = StaticResource(
-        bucket, 'nginx/static/settings.js', 'text/javascript')
+    settings = SettingsResource(
+        bucket, 'nginx/static/settings.js', 'text/javascript', {
+            'remoteSearchHost': args.remote_search_host,
+            'apiHost': args.api_host
+        })
     static_app = StaticApp(bucket, cors, html, css, javascript, settings)
     static_app()
     print(static_app.data())
