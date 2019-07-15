@@ -46,7 +46,7 @@ if __name__ == '__main__':
     )
     metadata = get_metadata(os.path.join(args.metadata_path, 'examples.json'))
 
-    bucket_name = 'NSynth'
+    bucket_name = 'nsynth'
 
     object_storage_client = ObjectStorageClient(
         endpoint=args.s3_endpoint,
