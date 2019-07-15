@@ -318,6 +318,7 @@ class LambdaApi(Requirement):
             )
             self.client.update_function_configuration(
                 FunctionName=self.function_name,
+                Handler=f'{self.function_module_name}.{self.entry_point_name}',
                 Environment={
                     'Variables': self._environment_variables()
                 }
