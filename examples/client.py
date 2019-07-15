@@ -1,3 +1,5 @@
+import json
+
 import requests
 from urllib.parse import urlparse, urlunparse
 from http import client
@@ -124,12 +126,15 @@ class Client(object):
 
     def create_annotations(self, sound_id, *annotations):
         uri = self.uri(f'sounds/{sound_id}/annotations')
-        resp = self.session.post(
-            uri,
-            json={
-                'annotations': annotations
-            }
-        )
+        step = 500
+        for i in range(0, len(annotations), step):
+            resp = self.session.post(
+                uri,
+                json={
+                    'annotations': annotations[i: i + step]
+                }
+            )
+            print('ANNOTATION RESPONSE', len(annotations), resp)
         return resp.status_code
 
     def get_sounds(self, low_id=None, page_size=100):
