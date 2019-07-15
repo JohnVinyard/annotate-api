@@ -87,7 +87,7 @@ if __name__ == '__main__':
         # bots
         process('chroma_bot.py'),
         process('fft_bot.py'),
-        process('mfcc_bot.py'),
+        # process('mfcc_bot.py'),
         # process('onset_bot.py'),
         # process('spectrogram_bot.py')
 
