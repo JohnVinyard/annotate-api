@@ -51,7 +51,14 @@ class ObjectStorageClient(object):
             Key=key,
             ACL='public-read',
             ContentType=content_type)
-        return self.url_generator.generate_presigned_url(
-            'get_object',
-            ExpiresIn=0,
-            Params={'Bucket': self.bucket, 'Key': key})
+
+        # KLUDGE: It would be nice if this would work correctly with boto3
+        # and fake s3, but for local dev environments, it seems that uris must
+        # be built by hand
+        if self.endpoint:
+            return f'{self.endpoint}/{self.bucket}/{key}'
+        else:
+            return self.url_generator.generate_presigned_url(
+                'get_object',
+                ExpiresIn=0,
+                Params={'Bucket': self.bucket, 'Key': key})
