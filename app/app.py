@@ -411,6 +411,9 @@ class Application(falcon.API):
             SessionMiddleware(
                 app_entity_links, users_repo, sounds_repo, annotations_repo)
         ])
+
+        self._doc_routes = []
+
         self.req_options.strip_url_path_trailing_slash = True
         self.resp_options.media_handlers = falcon.media.Handlers({
             'application/json': JSONHandler(app_entity_links),
@@ -431,3 +434,9 @@ class Application(falcon.API):
         self.add_error_handler(
             CompositeValidationError, composite_validation_error)
         self.add_error_handler(EntityNotFoundError, not_found_error)
+
+
+
+    def add_route(self, route, resource, *args, **kwargs):
+        self._doc_routes.append((route, resource))
+        super().add_route(route, resource, *args, **kwargs)
