@@ -1,7 +1,6 @@
 from app import Application
 from string import Formatter
-import inspect
-import ast
+import yaml
 
 
 class ResourceMethod(object):
@@ -21,15 +20,11 @@ class ResourceMethod(object):
         return self.func.__name__.split('_')[-1].upper()
 
     @property
-    def description(self):
-        return self.func.__doc__
-
-    @property
-    def ast(self):
-        source = inspect.getsource(self.func).lstrip()
-        print(source)
-        tree = ast.parse(source)
-        print(tree)
+    def data(self):
+        try:
+            return list(yaml.load_all(self.func.__doc__))[0]
+        except AttributeError:
+            return {}
 
 
 # TODO: list URL parameters from route
@@ -37,7 +32,7 @@ class ResourceMethod(object):
 # TODO: list example POST bodies
 # TODO: list example response bodies
 # TODO: list possible responses
-def generate_docs():
+def generate_docs(content_type):
     methods = set(['on_get', 'on_post', 'on_head', 'on_patch', 'on_delete'])
 
     app = Application(None, None, None)
@@ -50,9 +45,19 @@ def generate_docs():
             func = getattr(resource, item)
             rm = ResourceMethod(route, func)
             print('========================================')
-            print(rm.verb, rm.path, rm.url_parameters, rm.description)
-            print(rm.ast)
+            print(rm.verb, rm.path, rm.url_parameters)
+            print('DATA', rm.data)
+
+            try:
+                model_example_method_name = \
+                    rm.data['example_response']['python']
+                model_example = getattr(
+                    resource, model_example_method_name)(content_type)
+                print('EXAMPLE RESPONSE', model_example)
+            except (KeyError, TypeError) as e:
+                print('ERROR', e)
+                continue
 
 
 if __name__ == '__main__':
-    generate_docs()
+    generate_docs('application/json')

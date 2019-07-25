@@ -1,5 +1,5 @@
 import falcon
-from model import User, ContextualValue, Sound, Annotation
+from model import User, ContextualValue, Sound, Annotation, UserType, LicenseType
 from httphelper import \
     decode_auth_header, SessionMiddleware, EntityLinks, CorsMiddleware
 from customjson import JSONHandler
@@ -305,8 +305,20 @@ class UserAnnotationResource(object):
     List annotations created by a user
     """
 
+    def get_model_example(self, content_type):
+        return {}
+
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
+        """
+        url_params:
+            user_id: The user who created the annotations
+        query_params:
+            page_size: The number of results per page
+            page_number: The current page
+        example_response:
+            python: get_model_example
+        """
         user = session.find_one(User.id == user_id)
         query = Annotation.created_by == user
 
@@ -360,36 +372,97 @@ class UsersResource(object):
 
 
 class SoundResource(object):
+
+    def get_model_example(self, content_type):
+        user = User.create(
+            user_name='HalIncandenza',
+            password='Halation',
+            email='hal@enfield.com',
+            user_type=UserType.HUMAN,
+            about_me='Tennis 4 Life')
+        snd = Sound.create(
+            creator=user,
+            created_by=user,
+            info_url='https://example.com/sound',
+            audio_url='https://example.com/sound/file.wav',
+            license_type=LicenseType.BY,
+            title='A sound',
+            duration_seconds=12.3,
+            tags=['test'])
+        view = snd.view(user)
+        return JSONHandler(AppEntityLinks())\
+            .serialize(view, content_type).decode()
+
     @falcon.before(basic_auth)
     def on_get(self, req, resp, sound_id, session, actor):
+        """
+        url_params:
+            sound_id: The identifier of the sound to fetch
+        example_response:
+            python: get_model_example
+        """
+
         get_entity(resp, session, actor, Sound.id == sound_id)
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, sound_id, session, actor):
+        """
+        url_params:
+            sound_id: The identifier of the sound to fetch
+        """
         head_entity(resp, session, Sound.id == sound_id)
 
 
 class UserResource(object):
+
+    def get_model_example(self, content_type):
+        user = User.create(
+            user_name='HalIncandenza',
+            password='Halation',
+            email='hal@enfield.com',
+            user_type=UserType.HUMAN,
+            about_me='Tennis 4 Life')
+        view = user.view(user)
+        return JSONHandler(AppEntityLinks()) \
+            .serialize(view, content_type).decode()
+
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
+        """
+        url_params:
+            user_id: the identifier of the user to fetch
+        example_response:
+            python: get_model_example
+        """
         get_entity(resp, session, actor, User.active_user_query(user_id))
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id, session, actor):
+        """
+        url_params:
+            user_id: check if the user with `user_id` exists
+        """
         head_entity(resp, session, User.active_user_query(user_id))
 
     @falcon.before(basic_auth)
     def on_delete(self, req, resp, user_id, session, actor):
         """
-        Delete an individual user
+        url_params:
+            user_id: the identifier of the user to delete
         """
         to_delete = session.find_one(User.id == user_id)
         to_delete.deleted = ContextualValue(actor, True)
 
+    def get_example_patch_body(self):
+        pass
+
     @falcon.before(basic_auth)
     def on_patch(self, req, resp, user_id, session, actor):
         """
-        Update a user
+        url_params:
+            user_id: the identifier of the user to update
+        example_request_body:
+            python: get_example_patch_body
         """
         query = User.active_user_query(user_id)
         to_update = session.find_one(query)
