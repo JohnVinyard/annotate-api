@@ -1,7 +1,7 @@
 from app import Application
 from string import Formatter
 import yaml
-
+import json
 
 class ResourceMethod(object):
     def __init__(self, path, func):
@@ -45,18 +45,43 @@ def generate_docs(content_type):
             func = getattr(resource, item)
             rm = ResourceMethod(route, func)
             print('========================================')
-            print(rm.verb, rm.path, rm.url_parameters)
-            print('DATA', rm.data)
+            print(rm.verb, rm.path)
 
-            try:
-                model_example_method_name = \
-                    rm.data['example_response']['python']
-                model_example = getattr(
-                    resource, model_example_method_name)(content_type)
-                print('EXAMPLE RESPONSE', model_example)
-            except (KeyError, TypeError) as e:
-                print('ERROR', e)
-                continue
+
+            docs = rm.data
+            print('description: ', docs.get('description', None))
+
+            print('Url Params')
+            for param, desc in docs.get('url_params', {}).items():
+                print(param, desc)
+
+            print('Query Params')
+            for param in docs.get('query_params', {}).items():
+                print(param)
+
+            print('Responses')
+            for response in docs.get('responses', []):
+                print(response['status_code'])
+                print(f'\t{response.get("description")}')
+                method_name = response.get('example', {}).get('python', '')
+                try:
+                    model_example = getattr(resource, method_name)(content_type)
+                    model = json.loads(model_example)
+                    pretty = json.dumps(model, indent=4)
+                    print(f'\t{pretty}')
+                except (AttributeError, NotImplementedError):
+                    pass
+
+
+            # try:
+            #     model_example_method_name = \
+            #         rm.data['example_response']['python']
+            #     model_example = getattr(
+            #         resource, model_example_method_name)(content_type)
+            #     print('EXAMPLE RESPONSE', model_example)
+            # except (KeyError, TypeError) as e:
+            #     print('ERROR', e)
+            #     continue
 
 
 if __name__ == '__main__':

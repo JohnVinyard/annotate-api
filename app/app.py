@@ -49,13 +49,33 @@ class RootResource(object):
         self.user_repo = user_repo
         super().__init__()
 
-    def on_get(self, req, resp, session):
-        resp.media = {
-            'totalSounds': session.count(Sound.all_query()),
-            'totalAnnotations': session.count(Annotation.all_query()),
-            'totalUsers': session.count(User.all_query()),
-            'status': 'OK'
+    def _get_model(self, total_sounds, total_annotations, total_users):
+        return {
+            'totalSounds': total_sounds,
+            'totalAnnotations': total_annotations,
+            'totalUsers': total_users,
         }
+
+    def get_model_example(self, content_type):
+        view = self._get_model(
+            total_sounds=100, total_annotations=1000, total_users=3)
+        return JSONHandler(AppEntityLinks()) \
+            .serialize(view, content_type).decode()
+
+    def on_get(self, req, resp, session):
+        """
+        description:
+            Return some high-level stats about users, sounds and annotations
+        responses:
+            - status_code: 200
+              example:
+                python: get_model_example
+        """
+        resp.media = self._get_model(
+            total_sounds=session.count(Sound.all_query()),
+            total_annotations=session.count(Annotation.all_query()),
+            total_users=session.count(User.all_query()),
+        )
         resp.status = falcon.HTTP_200
 
     def on_delete(self, req, resp, session):
@@ -126,16 +146,59 @@ def list_entity(
 
 
 class SoundsResource(object):
+
+    def get_example_post_body(self):
+        pass
+
     @falcon.before(basic_auth)
     def on_post(self, req, resp, session, actor):
+        """
+        description:
+            Create a new sound
+        example_request_body:
+            python: get_example_post_body
+        responses:
+            - status_code: 201
+              description: Successful sound creation
+            - status_code: 400
+              description: Input model validation error
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to create sounds
+        """
         data = req.media
         data['created_by'] = actor
         sound = Sound.create(creator=actor, **data)
         resp.set_header('Location', f'/sounds/{sound.id}')
         resp.status = falcon.HTTP_CREATED
 
+    def get_example_list_model(self, content_type):
+        raise NotImplementedError()
+
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
+        """
+        description:
+            Get a list of sounds
+        query_params:
+            page_size: The number of results per page
+            page_number: The page of results to view
+            low_id: Only return identifiers occurring later in the series than
+                this one
+            created_by: Only return sounds created by the user with this id
+        responses:
+            - status_code: 200
+              description: Successfully fetched a sound
+              example:
+                python: get_example_list_model
+            - status_code: 404
+              description: Provided an unknown sound identifier
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access this sound
+        """
         created_by_key = Sound.created_by.name
 
         user_id = req.get_param(created_by_key)
@@ -179,12 +242,32 @@ def head_entity(resp, session, query):
 
 
 class AnnotationsResource(object):
-    """
-    List all annotations
-    """
+    def get_example_list_model(self, content_type):
+        raise NotImplementedError()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
+        """
+        description:
+            Get a list of annotations
+        query_params:
+            page_size: The number of results per page
+            page_number: The page of results to view
+            low_id: Only return identifiers occurring later in the series than
+                this one
+            tags: Only return annotations with all specified tags
+        responses:
+            - status_code: 200
+              description: Successfully fetched an annotation
+              example:
+                python: get_example_list_model
+            - status_code: 404
+              description: Provided an unknown annotation identifier
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access this annotation
+        """
         query = Annotation.all_query()
 
         # TODO: This is near-duplicate code from the /sounds resource below.
@@ -208,14 +291,28 @@ class AnnotationsResource(object):
 
 
 class SoundAnnotationsResource(object):
-    """
-    Create and list annotations associated with a sound
-    """
+
+    def get_example_post_body(self):
+        raise NotImplementedError()
 
     @falcon.before(basic_auth)
     def on_post(self, req, resp, sound_id, session, actor):
         """
-        Create new annotations for a sound
+        description:
+            Create a new sound
+        url_params:
+            sound_id: The identifier of the sound to annotate
+        example_request_body:
+            python: get_example_post_body
+        responses:
+            - status_code: 201
+              description: Successful annotation creation
+            - status_code: 400
+              description: Input model validation error
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to create annotations
         """
         sound = session.find_one(Sound.id == sound_id)
 
@@ -228,10 +325,35 @@ class SoundAnnotationsResource(object):
         resp.set_header('Location', f'/sounds/{sound_id}/annotations')
         resp.status = falcon.HTTP_CREATED
 
+    def get_example_list_model(self, content_type):
+        raise NotImplementedError()
+
     @falcon.before(basic_auth)
     def on_get(self, req, resp, sound_id, session, actor):
         """
-        List annotations for a sound
+        description:
+            Get a list of annotations
+        url_params:
+            sound_id: The sound to list annotations for
+        query_params:
+            page_size: The number of results per page
+            page_number: The page of results to view
+            low_id: Only return identifiers occurring later in the series than
+                this one
+            time_range: Only return annotations overlapping with the specified
+                time range
+        responses:
+            - status_code: 200
+              description: Successfully fetched a list of annotations
+              example:
+                python: get_example_list_model
+            - status_code: 404
+              description: Provided an unknown sound identifier
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access annotations for
+                this sound
         """
         sound = session.find_one(Sound.id == sound_id)
         query = Annotation.sound == sound
@@ -273,12 +395,35 @@ class SoundAnnotationsResource(object):
 
 
 class UserSoundsResource(object):
-    """
-    List sounds created by a user
-    """
+
+    def get_example_list_model(self, content_type):
+        raise NotImplementedError()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
+        """
+        description:
+            Get a list of sounds belonging to a user
+        url_params:
+            user_id: The user who created the sounds
+        query_params:
+            page_size: The number of results per page
+            page_number: The page of results to view
+            low_id: Only return identifiers occurring later in the series than
+                this one
+            tags: Only return sounds with all tags specified
+        responses:
+            - status_code: 200
+              description: Successfully fetched a list of sounds
+              example:
+                python: get_example_list_model
+            - status_code: 404
+              description: Provided an unknown user identifier
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access sounds from this user
+        """
         user = session.find_one(User.id == user_id)
         query = Sound.created_by == user
 
@@ -301,23 +446,34 @@ class UserSoundsResource(object):
 
 
 class UserAnnotationResource(object):
-    """
-    List annotations created by a user
-    """
 
     def get_model_example(self, content_type):
-        return {}
+        view = {}
+        return JSONHandler(AppEntityLinks()) \
+            .serialize(view, content_type).decode()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
         """
+        description:
+            List annotations created by a user
         url_params:
             user_id: The user who created the annotations
         query_params:
             page_size: The number of results per page
             page_number: The current page
-        example_response:
-            python: get_model_example
+        responses:
+            - status_code: 200
+              description: Successfully fetched a list of annotations
+              example:
+                python: get_model_example
+            - status_code: 404
+              description: Provided an unknown user identifier
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access annotationsfrom
+                this user
         """
         user = session.find_one(User.id == user_id)
         query = Annotation.created_by == user
@@ -333,16 +489,52 @@ class UserAnnotationResource(object):
 
 
 class UsersResource(object):
+    def get_example_post_body(self):
+        raise NotImplementedError()
+
     def on_post(self, req, resp, session):
         """
-        Create a new user
+        description:
+            Create a new user
+        example_request_body:
+            python: get_example_post_body
+        responses:
+            - status_code: 201
+              description: Successful user creation
+            - status_code: 400
+              description: Input model validation error
         """
         user = User.create(**req.media)
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
 
+    def get_model_example(self):
+        raise NotImplementedError()
+
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
+        """
+        description:
+            Get a list of users
+        query_params:
+            page_size: The number of results per page
+            page_number: The page of results to view
+            low_id: Only return identifiers occurring later in the series than
+                this one
+            user_type: Only return users with this type
+            user_name: Only return users matching this name
+        responses:
+            - status_code: 200
+              description: Successfully fetched a sound
+              example:
+                python: get_example_list_model
+            - status_code: 404
+              description: Provided an unknown sound identifier
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access this sound
+        """
         query = User.deleted == False
 
         additional_params = {}
@@ -390,7 +582,7 @@ class SoundResource(object):
             duration_seconds=12.3,
             tags=['test'])
         view = snd.view(user)
-        return JSONHandler(AppEntityLinks())\
+        return JSONHandler(AppEntityLinks()) \
             .serialize(view, content_type).decode()
 
     @falcon.before(basic_auth)
@@ -398,8 +590,13 @@ class SoundResource(object):
         """
         url_params:
             sound_id: The identifier of the sound to fetch
-        example_response:
-            python: get_model_example
+        responses:
+            - status_code: 200
+              description: Successfully fetched sound
+              example:
+                python: get_model_example
+            - status_code: 404
+              description: The sound identifier supplied does not exist
         """
 
         get_entity(resp, session, actor, Sound.id == sound_id)
@@ -409,6 +606,11 @@ class SoundResource(object):
         """
         url_params:
             sound_id: The identifier of the sound to fetch
+        responses:
+            - status_code: 204
+              description: The sound identifier exists
+            - status_code: 404
+              description: The sound identifier does not exist
         """
         head_entity(resp, session, Sound.id == sound_id)
 
@@ -431,8 +633,17 @@ class UserResource(object):
         """
         url_params:
             user_id: the identifier of the user to fetch
-        example_response:
-            python: get_model_example
+        responses:
+            - status_code: 200
+              description: Successfully fetched a user
+              example:
+                python: get_model_example
+            - status_code: 404
+              description: Provided an invalid user id
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access this user
         """
         get_entity(resp, session, actor, User.active_user_query(user_id))
 
@@ -441,6 +652,15 @@ class UserResource(object):
         """
         url_params:
             user_id: check if the user with `user_id` exists
+        responses:
+            - status_code: 204
+              description: The requested user exists
+            - status_code: 404
+              description: The requested user does not exist
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to access this user
         """
         head_entity(resp, session, User.active_user_query(user_id))
 
@@ -449,6 +669,15 @@ class UserResource(object):
         """
         url_params:
             user_id: the identifier of the user to delete
+        responses:
+            - status_code: 200
+              description: The user was deleted
+            - status_code: 404
+              description: The user id does not exist
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to delete this user
         """
         to_delete = session.find_one(User.id == user_id)
         to_delete.deleted = ContextualValue(actor, True)
@@ -463,6 +692,15 @@ class UserResource(object):
             user_id: the identifier of the user to update
         example_request_body:
             python: get_example_patch_body
+        responses:
+            - status_code: 204
+              description: The user was successfully updated
+            - status_code: 400
+              description: Input model validation error
+            - status_code: 401
+              description: Unauthorized request
+            - status_code: 403
+              description: User is not permitted to update this user
         """
         query = User.active_user_query(user_id)
         to_update = session.find_one(query)
@@ -507,8 +745,6 @@ class Application(falcon.API):
         self.add_error_handler(
             CompositeValidationError, composite_validation_error)
         self.add_error_handler(EntityNotFoundError, not_found_error)
-
-
 
     def add_route(self, route, resource, *args, **kwargs):
         self._doc_routes.append((route, resource))
