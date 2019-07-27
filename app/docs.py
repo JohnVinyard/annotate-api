@@ -2,6 +2,12 @@ from app import Application
 from string import Formatter
 import yaml
 import json
+from io import StringIO
+
+
+def extract_yaml(has_doc):
+    return list(yaml.load_all(has_doc.__doc__))[0]
+
 
 class ResourceMethod(object):
     def __init__(self, path, func):
@@ -22,20 +28,34 @@ class ResourceMethod(object):
     @property
     def data(self):
         try:
-            return list(yaml.load_all(self.func.__doc__))[0]
+            return extract_yaml(self.func)
         except AttributeError:
             return {}
 
 
-# TODO: list URL parameters from route
-# TODO: list query string parameters
-# TODO: list example POST bodies
-# TODO: list example response bodies
-# TODO: list possible responses
-def generate_docs(content_type):
+def markdown_heading(text, level):
+    return f'{"#" * level} {text}\n'
+
+
+def markdown_parameter_table(params):
+    s = '|Name|Description|\n'
+    s += '|---|---|\n'
+    for k, v in params.items():
+        s += f'|`{k}`|{v}|\n'
+    return s
+
+
+def generate_docs(app_name, content_type):
     methods = set(['on_get', 'on_post', 'on_head', 'on_patch', 'on_delete'])
 
+    sio = StringIO()
+
+    sio.write(markdown_heading(app_name, 1))
+
     app = Application(None, None, None)
+    app_info = extract_yaml(app.__class__)
+
+    print(app_info['description'], file=sio)
 
     for route, resource in app._doc_routes:
 
@@ -44,45 +64,48 @@ def generate_docs(content_type):
                 continue
             func = getattr(resource, item)
             rm = ResourceMethod(route, func)
-            print('========================================')
-            print(rm.verb, rm.path)
 
+            sio.write(markdown_heading(f'`{rm.verb} {rm.path}`', 2))
 
             docs = rm.data
-            print('description: ', docs.get('description', None))
+            print(docs.get('description', ''), file=sio)
 
-            print('Url Params')
-            for param, desc in docs.get('url_params', {}).items():
-                print(param, desc)
+            url_params = docs.get('url_params', {})
+            if url_params:
+                print(markdown_heading('URL Parameters', 2), file=sio)
+                print(markdown_parameter_table(url_params), file=sio)
 
-            print('Query Params')
-            for param in docs.get('query_params', {}).items():
-                print(param)
+            query_params = docs.get('query_params', {})
+            if query_params:
+                print(markdown_heading('Query Parameters', 2), file=sio)
+                print(markdown_parameter_table(query_params), file=sio)
 
-            print('Responses')
+            request_body = \
+                docs.get('example_request_body', {}).get('python', '')
+            try:
+                model_example = getattr(resource, request_body)()
+                print(markdown_heading('Example Request Body', 2), file=sio)
+                pretty = json.dumps(model_example, indent=4)
+                print(f'```json\n{pretty}\n```', file=sio)
+            except (AttributeError, NotImplementedError):
+                pass
+
+            print(markdown_heading('Responses', 2), file=sio)
             for response in docs.get('responses', []):
-                print(response['status_code'])
-                print(f'\t{response.get("description")}')
+                print(markdown_heading(f'`{response["status_code"]}`', 3), file=sio)
+                print(response.get('description'), file=sio)
                 method_name = response.get('example', {}).get('python', '')
                 try:
                     model_example = getattr(resource, method_name)(content_type)
                     model = json.loads(model_example)
                     pretty = json.dumps(model, indent=4)
-                    print(f'\t{pretty}')
+                    print(markdown_heading('Example Response', 4), file=sio)
+                    print(f'```json\n{pretty}\n```', file=sio)
                 except (AttributeError, NotImplementedError):
                     pass
-
-
-            # try:
-            #     model_example_method_name = \
-            #         rm.data['example_response']['python']
-            #     model_example = getattr(
-            #         resource, model_example_method_name)(content_type)
-            #     print('EXAMPLE RESPONSE', model_example)
-            # except (KeyError, TypeError) as e:
-            #     print('ERROR', e)
-            #     continue
+    sio.seek(0)
+    print(sio.read())
 
 
 if __name__ == '__main__':
-    generate_docs('application/json')
+    generate_docs('Cochlea', 'application/json')

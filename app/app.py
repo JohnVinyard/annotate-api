@@ -148,7 +148,9 @@ def list_entity(
 class SoundsResource(object):
 
     def get_example_post_body(self):
-        pass
+        return {
+            'example': 10
+        }
 
     @falcon.before(basic_auth)
     def on_post(self, req, resp, session, actor):
@@ -716,6 +718,10 @@ def permissions_error(ex, req, resp, params):
 
 
 class Application(falcon.API):
+    """
+    description:
+        Cochlea allows users to annotate audio files on the internet
+    """
     def __init__(self, users_repo, sounds_repo, annotations_repo):
         super().__init__(middleware=[
             CorsMiddleware(),
