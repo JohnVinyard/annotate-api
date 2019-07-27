@@ -72,34 +72,34 @@ def generate_docs(app_name, content_type):
 
             url_params = docs.get('url_params', {})
             if url_params:
-                print(markdown_heading('URL Parameters', 2), file=sio)
+                print(markdown_heading('URL Parameters', 3), file=sio)
                 print(markdown_parameter_table(url_params), file=sio)
 
             query_params = docs.get('query_params', {})
             if query_params:
-                print(markdown_heading('Query Parameters', 2), file=sio)
+                print(markdown_heading('Query Parameters', 3), file=sio)
                 print(markdown_parameter_table(query_params), file=sio)
 
             request_body = \
                 docs.get('example_request_body', {}).get('python', '')
             try:
                 model_example = getattr(resource, request_body)()
-                print(markdown_heading('Example Request Body', 2), file=sio)
+                print(markdown_heading('Example Request Body', 3), file=sio)
                 pretty = json.dumps(model_example, indent=4)
                 print(f'```json\n{pretty}\n```', file=sio)
             except (AttributeError, NotImplementedError):
                 pass
 
-            print(markdown_heading('Responses', 2), file=sio)
+            print(markdown_heading('Responses', 3), file=sio)
             for response in docs.get('responses', []):
-                print(markdown_heading(f'`{response["status_code"]}`', 3), file=sio)
+                print(markdown_heading(f'`{response["status_code"]}`', 4), file=sio)
                 print(response.get('description'), file=sio)
                 method_name = response.get('example', {}).get('python', '')
                 try:
                     model_example = getattr(resource, method_name)(content_type)
                     model = json.loads(model_example)
                     pretty = json.dumps(model, indent=4)
-                    print(markdown_heading('Example Response', 4), file=sio)
+                    print(markdown_heading('Example Response', 5), file=sio)
                     print(f'```json\n{pretty}\n```', file=sio)
                 except (AttributeError, NotImplementedError):
                     pass
