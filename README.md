@@ -8,7 +8,7 @@ Cochlea allows users to annotate audio files on the internet
 Return some high-level stats about users, sounds and annotations
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 None
 ##### Example Response
@@ -34,26 +34,26 @@ Get a list of users
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched a sound
-#### `404`
+#### `404 Not Found`
 
 Provided an unknown sound identifier
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access this sound
 ## `POST /users`
 Create a new user
 ### Responses
 
-#### `201`
+#### `201 Created`
 
 Successful user creation
-#### `400`
+#### `400 Bad Request`
 
 Input model validation error
 ## `DELETE /users/{user_id}`
@@ -66,16 +66,16 @@ Input model validation error
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 The user was deleted
-#### `404`
+#### `404 Not Found`
 
 The user id does not exist
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to delete this user
 ## `GET /users/{user_id}`
@@ -88,15 +88,15 @@ User is not permitted to delete this user
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched a user
 ##### Example Response
 
 ```json
 {
-    "id": "58e9f8c5b367e45ce4f5a42a7fd52",
-    "date_created": "2019-07-27T01:26:29.285597Z",
+    "id": "58e9f9da841af072c5054941e5cdc",
+    "date_created": "2019-07-27T01:31:19.547405Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -104,13 +104,13 @@ Successfully fetched a user
     "info_url": null
 }
 ```
-#### `404`
+#### `404 Not Found`
 
 Provided an invalid user id
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access this user
 ## `HEAD /users/{user_id}`
@@ -123,16 +123,16 @@ User is not permitted to access this user
 
 ### Responses
 
-#### `204`
+#### `204 No Content`
 
 The requested user exists
-#### `404`
+#### `404 Not Found`
 
 The requested user does not exist
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access this user
 ## `PATCH /users/{user_id}`
@@ -150,16 +150,16 @@ null
 ```
 ### Responses
 
-#### `204`
+#### `204 No Content`
 
 The user was successfully updated
-#### `400`
+#### `400 Bad Request`
 
 Input model validation error
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to update this user
 ## `GET /sounds`
@@ -175,16 +175,16 @@ Get a list of sounds
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched a sound
-#### `404`
+#### `404 Not Found`
 
 Provided an unknown sound identifier
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access this sound
 ## `POST /sounds`
@@ -198,16 +198,16 @@ Create a new sound
 ```
 ### Responses
 
-#### `201`
+#### `201 Created`
 
 Successful sound creation
-#### `400`
+#### `400 Bad Request`
 
 Input model validation error
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to create sounds
 ## `GET /sounds/{sound_id}`
@@ -220,16 +220,16 @@ User is not permitted to create sounds
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched sound
 ##### Example Response
 
 ```json
 {
-    "id": "58e9f8c5c29a8e76800a4b4b36a02",
-    "date_created": "2019-07-27T01:26:29.347808Z",
-    "created_by": "/users/58e9f8c5c2768e612f3a45cf79e2f",
+    "id": "58e9f9da935c9fca9f2d83f93d4ec",
+    "date_created": "2019-07-27T01:31:19.609857Z",
+    "created_by": "/users/58e9f9da93394d86cc8d41910ccbd",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -240,7 +240,7 @@ Successfully fetched sound
     ]
 }
 ```
-#### `404`
+#### `404 Not Found`
 
 The sound identifier supplied does not exist
 ## `HEAD /sounds/{sound_id}`
@@ -253,10 +253,10 @@ The sound identifier supplied does not exist
 
 ### Responses
 
-#### `204`
+#### `204 No Content`
 
 The sound identifier exists
-#### `404`
+#### `404 Not Found`
 
 The sound identifier does not exist
 ## `GET /sounds/{sound_id}/annotations`
@@ -278,16 +278,16 @@ Get a list of annotations
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched a list of annotations
-#### `404`
+#### `404 Not Found`
 
 Provided an unknown sound identifier
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access annotations for this sound
 ## `POST /sounds/{sound_id}/annotations`
@@ -300,16 +300,16 @@ Create a new sound
 
 ### Responses
 
-#### `201`
+#### `201 Created`
 
 Successful annotation creation
-#### `400`
+#### `400 Bad Request`
 
 Input model validation error
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to create annotations
 ## `GET /users/{user_id}/sounds`
@@ -331,16 +331,16 @@ Get a list of sounds belonging to a user
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched a list of sounds
-#### `404`
+#### `404 Not Found`
 
 Provided an unknown user identifier
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access sounds from this user
 ## `GET /users/{user_id}/annotations`
@@ -360,7 +360,7 @@ List annotations created by a user
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched a list of annotations
 ##### Example Response
@@ -368,13 +368,13 @@ Successfully fetched a list of annotations
 ```json
 {}
 ```
-#### `404`
+#### `404 Not Found`
 
 Provided an unknown user identifier
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access annotationsfrom this user
 ## `GET /annotations`
@@ -390,15 +390,15 @@ Get a list of annotations
 
 ### Responses
 
-#### `200`
+#### `200 OK`
 
 Successfully fetched an annotation
-#### `404`
+#### `404 Not Found`
 
 Provided an unknown annotation identifier
-#### `401`
+#### `401 Unauthorized`
 
 Unauthorized request
-#### `403`
+#### `403 Forbidden`
 
 User is not permitted to access this annotation

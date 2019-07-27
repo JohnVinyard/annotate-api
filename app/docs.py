@@ -3,6 +3,7 @@ from string import Formatter
 import yaml
 import json
 from io import StringIO
+from http import client
 
 
 def extract_yaml(has_doc):
@@ -92,7 +93,9 @@ def generate_docs(app_name, content_type):
 
             print(markdown_heading('Responses', 3), file=sio)
             for response in docs.get('responses', []):
-                print(markdown_heading(f'`{response["status_code"]}`', 4), file=sio)
+                status_code = int(response['status_code'])
+                status = client.responses[status_code]
+                print(markdown_heading(f'`{status_code} {status}`', 4), file=sio)
                 print(response.get('description'), file=sio)
                 method_name = response.get('example', {}).get('python', '')
                 try:
