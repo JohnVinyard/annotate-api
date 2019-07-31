@@ -4,11 +4,17 @@ import falcon
 import logging
 from errors import DuplicateEntityException, PermissionsError, ImmutableError
 from string import Formatter
+import urllib.parse
 
 
 def exclude_from_docs(f):
     f._exclude_from_docs = True
     return f
+
+
+def encode_query_parameters(**kwargs):
+    filtered_params = {k: v for k, v in kwargs.items() if v}
+    return urllib.parse.urlencode(filtered_params)
 
 
 def decode_auth_header(auth):
