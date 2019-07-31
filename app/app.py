@@ -629,16 +629,61 @@ class UserSoundsResource(object):
 
 
 class UserAnnotationResource(object):
+    def link_template(self, user_id):
+        return f'/users/{user_id}/annotations?{{encoded_params}}'
+
     def get_model_example(self, content_type):
-        view = {}
+        dataset = User.create(
+            user_name='HalIncandenza',
+            password='Halation',
+            email='hal@enfield.com',
+            user_type=UserType.DATASET,
+            about_me='Tennis 4 Life')
+
+        snd = Sound.create(
+            creator=dataset,
+            created_by=dataset,
+            info_url='https://example.com/sound',
+            audio_url='https://example.com/sound/file.wav',
+            license_type=LicenseType.BY,
+            title='A sound',
+            duration_seconds=12.3,
+            tags=['test'])
+
+        annotations = [
+            Annotation.create(
+                creator=dataset,
+                created_by=dataset,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['kick']
+            ),
+            Annotation.create(
+                creator=dataset,
+                created_by=dataset,
+                sound=snd,
+                start_seconds=2,
+                duration_seconds=1,
+                tags=['snare']
+            ),
+        ]
+        results = build_list_response(
+            actor=dataset,
+            items=annotations,
+            total_count=100,
+            add_next_page=True,
+            link_template=self.link_template(dataset.id),
+            page_size=2,
+            page_number=2)
         return JSONHandler(AppEntityLinks()) \
-            .serialize(view, content_type).decode()
+            .serialize(results, content_type).decode()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
         """
         description:
-            List annotations created by a user
+            List annotations created by a user with id `user_id`
         url_params:
             user_id: The user who created the annotations
         query_params:
@@ -667,7 +712,7 @@ class UserAnnotationResource(object):
             actor,
             query,
             Annotation.date_created.ascending(),
-            f'/users/{user_id}/annotations?{{encoded_params}}')
+            self.link_template(user_id))
 
 
 class UsersResource(object):
