@@ -1078,18 +1078,18 @@ class Application(falcon.API):
 
         There are three types of users possible:
 
-            - `dataset` - can create both sounds and annotations, typically
-               representing a related group of sounds on the internet, e.g
-               [the MusicNet dataset](https://homes.cs.washington.edu/~thickstn/musicnet.html),
-               [the NSynth dataset](https://magenta.tensorflow.org/datasets/nsynth),
-               or some other collection of sound
-            - `featurebot` - an auotmated user that will compute features for
-               some or all sounds, e.g., a user that computes short-time fourier
-               transforms for each sound and stores the data as serialized numpy
-               arrays in an S3 bucket
-            - `human` - a human user who is likely to interact with the API via
-              a web-based GUI and may create annotations for sounds, likely
-              adding textual tags to audio segments
+        - `dataset` - can create both sounds and annotations, typically
+           representing a related group of sounds on the internet, e.g
+           [the MusicNet dataset](https://homes.cs.washington.edu/~thickstn/musicnet.html),
+           [the NSynth dataset](https://magenta.tensorflow.org/datasets/nsynth),
+           or some other collection of sound
+        - `featurebot` - an auotmated user that will compute features for
+           some or all sounds, e.g., a user that computes short-time fourier
+           transforms for each sound and stores the data as serialized numpy
+           arrays in an S3 bucket
+        - `human` - a human user who is likely to interact with the API via
+          a web-based GUI and may create annotations for sounds, likely
+          adding textual tags to audio segments
     """
 
     def __init__(
