@@ -33,9 +33,6 @@ Get a list of users
 #### `200 OK`
 
 Successfully fetched a sound
-#### `404 Not Found`
-
-Provided an unknown sound identifier
 #### `401 Unauthorized`
 
 Unauthorized request
@@ -91,8 +88,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efb53bba5e6ab5d6cc726abca81",
-    "date_created": "2019-07-31T14:56:16.295413Z",
+    "id": "58efbe7f4e2f0e2028e45db58ad41",
+    "date_created": "2019-07-31T15:37:43.074559Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -223,9 +220,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efb53bbc82c8761327261d48739",
-    "date_created": "2019-07-31T14:56:16.304181Z",
-    "created_by": "/users/58efb53bbc7d42b12190b9b23e35d",
+    "id": "58efbe7f5045343d27369f6b8100b",
+    "date_created": "2019-07-31T15:37:43.083099Z",
+    "created_by": "/users/58efbe7f503fcc2ea77b27f04bfdd",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
