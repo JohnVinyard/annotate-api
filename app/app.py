@@ -1082,14 +1082,24 @@ class Application(falcon.API):
            representing a related group of sounds on the internet, e.g
            [the MusicNet dataset](https://homes.cs.washington.edu/~thickstn/musicnet.html),
            [the NSynth dataset](https://magenta.tensorflow.org/datasets/nsynth),
-           or some other collection of sound
+           or some other collection of sound.  See
+           [`nsynth_dataset.py`](blob/master/examples/nsynth_dataset.py) for an
+           example implementation.
         - `featurebot` - an auotmated user that will compute features for
            some or all sounds, e.g., a user that computes short-time fourier
            transforms for each sound and stores the data as serialized numpy
-           arrays in an S3 bucket
+           arrays in an S3 bucket.  See
+           [`fft_bot.py`](blob/master/examples/fft_bot.py) for an example
+           implementation.
         - `human` - a human user who is likely to interact with the API via
           a web-based GUI and may create annotations for sounds, likely
-          adding textual tags to audio segments
+          adding textual tags to audio segments.
+
+        Sounds are typically created by `dataset` users, and annotations simply
+        designate a segment or interval of the sound, along with optional text
+        tags or a pointer to an external resource that contains some structured
+        data (e.g., JSON or a serialized numpy array representing dense feature
+        vectors) that pertain to or describe that segment of audio.
     """
 
     def __init__(
