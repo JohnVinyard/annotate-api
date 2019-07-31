@@ -40,8 +40,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58efdf105e0d05bc1e43cdaeaa4cb",
-            "date_created": "2019-07-31T18:03:25.117663Z",
+            "id": "58efe0c3049a3f8e4ac8871594c3b",
+            "date_created": "2019-07-31T18:11:00.881842Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -49,16 +49,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58efdf105e116c79bfb3fec0a1b5f",
-            "date_created": "2019-07-31T18:03:25.117726Z",
+            "id": "58efe0c3049e7b4d76b9074f0cfcb",
+            "date_created": "2019-07-31T18:11:00.881904Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58efdf105e14c7d9daa5f4bbf3a98",
-            "date_created": "2019-07-31T18:03:25.117779Z",
+            "id": "58efe0c304a1d6f25a2e6ec903807",
+            "date_created": "2019-07-31T18:11:00.881955Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -136,8 +136,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efdf105f5a89b4fd1423a94f6b8",
-    "date_created": "2019-07-31T18:03:25.122995Z",
+    "id": "58efe0c305ea70d3cdcb266c97031",
+    "date_created": "2019-07-31T18:11:00.887218Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -221,16 +221,16 @@ Get a list of sounds
 
 #### `200 OK`
 
-Successfully fetched a sound
+Successfully fetched a list of sounds
 ##### Example Response
 
 ```json
 {
     "items": [
         {
-            "id": "58efdf106101161aa67ab962fa487",
-            "date_created": "2019-07-31T18:03:25.129761Z",
-            "created_by": "/users/58efdf1060f8b2b40437b03206a0e",
+            "id": "58efe0c307630dfd10abe256ca621",
+            "date_created": "2019-07-31T18:11:00.893241Z",
+            "created_by": "/users/58efe0c3075e9f726f06a34c3d7af",
             "info_url": "https://example.com/sound1",
             "audio_url": "https://example.com/sound1/file.wav",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -241,9 +241,9 @@ Successfully fetched a sound
             ]
         },
         {
-            "id": "58efdf106105b42a337339375de58",
-            "date_created": "2019-07-31T18:03:25.129827Z",
-            "created_by": "/users/58efdf1060f8b2b40437b03206a0e",
+            "id": "58efe0c3076697dc86858511dfd40",
+            "date_created": "2019-07-31T18:11:00.893296Z",
+            "created_by": "/users/58efe0c3075e9f726f06a34c3d7af",
             "info_url": "https://example.com/sound2",
             "audio_url": "https://example.com/sound2/file.wav",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -254,9 +254,9 @@ Successfully fetched a sound
             ]
         },
         {
-            "id": "58efdf106109295ce2f0d0ab1cb43",
-            "date_created": "2019-07-31T18:03:25.129880Z",
-            "created_by": "/users/58efdf1060f8b2b40437b03206a0e",
+            "id": "58efe0c30769dfe48c9d137b1d6ab",
+            "date_created": "2019-07-31T18:11:00.893348Z",
+            "created_by": "/users/58efe0c3075e9f726f06a34c3d7af",
             "info_url": "https://example.com/sound3",
             "audio_url": "https://example.com/sound3/file.wav",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -268,12 +268,9 @@ Successfully fetched a sound
         }
     ],
     "total_count": 100,
-    "next": "/sounds?page_number=1&page_size=3"
+    "next": "/sounds?page_number=2&page_size=3"
 }
 ```
-#### `404 Not Found`
-
-Provided an unknown sound identifier
 #### `401 Unauthorized`
 
 Unauthorized request
@@ -286,7 +283,14 @@ Create a new sound
 
 ```json
 {
-    "example": 10
+    "info_url": "https://archive.org/details/Greatest_Speeches_of_the_20th_Century",
+    "audio_url": "https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg",
+    "license_type": "https://creativecommons.org/licenses/by/4.0",
+    "title": "Abdication Address - King Edward VIII",
+    "duration_seconds": 402,
+    "tags": [
+        "speech"
+    ]
 }
 ```
 ### Responses
@@ -320,9 +324,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efdf1061d3ffa48aea9fcd4d65e",
-    "date_created": "2019-07-31T18:03:25.133127Z",
-    "created_by": "/users/58efdf1061cf9a9cf73d4c456affc",
+    "id": "58efe0c3086419b786785fedf373a",
+    "date_created": "2019-07-31T18:11:00.897353Z",
+    "created_by": "/users/58efe0c3085fb16ca3eee101c690c",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",

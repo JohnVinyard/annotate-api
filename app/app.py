@@ -161,9 +161,13 @@ def list_entity(
 
 class SoundsResource(object):
     def get_example_post_body(self):
-        return {
-            'example': 10
-        }
+        return dict(
+            info_url='https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
+            audio_url='https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
+            license_type='https://creativecommons.org/licenses/by/4.0',
+            title='Abdication Address - King Edward VIII',
+            duration_seconds=(6 * 60) + 42,
+            tags=['speech'])
 
     @falcon.before(basic_auth)
     def on_post(self, req, resp, session, actor):
@@ -232,7 +236,7 @@ class SoundsResource(object):
             total_count=100,
             add_next_page=True,
             link_template=SoundsResource.LINK_TEMPLATE,
-            page_number=1,
+            page_number=2,
             page_size=3)
 
         return JSONHandler(AppEntityLinks()) \
@@ -251,11 +255,9 @@ class SoundsResource(object):
             created_by: Only return sounds created by the user with this id
         responses:
             - status_code: 200
-              description: Successfully fetched a sound
+              description: Successfully fetched a list of sounds
               example:
                 python: get_example_list_model
-            - status_code: 404
-              description: Provided an unknown sound identifier
             - status_code: 401
               description: Unauthorized request
             - status_code: 403
