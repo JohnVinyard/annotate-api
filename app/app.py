@@ -1,8 +1,9 @@
 import falcon
-from model import User, ContextualValue, Sound, Annotation, UserType, LicenseType
+from model import User, ContextualValue, Sound, Annotation, UserType, \
+    LicenseType
 from httphelper import \
     decode_auth_header, SessionMiddleware, EntityLinks, CorsMiddleware, \
-    exclude_from_docs
+    exclude_from_docs, encode_query_parameters
 from customjson import JSONHandler
 import urllib
 from errors import \
@@ -97,6 +98,21 @@ def not_found_error(e, req, resp, params):
     raise falcon.HTTPNotFound()
 
 
+def build_list_response(
+        actor,
+        items,
+        total_count,
+        add_next_page,
+        link_template,
+        **query_parameters):
+    views = [item.view(actor) for item in items]
+    result = dict(items=views, total_count=total_count)
+    if add_next_page:
+        encoded_params = encode_query_parameters(**query_parameters)
+        result['next'] = link_template.format(encoded_params=encoded_params)
+    return result
+
+
 def list_entity(
         req,
         resp,
@@ -129,27 +145,21 @@ def list_entity(
         page_number,
         result_order)
 
-    results = {
-        'items': [r.view(actor) for r in query_result.results],
-        'total_count': query_result.total_count
-    }
-
-    if query_result.next_page is not None:
-        query_params = {
-            'page_size': page_size,
-            'page_number': query_result.next_page,
-        }
-        query_params.update(**additional_params)
-        query_params = {k: v for k, v in query_params.items() if v}
-        encoded_params = urllib.parse.urlencode(query_params)
-        results['next'] = link_template.format(encoded_params=encoded_params)
+    results = build_list_response(
+        actor=actor,
+        items=query_result.results,
+        total_count=query_result.total_count,
+        add_next_page=query_result.next_page is not None,
+        link_template=link_template,
+        page_size=page_size,
+        page_number=query_result.next_page,
+        **additional_params)
 
     resp.media = results
     resp.status = falcon.HTTP_OK
 
 
 class SoundsResource(object):
-
     def get_example_post_body(self):
         return {
             'example': 10
@@ -296,7 +306,6 @@ class AnnotationsResource(object):
 
 
 class SoundAnnotationsResource(object):
-
     def get_example_post_body(self):
         raise NotImplementedError()
 
@@ -400,7 +409,6 @@ class SoundAnnotationsResource(object):
 
 
 class UserSoundsResource(object):
-
     def get_example_list_model(self, content_type):
         raise NotImplementedError()
 
@@ -451,7 +459,6 @@ class UserSoundsResource(object):
 
 
 class UserAnnotationResource(object):
-
     def get_model_example(self, content_type):
         view = {}
         return JSONHandler(AppEntityLinks()) \
@@ -513,8 +520,42 @@ class UsersResource(object):
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
 
-    def get_model_example(self):
-        raise NotImplementedError()
+    LINK_TEMPLATE = '/users?{encoded_params}'
+
+    def get_model_example(self, content_type):
+        viewer = User.create(
+            user_name='HalIncandenza',
+            password='password',
+            user_type='human',
+            email='hal@eta.net',
+            about_me='Tennis 4 Life',
+            info_url='https://halation.com'
+        )
+
+        users = build_list_response(
+            viewer,
+            [
+                User.create(
+                    user_name='MikePemulis',
+                    password='password',
+                    user_type='human',
+                    email='peemster@eta.net',
+                    about_me='Tennis 4 Life',
+                    info_url='https://peemster.com'),
+                User.create(
+                    user_name='MarioIncandenza',
+                    password='password',
+                    user_type='human',
+                    email='mario@eta.net',
+                    about_me='Movies 4 Life',
+                    info_url='https://mario.com')
+            ],
+            200,
+            True,
+            UsersResource.LINK_TEMPLATE,
+            user_type=UserType.HUMAN)
+        return JSONHandler(AppEntityLinks()) \
+            .serialize(users, content_type).decode()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
@@ -533,8 +574,6 @@ class UsersResource(object):
               description: Successfully fetched a sound
               example:
                 python: get_example_list_model
-            - status_code: 404
-              description: Provided an unknown sound identifier
             - status_code: 401
               description: Unauthorized request
             - status_code: 403
@@ -564,12 +603,11 @@ class UsersResource(object):
             actor,
             query,
             User.date_created.descending(),
-            '/users?{encoded_params}',
+            UsersResource.LINK_TEMPLATE,
             additional_params=additional_params)
 
 
 class SoundResource(object):
-
     def get_model_example(self, content_type):
         user = User.create(
             user_name='HalIncandenza',
@@ -621,7 +659,6 @@ class SoundResource(object):
 
 
 class UserResource(object):
-
     def get_model_example(self, content_type):
         user = User.create(
             user_name='HalIncandenza',
@@ -727,6 +764,7 @@ class Application(falcon.API):
         or time intervals of audio can be annotated with text tags or arbitrary
         structured data hosted on another server.
     """
+
     def __init__(self, users_repo, sounds_repo, annotations_repo):
         super().__init__(middleware=[
             CorsMiddleware(),
