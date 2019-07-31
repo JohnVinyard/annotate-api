@@ -1,12 +1,12 @@
 # Cochlea
-Cochlea allows users to annotate audio files on the internet
+Cochlea allows users to annotate audio files on the internet.  Segments or time intervals of audio can be annotated with text tags or arbitrary structured data hosted on another server.
 ## `GET /`
 Return some high-level stats about users, sounds and annotations
 ### Responses
 
 #### `200 OK`
 
-None
+Successfully fetched stats
 ##### Example Response
 
 ```json
@@ -91,8 +91,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efb405bd6fd4cd2fe994e99f11a",
-    "date_created": "2019-07-31T14:50:51.249420Z",
+    "id": "58efb53bba5e6ab5d6cc726abca81",
+    "date_created": "2019-07-31T14:56:16.295413Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -223,9 +223,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efb405bf953865cebe2c9229985",
-    "date_created": "2019-07-31T14:50:51.258204Z",
-    "created_by": "/users/58efb405bf8fce497ced32b8170ff",
+    "id": "58efb53bbc82c8761327261d48739",
+    "date_created": "2019-07-31T14:56:16.304181Z",
+    "created_by": "/users/58efb53bbc7d42b12190b9b23e35d",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
