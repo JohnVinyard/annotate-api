@@ -40,8 +40,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58efe0c3049a3f8e4ac8871594c3b",
-            "date_created": "2019-07-31T18:11:00.881842Z",
+            "id": "58efe38f7f36069f0401bb753dfc0",
+            "date_created": "2019-07-31T18:23:32.164463Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -49,16 +49,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58efe0c3049e7b4d76b9074f0cfcb",
-            "date_created": "2019-07-31T18:11:00.881904Z",
+            "id": "58efe38f7f3aed29911c3817ddd53",
+            "date_created": "2019-07-31T18:23:32.164535Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58efe0c304a1d6f25a2e6ec903807",
-            "date_created": "2019-07-31T18:11:00.881955Z",
+            "id": "58efe38f7f3e774e101c3917f63f7",
+            "date_created": "2019-07-31T18:23:32.164590Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -136,8 +136,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efe0c305ea70d3cdcb266c97031",
-    "date_created": "2019-07-31T18:11:00.887218Z",
+    "id": "58efe38f809e19fe5a4b2a865d9a8",
+    "date_created": "2019-07-31T18:23:32.170220Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -228,9 +228,9 @@ Successfully fetched a list of sounds
 {
     "items": [
         {
-            "id": "58efe0c307630dfd10abe256ca621",
-            "date_created": "2019-07-31T18:11:00.893241Z",
-            "created_by": "/users/58efe0c3075e9f726f06a34c3d7af",
+            "id": "58efe38f82252a76acc65f043d9b5",
+            "date_created": "2019-07-31T18:23:32.176475Z",
+            "created_by": "/users/58efe38f82207a3998b6c01de1a29",
             "info_url": "https://example.com/sound1",
             "audio_url": "https://example.com/sound1/file.wav",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -241,9 +241,9 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "58efe0c3076697dc86858511dfd40",
-            "date_created": "2019-07-31T18:11:00.893296Z",
-            "created_by": "/users/58efe0c3075e9f726f06a34c3d7af",
+            "id": "58efe38f8229e776e61f888eb6a24",
+            "date_created": "2019-07-31T18:23:32.176551Z",
+            "created_by": "/users/58efe38f82207a3998b6c01de1a29",
             "info_url": "https://example.com/sound2",
             "audio_url": "https://example.com/sound2/file.wav",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -254,9 +254,9 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "58efe0c30769dfe48c9d137b1d6ab",
-            "date_created": "2019-07-31T18:11:00.893348Z",
-            "created_by": "/users/58efe0c3075e9f726f06a34c3d7af",
+            "id": "58efe38f822defdf93cdcdd78cd31",
+            "date_created": "2019-07-31T18:23:32.176613Z",
+            "created_by": "/users/58efe38f82207a3998b6c01de1a29",
             "info_url": "https://example.com/sound3",
             "audio_url": "https://example.com/sound3/file.wav",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -308,7 +308,7 @@ Unauthorized request
 
 User is not permitted to create sounds
 ## `GET /sounds/{sound_id}`
-
+Fetch an individual sound
 ### URL Parameters
 
 |Name|Description|
@@ -324,9 +324,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efe0c3086419b786785fedf373a",
-    "date_created": "2019-07-31T18:11:00.897353Z",
-    "created_by": "/users/58efe0c3085fb16ca3eee101c690c",
+    "id": "58efe38f8302786a3eaaa4f7b9a15",
+    "date_created": "2019-07-31T18:23:32.180015Z",
+    "created_by": "/users/58efe38f82fe1b6148a25c2eb1a4b",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
@@ -341,7 +341,7 @@ Successfully fetched sound
 
 The sound identifier supplied does not exist
 ## `HEAD /sounds/{sound_id}`
-
+Check if a sound exists by id
 ### URL Parameters
 
 |Name|Description|
@@ -357,7 +357,7 @@ The sound identifier exists
 
 The sound identifier does not exist
 ## `GET /sounds/{sound_id}/annotations`
-Get a list of annotations
+Get a list of annotations for the sound with id `sound_id`
 ### URL Parameters
 
 |Name|Description|
@@ -378,6 +378,53 @@ Get a list of annotations
 #### `200 OK`
 
 Successfully fetched a list of annotations
+##### Example Response
+
+```json
+{
+    "items": [
+        {
+            "id": "58efe38f8413a86e5906646d3e4f9",
+            "date_created": "2019-07-31T18:23:32.184384Z",
+            "created_by": "/users/58efe38f840b61c7de31cb8eb5b69",
+            "sound": "/sounds/58efe38f8411865b31d9efa881bb0",
+            "start_seconds": 1.0,
+            "duration_seconds": 1.0,
+            "end_seconds": 2.0,
+            "data_url": null,
+            "tags": [
+                "kick"
+            ]
+        },
+        {
+            "id": "58efe38f84159cc420d93ff73fb52",
+            "date_created": "2019-07-31T18:23:32.184415Z",
+            "created_by": "/users/58efe38f840b61c7de31cb8eb5b69",
+            "sound": "/sounds/58efe38f8411865b31d9efa881bb0",
+            "start_seconds": 2.0,
+            "duration_seconds": 1.0,
+            "end_seconds": 3.0,
+            "data_url": null,
+            "tags": [
+                "snare"
+            ]
+        },
+        {
+            "id": "58efe38f84184a3dd2588a696c6f2",
+            "date_created": "2019-07-31T18:23:32.184458Z",
+            "created_by": "/users/58efe38f840e50265a8f2dcbce822",
+            "sound": "/sounds/58efe38f8411865b31d9efa881bb0",
+            "start_seconds": 0.0,
+            "duration_seconds": 12.3,
+            "end_seconds": 12.3,
+            "data_url": "https://s3/fft-data/file.dat",
+            "tags": null
+        }
+    ],
+    "total_count": 100,
+    "next": "/sounds/58efe38f8411865b31d9efa881bb0/annotations?page_size=3&page_number=2"
+}
+```
 #### `404 Not Found`
 
 Provided an unknown sound identifier
@@ -388,7 +435,7 @@ Unauthorized request
 
 User is not permitted to access annotations for this sound
 ## `POST /sounds/{sound_id}/annotations`
-Create a new sound
+Create a new annotation for the sound with identifier `sound_id`
 ### URL Parameters
 
 |Name|Description|

@@ -362,7 +362,7 @@ class SoundAnnotationsResource(object):
     def on_post(self, req, resp, sound_id, session, actor):
         """
         description:
-            Create a new sound
+            Create a new annotation for the sound with identifier `sound_id`
         url_params:
             sound_id: The identifier of the sound to annotate
         example_request_body:
@@ -388,14 +388,76 @@ class SoundAnnotationsResource(object):
         resp.set_header('Location', f'/sounds/{sound_id}/annotations')
         resp.status = falcon.HTTP_CREATED
 
+    def link_template(self, sound_id):
+        return f'/sounds/{sound_id}/annotations?{{encoded_params}}'
+
     def get_example_list_model(self, content_type):
-        raise NotImplementedError()
+        dataset = User.create(
+            user_name='HalIncandenza',
+            password='Halation',
+            email='hal@enfield.com',
+            user_type=UserType.DATASET,
+            about_me='Tennis 4 Life')
+
+        featurebot = User.create(
+            user_name='FFTBot',
+            password='password',
+            email='fftbot@gmail.com',
+            user_type=UserType.FEATUREBOT,
+            about_me='I compute FFT features')
+
+        snd = Sound.create(
+            creator=dataset,
+            created_by=dataset,
+            info_url='https://example.com/sound',
+            audio_url='https://example.com/sound/file.wav',
+            license_type=LicenseType.BY,
+            title='A sound',
+            duration_seconds=12.3,
+            tags=['test'])
+
+        annotations = [
+            Annotation.create(
+                creator=dataset,
+                created_by=dataset,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['kick']
+            ),
+            Annotation.create(
+                creator=dataset,
+                created_by=dataset,
+                sound=snd,
+                start_seconds=2,
+                duration_seconds=1,
+                tags=['snare']
+            ),
+            Annotation.create(
+                creator=featurebot,
+                created_by=featurebot,
+                sound=snd,
+                start_seconds=0,
+                duration_seconds=12.3,
+                data_url='https://s3/fft-data/file.dat'
+            )
+        ]
+        results = build_list_response(
+            actor=dataset,
+            items=annotations,
+            total_count=100,
+            add_next_page=True,
+            link_template=self.link_template(snd.id),
+            page_size=3,
+            page_number=2)
+        return JSONHandler(AppEntityLinks()) \
+            .serialize(results, content_type).decode()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, sound_id, session, actor):
         """
         description:
-            Get a list of annotations
+            Get a list of annotations for the sound with id `sound_id`
         url_params:
             sound_id: The sound to list annotations for
         query_params:
@@ -453,7 +515,7 @@ class SoundAnnotationsResource(object):
             actor,
             query,
             Annotation.date_created.ascending(),
-            f'/sounds/{sound_id}/annotations?{{encoded_params}}',
+            self.link_template(sound_id),
             additional_params=additional_params)
 
 
@@ -690,6 +752,8 @@ class SoundResource(object):
     @falcon.before(basic_auth)
     def on_get(self, req, resp, sound_id, session, actor):
         """
+        description:
+            Fetch an individual sound
         url_params:
             sound_id: The identifier of the sound to fetch
         responses:
@@ -706,6 +770,8 @@ class SoundResource(object):
     @falcon.before(basic_auth)
     def on_head(self, req, resp, sound_id, session, actor):
         """
+        description:
+            Check if a sound exists by id
         url_params:
             sound_id: The identifier of the sound to fetch
         responses:
