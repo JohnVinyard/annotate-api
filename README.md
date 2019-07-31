@@ -1,9 +1,5 @@
 # Cochlea
 Cochlea allows users to annotate audio files on the internet
-## `DELETE /`
-
-### Responses
-
 ## `GET /`
 Return some high-level stats about users, sounds and annotations
 ### Responses
@@ -95,8 +91,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58e9f9da841af072c5054941e5cdc",
-    "date_created": "2019-07-27T01:31:19.547405Z",
+    "id": "58efb405bd6fd4cd2fe994e99f11a",
+    "date_created": "2019-07-31T14:50:51.249420Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -227,9 +223,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58e9f9da935c9fca9f2d83f93d4ec",
-    "date_created": "2019-07-27T01:31:19.609857Z",
-    "created_by": "/users/58e9f9da93394d86cc8d41910ccbd",
+    "id": "58efb405bf953865cebe2c9229985",
+    "date_created": "2019-07-31T14:50:51.258204Z",
+    "created_by": "/users/58efb405bf8fce497ced32b8170ff",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",

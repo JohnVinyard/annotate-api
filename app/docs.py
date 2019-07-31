@@ -63,7 +63,14 @@ def generate_docs(app_name, content_type):
         for item in dir(resource):
             if item not in methods:
                 continue
+
             func = getattr(resource, item)
+            try:
+                if func._exclude_from_docs:
+                    continue
+            except AttributeError:
+                pass
+
             rm = ResourceMethod(route, func)
 
             sio.write(markdown_heading(f'`{rm.verb} {rm.path}`', 2))
@@ -107,7 +114,11 @@ def generate_docs(app_name, content_type):
                 except (AttributeError, NotImplementedError):
                     pass
     sio.seek(0)
-    print(sio.read())
+
+    with open('../README.md', 'w') as f:
+        content = sio.read()
+        print(content)
+        f.write(content)
 
 
 if __name__ == '__main__':

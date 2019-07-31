@@ -1,7 +1,8 @@
 import falcon
 from model import User, ContextualValue, Sound, Annotation, UserType, LicenseType
 from httphelper import \
-    decode_auth_header, SessionMiddleware, EntityLinks, CorsMiddleware
+    decode_auth_header, SessionMiddleware, EntityLinks, CorsMiddleware, \
+    exclude_from_docs
 from customjson import JSONHandler
 import urllib
 from errors import \
@@ -70,6 +71,7 @@ class RootResource(object):
             - status_code: 200
               example:
                 python: get_model_example
+              description: Successfully fetched stats
         """
         resp.media = self._get_model(
             total_sounds=session.count(Sound.all_query()),
@@ -78,6 +80,7 @@ class RootResource(object):
         )
         resp.status = falcon.HTTP_200
 
+    @exclude_from_docs
     def on_delete(self, req, resp, session):
         self.user_repo.delete_all()
         self.sound_repo.delete_all()
@@ -720,7 +723,9 @@ def permissions_error(ex, req, resp, params):
 class Application(falcon.API):
     """
     description:
-        Cochlea allows users to annotate audio files on the internet
+        Cochlea allows users to annotate audio files on the internet.  Segments
+        or time intervals of audio can be annotated with text tags or arbitrary
+        structured data hosted on another server.
     """
     def __init__(self, users_repo, sounds_repo, annotations_repo):
         super().__init__(middleware=[

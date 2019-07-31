@@ -6,6 +6,11 @@ from errors import DuplicateEntityException, PermissionsError, ImmutableError
 from string import Formatter
 
 
+def exclude_from_docs(f):
+    f._exclude_from_docs = True
+    return f
+
+
 def decode_auth_header(auth):
     username, password = base64.b64decode(
         auth.replace('Basic ', '')).decode().split(':')
