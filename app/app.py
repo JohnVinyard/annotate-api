@@ -561,9 +561,9 @@ class UsersResource(object):
             200,
             True,
             UsersResource.LINK_TEMPLATE,
-            user_type=UserType.HUMAN,
+            user_type=UserType.HUMAN.value,
             page_size=3,
-            page_number=2   )
+            page_number=2)
         return JSONHandler(AppEntityLinks()) \
             .serialize(users, content_type).decode()
 
@@ -742,8 +742,11 @@ class UserResource(object):
         to_delete = session.find_one(User.id == user_id)
         to_delete.deleted = ContextualValue(actor, True)
 
-    def get_example_patch_body(self):
-        pass
+    def example_patch_body(self):
+        return {
+            'about_me': 'Here is some updated about me text',
+            'password': 'Here|sANewPa$$w0rd'
+        }
 
     @falcon.before(basic_auth)
     def on_patch(self, req, resp, user_id, session, actor):
@@ -751,7 +754,7 @@ class UserResource(object):
         url_params:
             user_id: the identifier of the user to update
         example_request_body:
-            python: get_example_patch_body
+            python: example_patch_body
         responses:
             - status_code: 204
               description: The user was successfully updated

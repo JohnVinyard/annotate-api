@@ -40,8 +40,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58efc267786af82acef24a72bc26f",
-            "date_created": "2019-07-31T15:55:11.823550Z",
+            "id": "58efdd83b814c35ef9851cd3bc052",
+            "date_created": "2019-07-31T17:56:29.201755Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -49,16 +49,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58efc267786f56eea5bff986bf34d",
-            "date_created": "2019-07-31T15:55:11.823613Z",
+            "id": "58efdd83b8192b4a17a4e795a193f",
+            "date_created": "2019-07-31T17:56:29.201818Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58efc2677872c3d49140d35437da7",
-            "date_created": "2019-07-31T15:55:11.823668Z",
+            "id": "58efdd83b81c6e97ea9a8ab7bfda1",
+            "date_created": "2019-07-31T17:56:29.201870Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -66,7 +66,7 @@ Successfully fetched a list of users
         }
     ],
     "total_count": 200,
-    "next": "/users?user_type=UserType.HUMAN&page_size=3&page_number=2"
+    "next": "/users?user_type=human&page_size=3&page_number=2"
 }
 ```
 #### `401 Unauthorized`
@@ -136,8 +136,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efc26779ba4975ac3e27f3fc88d",
-    "date_created": "2019-07-31T15:55:11.828913Z",
+    "id": "58efdd83b95b8d94876fc4d2580b2",
+    "date_created": "2019-07-31T17:56:29.206978Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -187,7 +187,10 @@ User is not permitted to access this user
 ### Example Request Body
 
 ```json
-null
+{
+    "about_me": "Here is some updated about me text",
+    "password": "Here|sANewPa$$w0rd"
+}
 ```
 ### Responses
 
@@ -268,9 +271,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efc2677bfa7424562d7f14e5b2e",
-    "date_created": "2019-07-31T15:55:11.838128Z",
-    "created_by": "/users/58efc2677bf5c398e1191fabfe695",
+    "id": "58efdd83bba0e2c28698b7e751e14",
+    "date_created": "2019-07-31T17:56:29.216278Z",
+    "created_by": "/users/58efdd83bb9c5a29d8f0da7a64c08",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
