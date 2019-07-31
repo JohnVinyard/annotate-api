@@ -39,8 +39,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58efc0a2de5d754e9a40f6b63954f",
-            "date_created": "2019-07-31T15:47:17.236197Z",
+            "id": "58efc1d4b3a4905bc7fb8cf86a8a8",
+            "date_created": "2019-07-31T15:52:37.925464Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -48,16 +48,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58efc0a2de61bc9e6f68295db96f8",
-            "date_created": "2019-07-31T15:47:17.236259Z",
+            "id": "58efc1d4b3a8e0d4e46f7b884c6e6",
+            "date_created": "2019-07-31T15:52:37.925526Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58efc0a2de64fb1605cf8c8fbfe16",
-            "date_created": "2019-07-31T15:47:17.236310Z",
+            "id": "58efc1d4b3ac5f344388f55c56d28",
+            "date_created": "2019-07-31T15:52:37.925580Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -97,7 +97,7 @@ Successful user creation
 
 Input model validation error
 ## `DELETE /users/{user_id}`
-
+Delete a user with the specified id.  Users may only delete themselves.
 ### URL Parameters
 
 |Name|Description|
@@ -119,7 +119,7 @@ Unauthorized request
 
 User is not permitted to delete this user
 ## `GET /users/{user_id}`
-
+Fetch an individual user by id.  Some details, such as email, are only included when users fetch their own record
 ### URL Parameters
 
 |Name|Description|
@@ -135,8 +135,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efc0a2df85c98ebb43c01d744e3",
-    "date_created": "2019-07-31T15:47:17.240935Z",
+    "id": "58efc1d4b4f43d0cee722adeb5f0b",
+    "date_created": "2019-07-31T15:52:37.930830Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -154,7 +154,7 @@ Unauthorized request
 
 User is not permitted to access this user
 ## `HEAD /users/{user_id}`
-
+Check if a user exists by id
 ### URL Parameters
 
 |Name|Description|
@@ -267,9 +267,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efc0a2e1b809c15d5c152223f3e",
-    "date_created": "2019-07-31T15:47:17.249928Z",
-    "created_by": "/users/58efc0a2e1b2c7dccbcb2d16da489",
+    "id": "58efc1d4b749a4b55af5b8c1fb1b0",
+    "date_created": "2019-07-31T15:52:37.940387Z",
+    "created_by": "/users/58efc1d4b7447a3fcb57b64ca9431",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",

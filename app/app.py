@@ -683,6 +683,9 @@ class UserResource(object):
     @falcon.before(basic_auth)
     def on_get(self, req, resp, user_id, session, actor):
         """
+        description:
+            Fetch an individual user by id.  Some details, such as email, are
+            only included when users fetch their own record
         url_params:
             user_id: the identifier of the user to fetch
         responses:
@@ -702,6 +705,8 @@ class UserResource(object):
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id, session, actor):
         """
+        description:
+            Check if a user exists by id
         url_params:
             user_id: check if the user with `user_id` exists
         responses:
@@ -719,6 +724,9 @@ class UserResource(object):
     @falcon.before(basic_auth)
     def on_delete(self, req, resp, user_id, session, actor):
         """
+        description:
+            Delete a user with the specified id.  Users may only delete
+            themselves.
         url_params:
             user_id: the identifier of the user to delete
         responses:
