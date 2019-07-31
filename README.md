@@ -1,5 +1,6 @@
 # Cochlea
 Cochlea allows users to annotate audio files on the internet.  Segments or time intervals of audio can be annotated with text tags or arbitrary structured data hosted on another server.
+Basic Auth is currently the only form of authentication supported. Requests for most resources will return a `401 Unauthorized` response if the `Authorization` header is missing.
 ## `GET /`
 Return some high-level stats about users, sounds and annotations
 ### Responses
@@ -39,8 +40,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58efc1d4b3a4905bc7fb8cf86a8a8",
-            "date_created": "2019-07-31T15:52:37.925464Z",
+            "id": "58efc267786af82acef24a72bc26f",
+            "date_created": "2019-07-31T15:55:11.823550Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -48,16 +49,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58efc1d4b3a8e0d4e46f7b884c6e6",
-            "date_created": "2019-07-31T15:52:37.925526Z",
+            "id": "58efc267786f56eea5bff986bf34d",
+            "date_created": "2019-07-31T15:55:11.823613Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58efc1d4b3ac5f344388f55c56d28",
-            "date_created": "2019-07-31T15:52:37.925580Z",
+            "id": "58efc2677872c3d49140d35437da7",
+            "date_created": "2019-07-31T15:55:11.823668Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -135,8 +136,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efc1d4b4f43d0cee722adeb5f0b",
-    "date_created": "2019-07-31T15:52:37.930830Z",
+    "id": "58efc26779ba4975ac3e27f3fc88d",
+    "date_created": "2019-07-31T15:55:11.828913Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -267,9 +268,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efc1d4b749a4b55af5b8c1fb1b0",
-    "date_created": "2019-07-31T15:52:37.940387Z",
-    "created_by": "/users/58efc1d4b7447a3fcb57b64ca9431",
+    "id": "58efc2677bfa7424562d7f14e5b2e",
+    "date_created": "2019-07-31T15:55:11.838128Z",
+    "created_by": "/users/58efc2677bf5c398e1191fabfe695",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",

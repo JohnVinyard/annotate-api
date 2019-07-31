@@ -781,6 +781,10 @@ class Application(falcon.API):
         Cochlea allows users to annotate audio files on the internet.  Segments
         or time intervals of audio can be annotated with text tags or arbitrary
         structured data hosted on another server.
+
+        Basic Auth is currently the only form of authentication supported.
+        Requests for most resources will return a `401 Unauthorized` response if
+        the `Authorization` header is missing.
     """
 
     def __init__(self, users_repo, sounds_repo, annotations_repo):
