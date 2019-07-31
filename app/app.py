@@ -356,13 +356,20 @@ class AnnotationsResource(object):
 
 class SoundAnnotationsResource(object):
     def get_example_post_body(self):
-        raise NotImplementedError()
+        dict(
+            start_seconds=1.2,
+            duration_seconds=0.5,
+            tags=['snare', 'hi-hat'],
+            data_url='https://s3/data/numpy-fft-feature.dat')
 
     @falcon.before(basic_auth)
     def on_post(self, req, resp, sound_id, session, actor):
         """
         description:
-            Create a new annotation for the sound with identifier `sound_id`
+            Create a new annotation for the sound with identifier `sound_id`.
+            Text tags can be added directly to the resource via the `tags`
+            field, or arbitrary binary or other structured data may be pointed
+            to via the `data_url` parameter.
         url_params:
             sound_id: The identifier of the sound to annotate
         example_request_body:
@@ -372,6 +379,8 @@ class SoundAnnotationsResource(object):
               description: Successful annotation creation
             - status_code: 400
               description: Input model validation error
+            - status_code: 404
+              description: Provided an invalid `sound_id`
             - status_code: 401
               description: Unauthorized request
             - status_code: 403
