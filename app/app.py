@@ -1077,6 +1077,7 @@ class Application(falcon.API):
         the `Authorization` header is missing.
 
         There are three types of users possible:
+
             - `dataset` - can create both sounds and annotations, typically
                representing a related group of sounds on the internet, e.g
                [the MusicNet dataset](https://homes.cs.washington.edu/~thickstn/musicnet.html),
