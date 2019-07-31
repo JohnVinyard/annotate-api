@@ -188,8 +188,55 @@ class SoundsResource(object):
         resp.set_header('Location', f'/sounds/{sound.id}')
         resp.status = falcon.HTTP_CREATED
 
+    LINK_TEMPLATE = '/sounds?{encoded_params}'
+
     def get_example_list_model(self, content_type):
-        raise NotImplementedError()
+        user = User.create(
+            user_name='HalIncandenza',
+            password='Halation',
+            email='hal@enfield.com',
+            user_type=UserType.HUMAN,
+            about_me='Tennis 4 Life')
+
+        results = build_list_response(
+            actor=user,
+            items=[
+                Sound.create(
+                    creator=user,
+                    created_by=user,
+                    info_url='https://example.com/sound1',
+                    audio_url='https://example.com/sound1/file.wav',
+                    license_type=LicenseType.BY,
+                    title='First sound',
+                    duration_seconds=12.3,
+                    tags=['test']),
+                Sound.create(
+                    creator=user,
+                    created_by=user,
+                    info_url='https://example.com/sound2',
+                    audio_url='https://example.com/sound2/file.wav',
+                    license_type=LicenseType.BY,
+                    title='Second sound',
+                    duration_seconds=1.3,
+                    tags=['test']),
+                Sound.create(
+                    creator=user,
+                    created_by=user,
+                    info_url='https://example.com/sound3',
+                    audio_url='https://example.com/sound3/file.wav',
+                    license_type=LicenseType.BY,
+                    title='Third sound',
+                    duration_seconds=30.4,
+                    tags=['test']),
+            ],
+            total_count=100,
+            add_next_page=True,
+            link_template=SoundsResource.LINK_TEMPLATE,
+            page_number=1,
+            page_size=3)
+
+        return JSONHandler(AppEntityLinks()) \
+            .serialize(results, content_type).decode()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
@@ -232,7 +279,7 @@ class SoundsResource(object):
             actor,
             query,
             Sound.date_created.ascending(),
-            '/sounds?{encoded_params}',
+            SoundsResource.LINK_TEMPLATE,
             additional_params=additional_params)
 
 
@@ -751,6 +798,8 @@ class UserResource(object):
     @falcon.before(basic_auth)
     def on_patch(self, req, resp, user_id, session, actor):
         """
+        description:
+            Update information about the user
         url_params:
             user_id: the identifier of the user to update
         example_request_body:

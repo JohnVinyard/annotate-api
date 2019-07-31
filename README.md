@@ -40,8 +40,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58efdd83b814c35ef9851cd3bc052",
-            "date_created": "2019-07-31T17:56:29.201755Z",
+            "id": "58efdf105e0d05bc1e43cdaeaa4cb",
+            "date_created": "2019-07-31T18:03:25.117663Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -49,16 +49,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58efdd83b8192b4a17a4e795a193f",
-            "date_created": "2019-07-31T17:56:29.201818Z",
+            "id": "58efdf105e116c79bfb3fec0a1b5f",
+            "date_created": "2019-07-31T18:03:25.117726Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58efdd83b81c6e97ea9a8ab7bfda1",
-            "date_created": "2019-07-31T17:56:29.201870Z",
+            "id": "58efdf105e14c7d9daa5f4bbf3a98",
+            "date_created": "2019-07-31T18:03:25.117779Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -136,8 +136,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efdd83b95b8d94876fc4d2580b2",
-    "date_created": "2019-07-31T17:56:29.206978Z",
+    "id": "58efdf105f5a89b4fd1423a94f6b8",
+    "date_created": "2019-07-31T18:03:25.122995Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -177,7 +177,7 @@ Unauthorized request
 
 User is not permitted to access this user
 ## `PATCH /users/{user_id}`
-
+Update information about the user
 ### URL Parameters
 
 |Name|Description|
@@ -222,6 +222,55 @@ Get a list of sounds
 #### `200 OK`
 
 Successfully fetched a sound
+##### Example Response
+
+```json
+{
+    "items": [
+        {
+            "id": "58efdf106101161aa67ab962fa487",
+            "date_created": "2019-07-31T18:03:25.129761Z",
+            "created_by": "/users/58efdf1060f8b2b40437b03206a0e",
+            "info_url": "https://example.com/sound1",
+            "audio_url": "https://example.com/sound1/file.wav",
+            "license_type": "https://creativecommons.org/licenses/by/4.0",
+            "title": "First sound",
+            "duration_seconds": 12.3,
+            "tags": [
+                "test"
+            ]
+        },
+        {
+            "id": "58efdf106105b42a337339375de58",
+            "date_created": "2019-07-31T18:03:25.129827Z",
+            "created_by": "/users/58efdf1060f8b2b40437b03206a0e",
+            "info_url": "https://example.com/sound2",
+            "audio_url": "https://example.com/sound2/file.wav",
+            "license_type": "https://creativecommons.org/licenses/by/4.0",
+            "title": "Second sound",
+            "duration_seconds": 1.3,
+            "tags": [
+                "test"
+            ]
+        },
+        {
+            "id": "58efdf106109295ce2f0d0ab1cb43",
+            "date_created": "2019-07-31T18:03:25.129880Z",
+            "created_by": "/users/58efdf1060f8b2b40437b03206a0e",
+            "info_url": "https://example.com/sound3",
+            "audio_url": "https://example.com/sound3/file.wav",
+            "license_type": "https://creativecommons.org/licenses/by/4.0",
+            "title": "Third sound",
+            "duration_seconds": 30.4,
+            "tags": [
+                "test"
+            ]
+        }
+    ],
+    "total_count": 100,
+    "next": "/sounds?page_number=1&page_size=3"
+}
+```
 #### `404 Not Found`
 
 Provided an unknown sound identifier
@@ -271,9 +320,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efdd83bba0e2c28698b7e751e14",
-    "date_created": "2019-07-31T17:56:29.216278Z",
-    "created_by": "/users/58efdd83bb9c5a29d8f0da7a64c08",
+    "id": "58efdf1061d3ffa48aea9fcd4d65e",
+    "date_created": "2019-07-31T18:03:25.133127Z",
+    "created_by": "/users/58efdf1061cf9a9cf73d4c456affc",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
