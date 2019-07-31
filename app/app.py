@@ -502,7 +502,14 @@ class UserAnnotationResource(object):
 
 class UsersResource(object):
     def get_example_post_body(self):
-        raise NotImplementedError()
+        return {
+            'user_name': 'HalIncandenza',
+            'password': 'password',
+            'user_type': UserType.HUMAN.value,
+            'email': 'hal@eta.com',
+            'about_me': 'Up and coming tennis star',
+            'info_url': 'https://hal.eta.net'
+        }
 
     def on_post(self, req, resp, session):
         """

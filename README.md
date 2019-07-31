@@ -39,8 +39,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58efbf923519bb2bb852cebf7128c",
-            "date_created": "2019-07-31T15:42:31.330218Z",
+            "id": "58efc0a2de5d754e9a40f6b63954f",
+            "date_created": "2019-07-31T15:47:17.236197Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -48,16 +48,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58efbf92351e0f47f7b00a392a9dc",
-            "date_created": "2019-07-31T15:42:31.330280Z",
+            "id": "58efc0a2de61bc9e6f68295db96f8",
+            "date_created": "2019-07-31T15:47:17.236259Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58efbf92352169bc4fc9a09e6e44a",
-            "date_created": "2019-07-31T15:42:31.330333Z",
+            "id": "58efc0a2de64fb1605cf8c8fbfe16",
+            "date_created": "2019-07-31T15:47:17.236310Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -76,6 +76,18 @@ Unauthorized request
 User is not permitted to access this sound
 ## `POST /users`
 Create a new user
+### Example Request Body
+
+```json
+{
+    "user_name": "HalIncandenza",
+    "password": "password",
+    "user_type": "human",
+    "email": "hal@eta.com",
+    "about_me": "Up and coming tennis star",
+    "info_url": "https://hal.eta.net"
+}
+```
 ### Responses
 
 #### `201 Created`
@@ -123,8 +135,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efbf923645555f65ae8ea851a4d",
-    "date_created": "2019-07-31T15:42:31.335009Z",
+    "id": "58efc0a2df85c98ebb43c01d744e3",
+    "date_created": "2019-07-31T15:47:17.240935Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -255,9 +267,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efbf9238892502618dc08cdb5f1",
-    "date_created": "2019-07-31T15:42:31.344283Z",
-    "created_by": "/users/58efbf9238846b8a74f316eeee0ed",
+    "id": "58efc0a2e1b809c15d5c152223f3e",
+    "date_created": "2019-07-31T15:47:17.249928Z",
+    "created_by": "/users/58efc0a2e1b2c7dccbcb2d16da489",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
