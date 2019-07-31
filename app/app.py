@@ -344,7 +344,7 @@ class AnnotationsResource(object):
                 sound=snd,
                 start_seconds=1,
                 duration_seconds=1,
-                tags=['kick']
+                tags=['snare']
             ),
             Annotation.create(
                 creator=dataset,
@@ -360,7 +360,7 @@ class AnnotationsResource(object):
                 sound=snd2,
                 start_seconds=10,
                 duration_seconds=5,
-                tags=['crash-cymbal']
+                tags=['snare']
             ),
         ]
         results = build_list_response(
@@ -370,7 +370,9 @@ class AnnotationsResource(object):
             add_next_page=True,
             link_template=self.LINK_TEMPLATE,
             page_size=3,
-            page_number=2)
+            page_number=2,
+            tags='snare')
+
         return JSONHandler(AppEntityLinks()) \
             .serialize(results, content_type).decode()
 
@@ -390,8 +392,6 @@ class AnnotationsResource(object):
               description: Successfully fetched an annotation
               example:
                 python: get_example_list_model
-            - status_code: 404
-              description: Provided an unknown annotation identifier
             - status_code: 401
               description: Unauthorized request
             - status_code: 403
