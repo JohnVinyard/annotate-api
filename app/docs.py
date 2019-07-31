@@ -53,7 +53,11 @@ def generate_docs(app_name, content_type):
 
     sio.write(markdown_heading(app_name, 1))
 
-    app = Application(None, None, None)
+    app = Application(
+        users_repo=None,
+        sounds_repo=None,
+        annotations_repo=None,
+        is_dev_environment=True)
     app_info = extract_yaml(app.__class__)
 
     print(app_info['description'], file=sio)

@@ -1067,7 +1067,7 @@ def permissions_error(ex, req, resp, params):
 
 class Application(falcon.API):
     """
-    description:
+    description: |
         Cochlea allows users to annotate audio files on the internet.  Segments
         or time intervals of audio can be annotated with text tags or arbitrary
         structured data hosted on another server.
