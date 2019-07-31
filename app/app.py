@@ -356,7 +356,7 @@ class AnnotationsResource(object):
 
 class SoundAnnotationsResource(object):
     def get_example_post_body(self):
-        dict(
+        return dict(
             start_seconds=1.2,
             duration_seconds=0.5,
             tags=['snare', 'hi-hat'],
