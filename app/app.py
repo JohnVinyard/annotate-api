@@ -306,8 +306,73 @@ def head_entity(resp, session, query):
 
 
 class AnnotationsResource(object):
+
+    LINK_TEMPLATE = '/annotations?{encoded_params}'
+
     def get_example_list_model(self, content_type):
-        raise NotImplementedError()
+        dataset = User.create(
+            user_name='HalIncandenza',
+            password='Halation',
+            email='hal@enfield.com',
+            user_type=UserType.DATASET,
+            about_me='Tennis 4 Life')
+
+        snd = Sound.create(
+            creator=dataset,
+            created_by=dataset,
+            info_url='https://example.com/sound1',
+            audio_url='https://example.com/sound1/file.wav',
+            license_type=LicenseType.BY,
+            title='First sound',
+            duration_seconds=12.3,
+            tags=['test'])
+
+        snd2 = Sound.create(
+            creator=dataset,
+            created_by=dataset,
+            info_url='https://example.com/sound2',
+            audio_url='https://example.com/sound2/file.wav',
+            license_type=LicenseType.BY,
+            title='Second sound',
+            duration_seconds=3.2,
+            tags=['test'])
+
+        annotations = [
+            Annotation.create(
+                creator=dataset,
+                created_by=dataset,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['kick']
+            ),
+            Annotation.create(
+                creator=dataset,
+                created_by=dataset,
+                sound=snd,
+                start_seconds=2,
+                duration_seconds=1,
+                tags=['snare']
+            ),
+            Annotation.create(
+                creator=dataset,
+                created_by=dataset,
+                sound=snd2,
+                start_seconds=10,
+                duration_seconds=5,
+                tags=['crash-cymbal']
+            ),
+        ]
+        results = build_list_response(
+            actor=dataset,
+            items=annotations,
+            total_count=100,
+            add_next_page=True,
+            link_template=self.LINK_TEMPLATE,
+            page_size=3,
+            page_number=2)
+        return JSONHandler(AppEntityLinks()) \
+            .serialize(results, content_type).decode()
 
     @falcon.before(basic_auth)
     def on_get(self, req, resp, session, actor):
@@ -350,7 +415,7 @@ class AnnotationsResource(object):
             actor,
             query,
             Annotation.date_created.ascending(),
-            '/annotations?{encoded_params}',
+            self.LINK_TEMPLATE,
             additional_params=additional_params)
 
 
