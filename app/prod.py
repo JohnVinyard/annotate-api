@@ -8,7 +8,11 @@ connection_string = os.environ['connection_string']
 users_repo, sounds_repo, annotations_repo = \
     build_repositories(connection_string)
 
-api = Application(users_repo, sounds_repo, annotations_repo)
+api = Application(
+    users_repo,
+    sounds_repo,
+    annotations_repo,
+    is_dev_environment=False)
 
 
 logger.setup_lambda_logger(logging.DEBUG)

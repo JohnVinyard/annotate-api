@@ -5,7 +5,6 @@ from httphelper import \
     decode_auth_header, SessionMiddleware, EntityLinks, CorsMiddleware, \
     exclude_from_docs, encode_query_parameters
 from customjson import JSONHandler
-import urllib
 from errors import \
     PermissionsError, CompositeValidationError, EntityNotFoundError
 
@@ -45,7 +44,9 @@ def basic_auth(req, resp, resource, params):
 
 
 class RootResource(object):
-    def __init__(self, user_repo, sound_repo, annotation_repo):
+    def __init__(
+            self, user_repo, sound_repo, annotation_repo, is_dev_environment):
+        self.is_dev_environment = is_dev_environment
         self.annotation_repo = annotation_repo
         self.sound_repo = sound_repo
         self.user_repo = user_repo
@@ -83,6 +84,9 @@ class RootResource(object):
 
     @exclude_from_docs
     def on_delete(self, req, resp, session):
+        if not self.is_dev_environment:
+            raise falcon.HTTPMethodNotAllowed()
+
         self.user_repo.delete_all()
         self.sound_repo.delete_all()
         self.annotation_repo.delete_all()
@@ -306,7 +310,6 @@ def head_entity(resp, session, query):
 
 
 class AnnotationsResource(object):
-
     LINK_TEMPLATE = '/annotations?{encoded_params}'
 
     def get_example_list_model(self, content_type):
@@ -594,8 +597,6 @@ class SoundAnnotationsResource(object):
 
 
 class UserSoundsResource(object):
-
-
     def link_template(self, user_id):
         return f'/users/{user_id}/sounds?{{encoded_params}}'
 
@@ -1076,7 +1077,12 @@ class Application(falcon.API):
         the `Authorization` header is missing.
     """
 
-    def __init__(self, users_repo, sounds_repo, annotations_repo):
+    def __init__(
+            self,
+            users_repo,
+            sounds_repo,
+            annotations_repo,
+            is_dev_environment):
         super().__init__(middleware=[
             CorsMiddleware(),
             SessionMiddleware(
@@ -1089,8 +1095,8 @@ class Application(falcon.API):
         self.resp_options.media_handlers = falcon.media.Handlers({
             'application/json': JSONHandler(app_entity_links),
         })
-        self.add_route(
-            '/', RootResource(users_repo, sounds_repo, annotations_repo))
+        self.add_route('/', RootResource(
+            users_repo, sounds_repo, annotations_repo, is_dev_environment))
         self.add_route('/users', UsersResource())
         self.add_route(USER_URI_TEMPLATE, UserResource())
         self.add_route('/sounds', SoundsResource())

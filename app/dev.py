@@ -6,4 +6,8 @@ connection_string = os.environ['connection_string']
 users_repo, sounds_repo, annotations_repo = \
     build_repositories(connection_string)
 
-api = application = Application(users_repo, sounds_repo, annotations_repo)
+api = application = Application(
+    users_repo,
+    sounds_repo,
+    annotations_repo,
+    is_dev_environment=True)
