@@ -111,8 +111,8 @@ def generate_docs(app_name, content_type):
                     pretty = json.dumps(model, indent=4)
                     print(markdown_heading('Example Response', 5), file=sio)
                     print(f'```json\n{pretty}\n```', file=sio)
-                except (AttributeError, NotImplementedError):
-                    pass
+                except (AttributeError, NotImplementedError) as e:
+                    print('ERROR', e)
     sio.seek(0)
 
     with open('../README.md', 'w') as f:

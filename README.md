@@ -32,7 +32,42 @@ Get a list of users
 
 #### `200 OK`
 
-Successfully fetched a sound
+Successfully fetched a list of users
+##### Example Response
+
+```json
+{
+    "items": [
+        {
+            "id": "58efbf923519bb2bb852cebf7128c",
+            "date_created": "2019-07-31T15:42:31.330218Z",
+            "user_name": "HalIncandenza",
+            "user_type": "human",
+            "email": "hal@eta.net",
+            "about_me": "Tennis 4 Life",
+            "info_url": "https://halation.com"
+        },
+        {
+            "id": "58efbf92351e0f47f7b00a392a9dc",
+            "date_created": "2019-07-31T15:42:31.330280Z",
+            "user_name": "MikePemulis",
+            "user_type": "human",
+            "about_me": "Tennis 4 Life",
+            "info_url": "https://peemster.com"
+        },
+        {
+            "id": "58efbf92352169bc4fc9a09e6e44a",
+            "date_created": "2019-07-31T15:42:31.330333Z",
+            "user_name": "MarioIncandenza",
+            "user_type": "human",
+            "about_me": "Movies 4 Life",
+            "info_url": "https://mario.com"
+        }
+    ],
+    "total_count": 200,
+    "next": "/users?user_type=UserType.HUMAN&page_size=3&page_number=2"
+}
+```
 #### `401 Unauthorized`
 
 Unauthorized request
@@ -88,8 +123,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58efbe7f4e2f0e2028e45db58ad41",
-    "date_created": "2019-07-31T15:37:43.074559Z",
+    "id": "58efbf923645555f65ae8ea851a4d",
+    "date_created": "2019-07-31T15:42:31.335009Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -220,9 +255,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58efbe7f5045343d27369f6b8100b",
-    "date_created": "2019-07-31T15:37:43.083099Z",
-    "created_by": "/users/58efbe7f503fcc2ea77b27f04bfdd",
+    "id": "58efbf9238892502618dc08cdb5f1",
+    "date_created": "2019-07-31T15:42:31.344283Z",
+    "created_by": "/users/58efbf9238846b8a74f316eeee0ed",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
     "license_type": "https://creativecommons.org/licenses/by/4.0",

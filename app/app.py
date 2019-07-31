@@ -535,6 +535,7 @@ class UsersResource(object):
         users = build_list_response(
             viewer,
             [
+                viewer,
                 User.create(
                     user_name='MikePemulis',
                     password='password',
@@ -553,7 +554,9 @@ class UsersResource(object):
             200,
             True,
             UsersResource.LINK_TEMPLATE,
-            user_type=UserType.HUMAN)
+            user_type=UserType.HUMAN,
+            page_size=3,
+            page_number=2   )
         return JSONHandler(AppEntityLinks()) \
             .serialize(users, content_type).decode()
 
@@ -571,9 +574,9 @@ class UsersResource(object):
             user_name: Only return users matching this name
         responses:
             - status_code: 200
-              description: Successfully fetched a sound
+              description: Successfully fetched a list of users
               example:
-                python: get_example_list_model
+                python: get_model_example
             - status_code: 401
               description: Unauthorized request
             - status_code: 403
