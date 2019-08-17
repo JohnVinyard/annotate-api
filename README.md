@@ -71,8 +71,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "58eff06d10624fa3bcd5cabeb0252",
-            "date_created": "2019-07-31T19:21:05.719859Z",
+            "id": "590516e7a39973135ae49d56cf9eb",
+            "date_created": "2019-08-17T15:05:03.807910Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -80,16 +80,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "58eff06d10669ead2b0b39d60b8ea",
-            "date_created": "2019-07-31T19:21:05.719922Z",
+            "id": "590516e7a39de339a1d2e34661680",
+            "date_created": "2019-08-17T15:05:03.807974Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "58eff06d106a0351f7cc27c00f59a",
-            "date_created": "2019-07-31T19:21:05.719975Z",
+            "id": "590516e7a3a14b62010e438d94c11",
+            "date_created": "2019-08-17T15:05:03.808027Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -167,8 +167,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "58eff06d11bd6a3a29c419ff8823e",
-    "date_created": "2019-07-31T19:21:05.725409Z",
+    "id": "590516e7a4ec49e9851f36b3f469f",
+    "date_created": "2019-08-17T15:05:03.813327Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -259,11 +259,12 @@ Successfully fetched a list of sounds
 {
     "items": [
         {
-            "id": "58eff06d133972d68feee960bac80",
-            "date_created": "2019-07-31T19:21:05.731487Z",
-            "created_by": "/users/58eff06d1334a5654d8dd4eb277f4",
+            "id": "590516e7a664b6ef9702595de2358",
+            "date_created": "2019-08-17T15:05:03.819347Z",
+            "created_by": "/users/590516e7a65f8b9189cd2ddb28217",
             "info_url": "https://example.com/sound1",
             "audio_url": "https://example.com/sound1/file.wav",
+            "low_quality_audio_url": "https://example.com/sound1/file.mp3",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
             "title": "First sound",
             "duration_seconds": 12.3,
@@ -272,11 +273,12 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "58eff06d133cf8231dbd2dbc0b4da",
-            "date_created": "2019-07-31T19:21:05.731542Z",
-            "created_by": "/users/58eff06d1334a5654d8dd4eb277f4",
+            "id": "590516e7a668a6fad92f1a0b84adf",
+            "date_created": "2019-08-17T15:05:03.819409Z",
+            "created_by": "/users/590516e7a65f8b9189cd2ddb28217",
             "info_url": "https://example.com/sound2",
             "audio_url": "https://example.com/sound2/file.wav",
+            "low_quality_audio_url": "https://example.com/sound2/file.mp3",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
             "title": "Second sound",
             "duration_seconds": 1.3,
@@ -285,11 +287,12 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "58eff06d13403f06d2f9303a7d608",
-            "date_created": "2019-07-31T19:21:05.731593Z",
-            "created_by": "/users/58eff06d1334a5654d8dd4eb277f4",
+            "id": "590516e7a66c582a8003a4adf0d7f",
+            "date_created": "2019-08-17T15:05:03.819468Z",
+            "created_by": "/users/590516e7a65f8b9189cd2ddb28217",
             "info_url": "https://example.com/sound3",
             "audio_url": "https://example.com/sound3/file.wav",
+            "low_quality_audio_url": "https://example.com/sound3/file.mp3",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
             "title": "Third sound",
             "duration_seconds": 30.4,
@@ -355,11 +358,12 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "58eff06d1421bdb718b7fb730f374",
-    "date_created": "2019-07-31T19:21:05.735203Z",
-    "created_by": "/users/58eff06d141d3ce3fef0e0e1bf11d",
+    "id": "590516e7a746cf5e84baba54c37cb",
+    "date_created": "2019-08-17T15:05:03.822964Z",
+    "created_by": "/users/590516e7a741e258953caf99d4f08",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
+    "low_quality_audio_url": "https://example.com/sound/file.mp3",
     "license_type": "https://creativecommons.org/licenses/by/4.0",
     "title": "A sound",
     "duration_seconds": 12.3,
@@ -415,10 +419,10 @@ Successfully fetched a list of annotations
 {
     "items": [
         {
-            "id": "58eff06d152a0dff0f14c0fd3a697",
-            "date_created": "2019-07-31T19:21:05.739430Z",
-            "created_by": "/users/58eff06d1521d0d34d9eb4e763128",
-            "sound": "/sounds/58eff06d1527eb123d36d3850152c",
+            "id": "590516e7a84dc4551c703c3aebc38",
+            "date_created": "2019-08-17T15:05:03.827170Z",
+            "created_by": "/users/590516e7a845892283b3ae81f69ad",
+            "sound": "/sounds/590516e7a84bce8b3e78180716716",
             "start_seconds": 1.0,
             "duration_seconds": 1.0,
             "end_seconds": 2.0,
@@ -428,10 +432,10 @@ Successfully fetched a list of annotations
             ]
         },
         {
-            "id": "58eff06d152bffca9a0871b05d3ea",
-            "date_created": "2019-07-31T19:21:05.739460Z",
-            "created_by": "/users/58eff06d1521d0d34d9eb4e763128",
-            "sound": "/sounds/58eff06d1527eb123d36d3850152c",
+            "id": "590516e7a84fb02897ed2abe21778",
+            "date_created": "2019-08-17T15:05:03.827200Z",
+            "created_by": "/users/590516e7a845892283b3ae81f69ad",
+            "sound": "/sounds/590516e7a84bce8b3e78180716716",
             "start_seconds": 2.0,
             "duration_seconds": 1.0,
             "end_seconds": 3.0,
@@ -441,10 +445,10 @@ Successfully fetched a list of annotations
             ]
         },
         {
-            "id": "58eff06d152e9b5fd971d18f562a5",
-            "date_created": "2019-07-31T19:21:05.739503Z",
-            "created_by": "/users/58eff06d1524add12e29a2575af10",
-            "sound": "/sounds/58eff06d1527eb123d36d3850152c",
+            "id": "590516e7a852433cf428187c8be29",
+            "date_created": "2019-08-17T15:05:03.827242Z",
+            "created_by": "/users/590516e7a8485c23f45d0175f6a68",
+            "sound": "/sounds/590516e7a84bce8b3e78180716716",
             "start_seconds": 0.0,
             "duration_seconds": 12.3,
             "end_seconds": 12.3,
@@ -453,7 +457,7 @@ Successfully fetched a list of annotations
         }
     ],
     "total_count": 100,
-    "next": "/sounds/58eff06d1527eb123d36d3850152c/annotations?page_size=3&page_number=2"
+    "next": "/sounds/590516e7a84bce8b3e78180716716/annotations?page_size=3&page_number=2"
 }
 ```
 #### `404 Not Found`
@@ -531,11 +535,12 @@ Successfully fetched a list of sounds
 {
     "items": [
         {
-            "id": "58eff06d1699a102b7b4efc629243",
-            "date_created": "2019-07-31T19:21:05.745313Z",
-            "created_by": "/users/58eff06d1696060210dab54463431",
+            "id": "590516e7a9b590786017f1dafc7d9",
+            "date_created": "2019-08-17T15:05:03.832928Z",
+            "created_by": "/users/590516e7a9b1a81a1a8dea89c2492",
             "info_url": "https://example.com/sound1",
             "audio_url": "https://example.com/sound1/file.wav",
+            "low_quality_audio_url": "https://example.com/sound1/file.mp3",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
             "title": "First sound",
             "duration_seconds": 12.3,
@@ -544,11 +549,12 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "58eff06d169c6a8b1cf610ebc368b",
-            "date_created": "2019-07-31T19:21:05.745355Z",
-            "created_by": "/users/58eff06d1696060210dab54463431",
+            "id": "590516e7a9b89ebaf56e931960012",
+            "date_created": "2019-08-17T15:05:03.832976Z",
+            "created_by": "/users/590516e7a9b1a81a1a8dea89c2492",
             "info_url": "https://example.com/sound2",
             "audio_url": "https://example.com/sound2/file.wav",
+            "low_quality_audio_url": "https://example.com/sound2/file.mp3",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
             "title": "Second sound",
             "duration_seconds": 1.3,
@@ -557,11 +563,12 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "58eff06d169ee33ecda74272da5ac",
-            "date_created": "2019-07-31T19:21:05.745395Z",
-            "created_by": "/users/58eff06d1696060210dab54463431",
+            "id": "590516e7a9bb68728cd9c01f4e86a",
+            "date_created": "2019-08-17T15:05:03.833020Z",
+            "created_by": "/users/590516e7a9b1a81a1a8dea89c2492",
             "info_url": "https://example.com/sound3",
             "audio_url": "https://example.com/sound3/file.wav",
+            "low_quality_audio_url": "https://example.com/sound3/file.mp3",
             "license_type": "https://creativecommons.org/licenses/by/4.0",
             "title": "Third sound",
             "duration_seconds": 30.4,
@@ -571,7 +578,7 @@ Successfully fetched a list of sounds
         }
     ],
     "total_count": 100,
-    "next": "/users/58eff06d1696060210dab54463431/sounds?page_number=2&page_size=3"
+    "next": "/users/590516e7a9b1a81a1a8dea89c2492/sounds?page_number=2&page_size=3"
 }
 ```
 #### `404 Not Found`
@@ -609,10 +616,10 @@ Successfully fetched a list of annotations
 {
     "items": [
         {
-            "id": "58eff06d174b4203373e4908f0582",
-            "date_created": "2019-07-31T19:21:05.748153Z",
-            "created_by": "/users/58eff06d1745b46bcb013c15e8bd8",
-            "sound": "/sounds/58eff06d1749500fac424e0dc2d08",
+            "id": "590516e7aa63b9e9550c82bb1c901",
+            "date_created": "2019-08-17T15:05:03.835713Z",
+            "created_by": "/users/590516e7aa5c4ca9f801cc2e58987",
+            "sound": "/sounds/590516e7aa611115dae1f37bf465a",
             "start_seconds": 1.0,
             "duration_seconds": 1.0,
             "end_seconds": 2.0,
@@ -622,10 +629,10 @@ Successfully fetched a list of annotations
             ]
         },
         {
-            "id": "58eff06d174d14ee27234a946f325",
-            "date_created": "2019-07-31T19:21:05.748183Z",
-            "created_by": "/users/58eff06d1745b46bcb013c15e8bd8",
-            "sound": "/sounds/58eff06d1749500fac424e0dc2d08",
+            "id": "590516e7aa659db085c6222ef4ef2",
+            "date_created": "2019-08-17T15:05:03.835742Z",
+            "created_by": "/users/590516e7aa5c4ca9f801cc2e58987",
+            "sound": "/sounds/590516e7aa611115dae1f37bf465a",
             "start_seconds": 2.0,
             "duration_seconds": 1.0,
             "end_seconds": 3.0,
@@ -636,7 +643,7 @@ Successfully fetched a list of annotations
         }
     ],
     "total_count": 100,
-    "next": "/users/58eff06d1745b46bcb013c15e8bd8/annotations?page_size=2&page_number=2"
+    "next": "/users/590516e7aa5c4ca9f801cc2e58987/annotations?page_size=2&page_number=2"
 }
 ```
 #### `404 Not Found`
@@ -670,10 +677,10 @@ Successfully fetched an annotation
 {
     "items": [
         {
-            "id": "58eff06d17e7a9ad4ccdf5e5d2d6d",
-            "date_created": "2019-07-31T19:21:05.750655Z",
-            "created_by": "/users/58eff06d17df7eab523ad78c392ee",
-            "sound": "/sounds/58eff06d17e310543ecc30d80ebbe",
+            "id": "590516e7ab25658d2acc2f7bc8ff1",
+            "date_created": "2019-08-17T15:05:03.838811Z",
+            "created_by": "/users/590516e7ab1cac194c9e381c567f9",
+            "sound": "/sounds/590516e7ab2091810a3ed9dac5743",
             "start_seconds": 1.0,
             "duration_seconds": 1.0,
             "end_seconds": 2.0,
@@ -683,10 +690,10 @@ Successfully fetched an annotation
             ]
         },
         {
-            "id": "58eff06d17e986c6a10f104a5b6c8",
-            "date_created": "2019-07-31T19:21:05.750685Z",
-            "created_by": "/users/58eff06d17df7eab523ad78c392ee",
-            "sound": "/sounds/58eff06d17e310543ecc30d80ebbe",
+            "id": "590516e7ab2739011451fd5acb2d1",
+            "date_created": "2019-08-17T15:05:03.838840Z",
+            "created_by": "/users/590516e7ab1cac194c9e381c567f9",
+            "sound": "/sounds/590516e7ab2091810a3ed9dac5743",
             "start_seconds": 2.0,
             "duration_seconds": 1.0,
             "end_seconds": 3.0,
@@ -696,10 +703,10 @@ Successfully fetched an annotation
             ]
         },
         {
-            "id": "58eff06d17eb44a796e74991a4e09",
-            "date_created": "2019-07-31T19:21:05.750713Z",
-            "created_by": "/users/58eff06d17df7eab523ad78c392ee",
-            "sound": "/sounds/58eff06d17e5d498e69d057de8213",
+            "id": "590516e7ab28f965d68c388c0b251",
+            "date_created": "2019-08-17T15:05:03.838868Z",
+            "created_by": "/users/590516e7ab1cac194c9e381c567f9",
+            "sound": "/sounds/590516e7ab23948f64b1449d5db54",
             "start_seconds": 10.0,
             "duration_seconds": 5.0,
             "end_seconds": 15.0,
