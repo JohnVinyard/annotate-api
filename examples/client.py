@@ -83,6 +83,11 @@ class Client(object):
         return self._upsert_user(
             'featurebot', user_name, email, password, about_me, info_url)
 
+    def upsert_aggregator(
+            self, user_name, email, password, about_me, info_url=None):
+        return self._upsert_user(
+            'aggregator', user_name, email, password, about_me, info_url)
+
     def get_user(self, user_name):
         resource = self.uri('users')
         resp = self.session.get(

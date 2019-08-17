@@ -307,7 +307,7 @@ if __name__ == '__main__':
     api_client = Client(args.annotate_api_endpoint, logger=logger)
     # TODO: Should I introduce an indexer user type, since anonymous access
     # isn't allowed?
-    user_uri = api_client.upsert_user(
+    user_uri = api_client.upsert_aggregator(
         'mfcc_index',
         'john.vinyard+mfcc_index@gmail.com',
         args.password,
