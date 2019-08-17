@@ -637,6 +637,13 @@ class SoundTests(BaseTests, unittest2.TestCase):
         resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
         self.assertEqual(client.FORBIDDEN, resp.status_code)
 
+    def test_aggregator_cannot_create_sound(self):
+        user1, user1_location = self.create_user(user_type='aggregator')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.FORBIDDEN, resp.status_code)
+
     def test_unauthorized_when_creating_sound_anonymously(self):
         sound_data = self.sound_data()
         resp = requests.post(self.sounds_resource(), json=sound_data)
@@ -1170,6 +1177,20 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
             json={'annotations': [annotation_data]},
             auth=auth)
         self.assertEqual(client.CREATED, resp.status_code)
+
+    def test_aggregator_cannot_create_annotation(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+
+        fb, fb_location = self.create_user(user_type='aggregator')
+        fb_auth = self._get_auth(fb)
+        annotation_data = self.annotation_data(tags=['drums'])
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=fb_auth)
+        self.assertEqual(client.FORBIDDEN, resp.status_code)
 
     def test_can_create_multiple_annotations_at_once(self):
         user, user_location = self.create_user(user_type='human')

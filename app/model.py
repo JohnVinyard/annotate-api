@@ -13,9 +13,23 @@ def is_me(instance, context):
 
 
 class UserType(Enum):
+    """
+    Enumerates possible user types
+
+    Attributes:
+        HUMAN - A human user that will likely interact with the API via a GUI
+        FEATUREBOT - An automated user that computes features for some or all
+            sounds
+        DATASET - An automated user that creates sounds and may add annotations
+            to them in some cases
+        AGGREGATOR - An automated user with read-only access that may index
+            sounds and host a remote search API, or may compute statistics for
+            some or all sounds or annotations/features
+    """
     HUMAN = 'human'
     FEATUREBOT = 'featurebot'
     DATASET = 'dataset'
+    AGGREGATOR = 'aggregator'
 
 
 class AboutMe(BaseDescriptor):
@@ -122,10 +136,12 @@ class LicenseType(Enum):
 
 
 class Sound(BaseAppEntity):
+    ALLOWED_CREATOR_TYPES = {UserType.HUMAN, UserType.DATASET}
+
     created_by = Immutable(
         required=True,
         evaluate_context=lambda instance, context:
-        context.user_type != UserType.FEATUREBOT)
+            context.user_type in Sound.ALLOWED_CREATOR_TYPES)
     info_url = URL(required=True)
     audio_url = URL(required=True)
     low_quality_audio_url = URL(required=False)
@@ -140,7 +156,14 @@ class Sound(BaseAppEntity):
 
 
 class Annotation(BaseAppEntity):
-    created_by = Immutable(required=True)
+
+    ALLOWED_CREATOR_TYPES = \
+        {UserType.HUMAN, UserType.DATASET, UserType.FEATUREBOT}
+
+    created_by = Immutable(
+        required=True,
+        evaluate_context=lambda instance, context:
+            context.user_type in Annotation.ALLOWED_CREATOR_TYPES)
     sound = Immutable(required=True)
     start_seconds = Immutable(required=True, value_transform=float)
     duration_seconds = Immutable(required=True, value_transform=float)

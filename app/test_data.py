@@ -196,6 +196,10 @@ class SoundTests(unittest2.TestCase):
         user = User.create(**user1(user_type=UserType.FEATUREBOT))
         self.assertRaises(PermissionsError, lambda: sound(user))
 
+    def test_permission_error_when_creator_is_aggregator(self):
+        user = User.create(**user1(user_type=UserType.AGGREGATOR))
+        self.assertRaises(PermissionsError, lambda: sound(user))
+
     def test_validation_error_when_info_url_is_invalid(self):
         user = User.create(**user1())
         self.assertRaises(ValueError, lambda: sound(user, info_url='blah'))
@@ -230,6 +234,31 @@ class AnnotationDataTests(unittest2.TestCase):
     def _session(self):
         return Session(self.user_repo, self.sound_repo, self.annotation_repo)
 
+    def test_permissions_error_when_creator_is_aggregator(self):
+        with self._session():
+            creator = User.create(**user1(user_type=UserType.HUMAN))
+            creator_id = creator.id
+            aggregator = User.create(**user1(user_type=UserType.AGGREGATOR))
+            aggregator_id = aggregator.id
+
+        with self._session() as s:
+            creator = s.find_one(User.id == creator_id)
+            snd = sound(creator)
+            snd_id = snd.id
+
+        with self._session() as s:
+            snd = s.find_one(Sound.id == snd_id)
+            aggregator = s.find_one(User.id == aggregator_id)
+            self.assertRaises(PermissionsError, lambda: Annotation.create(
+                creator=aggregator,
+                created_by=aggregator,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['drums'],
+                data_url=None
+            ))
+
     def test_can_create_computed_field(self):
         with self._session():
             user = User.create(**user1())
@@ -244,6 +273,7 @@ class AnnotationDataTests(unittest2.TestCase):
             user = next(s.filter(User.id == user_id))
             snd = next(s.filter(Sound.id == sound_id))
             annotation = Annotation.create(
+                creator=user,
                 created_by=user,
                 sound=snd,
                 start_seconds=1,
@@ -267,6 +297,7 @@ class AnnotationDataTests(unittest2.TestCase):
             user = next(s.filter(User.id == user_id))
             snd = next(s.filter(Sound.id == sound_id))
             annotation = Annotation.create(
+                creator=user,
                 created_by=user,
                 sound=snd,
                 start_seconds=1,
@@ -293,6 +324,7 @@ class AnnotationDataTests(unittest2.TestCase):
             user = next(s.filter(User.id == user_id))
             snd = next(s.filter(Sound.id == sound_id))
             annotation = Annotation.create(
+                creator=user,
                 created_by=user,
                 sound=snd,
                 start_seconds=1,
