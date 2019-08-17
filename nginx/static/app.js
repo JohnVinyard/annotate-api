@@ -518,10 +518,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
       .getResource(app.annotateClient().buildUri(annotation.sound))
       // Fetch audio data from the remote audio url
       .then(data => {
-
-        // prefer the low quality URL in web applications
         const audioUrl = data.low_quality_audio_url || data.audio_url;
-
         return new Promise(function(resolve, reject) {
           return fetchAudio(audioUrl, context).then(buffer => {
             resolve({

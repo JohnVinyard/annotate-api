@@ -10,7 +10,7 @@ import soundfile
 from http import client
 from log import module_logger
 from mp3encoder import encode_mp3
-import os
+from pathlib import Path
 
 logger = module_logger(__file__)
 
@@ -49,26 +49,32 @@ if __name__ == '__main__':
     resp = requests.get(info_url)
 
     for m in pattern.finditer(resp.text):
-        _id = m.groupdict()['uri']
-        url = urllib.parse.urljoin('http://phatdrumloops.com', _id)
+        path = Path(m.groupdict()['uri'])
+        url = urllib.parse.urljoin('http://phatdrumloops.com', str(path))
         resp = requests.get(url, headers={'Range': 'bytes=0-'})
         bio = BytesIO(resp.content)
-        url = object_storage_client.put_object(_id, bio, 'audio/wav')
-        logger.info(f'Pushed audio data for {url} to s3')
-        bio.seek(0)
 
-        encoded = encode_mp3(bio)
-        low_quality_id = os.path.join('low-quality', _id)
+        try:
+            encoded = encode_mp3(bio)
+        except RuntimeError:
+            logger.info(f'Error decoding audio for {url}. Skipping.')
+            continue
+
+        relative_path = path.relative_to('/')
+
+        low_quality_id = \
+            str(Path('low-quality') / relative_path.with_suffix('.mp3'))
         low_quality_url = object_storage_client.put_object(
             low_quality_id, encoded, 'audio/mp3')
         logger.info(f'Pushed {low_quality_url} to s3')
         bio.seek(0)
 
-        try:
-            info = soundfile.info(bio)
-        except RuntimeError:
-            # we couldn't interpret this file, so skip it
-            continue
+        _id = str(relative_path.with_suffix('.wav'))
+        url = object_storage_client.put_object(_id, bio, 'audio/wav')
+        logger.info(f'Pushed audio data for {url} to s3')
+        bio.seek(0)
+
+        info = soundfile.info(bio)
         status, sound_uri, sound_id = annotate_client.create_sound(
             audio_url=url,
             low_quality_audio_url=low_quality_url,
