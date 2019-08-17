@@ -97,6 +97,7 @@ class Client(object):
     def create_sound(
             self,
             audio_url,
+            low_quality_audio_url,
             info_url,
             license_type,
             title,
@@ -108,6 +109,7 @@ class Client(object):
             uri,
             json={
                 'audio_url': audio_url,
+                'low_quality_audio_url': low_quality_audio_url,
                 'info_url': info_url,
                 'license_type': license_type,
                 'title': title,

@@ -9,7 +9,8 @@ from io import BytesIO
 import soundfile
 from http import client
 from log import module_logger
-
+from mp3encoder import encode_mp3
+import os
 
 logger = module_logger(__file__)
 
@@ -55,6 +56,14 @@ if __name__ == '__main__':
         url = object_storage_client.put_object(_id, bio, 'audio/wav')
         logger.info(f'Pushed audio data for {url} to s3')
         bio.seek(0)
+
+        encoded = encode_mp3(bio)
+        low_quality_id = os.path.join('low-quality', _id)
+        low_quality_url = object_storage_client.put_object(
+            low_quality_id, encoded, 'audio/mp3')
+        logger.info(f'Pushed {low_quality_url} to s3')
+        bio.seek(0)
+
         try:
             info = soundfile.info(bio)
         except RuntimeError:
@@ -62,6 +71,7 @@ if __name__ == '__main__':
             continue
         status, sound_uri, sound_id = annotate_client.create_sound(
             audio_url=url,
+            low_quality_audio_url=low_quality_url,
             info_url=info_url,
             license_type='https://creativecommons.org/licenses/by-nc-nd/4.0',
             title=_id,

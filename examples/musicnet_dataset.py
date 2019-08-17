@@ -8,6 +8,7 @@ from zounds.util import midi_to_note, midi_instrument
 from s3client import ObjectStorageClient
 import soundfile
 from log import module_logger
+from mp3encoder import encode_mp3
 
 logger = module_logger(__file__)
 
@@ -63,10 +64,18 @@ def add_sounds(data_dir, labels_dir, metadata, tags):
             url = object_storage_client.put_object(_id, f, 'audio/wav')
             logger.info(f'pushed {url} to s3')
 
+        with open(audio_path, 'rb') as f:
+            encoded = encode_mp3(f)
+            low_quality_id = os.path.join('low-quality', _id)
+            low_quality_url = object_storage_client.put_object(
+                low_quality_id, encoded, 'audio/mp3')
+            logger.info(f'pushed {low_quality_url} to s3')
+
         # create a sound
         info = soundfile.info(audio_path)
         status, sound_uri, sound_id = annotate_client.create_sound(
             audio_url=url,
+            low_quality_audio_url=low_quality_url,
             info_url=info_url,
             license_type='https://creativecommons.org/licenses/by/4.0',
             title=data['title'],

@@ -8,6 +8,7 @@ from cli import DatasetArgumentParser
 from http import client
 from s3client import ObjectStorageClient
 from log import module_logger
+from mp3encoder import encode_mp3
 
 logger = module_logger(__file__)
 
@@ -68,9 +69,17 @@ if __name__ == '__main__':
             url = object_storage_client.put_object(key, f, 'audio/wav')
             logger.info(f'Created s3 resource at {url}')
 
+        with open(full_path, 'rb') as f:
+            encoded = encode_mp3(f)
+            low_quality_key = os.path.join('low-quality', key)
+            low_quality_url = object_storage_client.put_object(
+                low_quality_key, encoded, 'audio/mp3')
+            logger.info(f'pushed {low_quality_url} to s3')
+
         duration_seconds = soundfile.info(full_path).duration
         status, sound_uri, sound_id = annotate_client.create_sound(
             audio_url=url,
+            low_quality_audio_url=low_quality_url,
             info_url='https://magenta.tensorflow.org/datasets/nsynth',
             license_type='https://creativecommons.org/licenses/by/4.0',
             title=key,

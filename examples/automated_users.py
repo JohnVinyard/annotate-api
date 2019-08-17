@@ -79,7 +79,7 @@ if __name__ == '__main__':
     processes = ProcessCollection(
 
         # datasets
-        # process('phatdrumloops.py'),
+        process('phatdrumloops.py'),
         process(
             'musicnet_dataset.py',
             **{'--metadata-path': '/hdd/musicnet'}),
