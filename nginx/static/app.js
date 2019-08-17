@@ -372,7 +372,22 @@ class AnnotateApiClient {
 
   getResource(url) {
     return fetch(url, {headers: this.authHeaders, mode: 'cors'})
-      .then(resp => resp.json());
+      .then(resp => {
+        if (!resp.ok) {
+          throw Error(resp.statusText);
+        }
+        return resp.json();
+      });
+  }
+
+  getUserByName(userName) {
+    const url = this.buildUri(`/users?user_name=${userName}`);
+    return this.getResource(url);
+  }
+
+  getUser(userId) {
+    const url = this.buildUri(`/users/${userId}`);
+    return this.getResource(url);
   }
 
   getSounds(pageSize=100) {
@@ -581,96 +596,96 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
 };
 
 
-document.addEventListener('DOMContentLoaded', function() {
-  app = new Vue({
-    el: '#app',
-    data: {
-      features: [],
-      currentFeature: null,
-      textQuery: null,
-      query: null,
-      results: [],
-      candidateQuery: null,
-      remoteSearchHost: cochleaAppSettings.remoteSearchHost,
-      userName: null,
-      password: null,
-      showPassword: false
-    },
-    watch: {
-      userName: function(val) {
-        this.fetchFeatures();
-      },
-      password: function(val) {
-        this.fetchFeatures();
-      }
-    },
-    methods: {
-      fetchFeatures: function() {
-        if(!this.userName || !this.password) {
-          return;
-        }
-        // TODO: Only feature bots that create full-length, dense scalar or vector
-        // features should be included in this list.  How can those be filtered out?
-        app.annotateClient().getFeatureBots()
-          .then(data => {
-            app.features = [{user_name: 'audio'}].concat(data.items);
-            app.currentFeature = app.features[0];
-          });
-      },
-
-      annotateClient: function() {
-        return new AnnotateApiClient(
-          this.userName, this.password, cochleaAppSettings.apiHost);
-      },
-
-      queryChange: function(event) {
-        this.query = () => this.annotateClient().getAnnotations(this.textQuery);
-      },
-
-      changeFeature: function() {
-        this.handleSubmit();
-      },
-
-      handleSubmit: function() {
-        this.query()
-          .then(data => {
-            const searchResults = document.querySelector('#search-results');
-
-            // clear the results
-            while(searchResults.firstChild) {
-              searchResults.firstChild.remove();
-            }
-
-            const featureDataMapping = {};
-            data.items.forEach(annotation => {
-              const fp = () => featurePromise(
-                annotation,
-                featureDataMapping,
-                searchResults,
-                annotation.sound);
-              return new FeatureView(
-                searchResults,
-                fp,
-                annotation.sound,
-                annotation.start_seconds);
-            });
-          });
-      },
-
-      remoteSearch: function() {
-        const soundUri = this.candidateQuery.soundUri;
-        const startSeconds = this.candidateQuery.startSeconds;
-        const host = this.remoteSearchHost;
-        const uri = `${host}?sound=${soundUri}&seconds=${startSeconds}`;
-        this.textQuery = '';
-        this.query = () => fetch(uri).then(data => data.json());
-        this.handleSubmit();
-      },
-    }
-  });
-
-  document.addEventListener('candidateQuery', e => {
-    console.log('Candidate Query', e.detail);
-    app.candidateQuery = e.detail;
-  });
-});
+// document.addEventListener('DOMContentLoaded', function() {
+//   app = new Vue({
+//     el: '#app',
+//     data: {
+//       features: [],
+//       currentFeature: null,
+//       textQuery: null,
+//       query: null,
+//       results: [],
+//       candidateQuery: null,
+//       remoteSearchHost: cochleaAppSettings.remoteSearchHost,
+//       userName: null,
+//       password: null,
+//       showPassword: false
+//     },
+//     watch: {
+//       userName: function(val) {
+//         this.fetchFeatures();
+//       },
+//       password: function(val) {
+//         this.fetchFeatures();
+//       }
+//     },
+//     methods: {
+//       fetchFeatures: function() {
+//         if(!this.userName || !this.password) {
+//           return;
+//         }
+//         // TODO: Only feature bots that create full-length, dense scalar or vector
+//         // features should be included in this list.  How can those be filtered out?
+//         app.annotateClient().getFeatureBots()
+//           .then(data => {
+//             app.features = [{user_name: 'audio'}].concat(data.items);
+//             app.currentFeature = app.features[0];
+//           });
+//       },
+//
+//       annotateClient: function() {
+//         return new AnnotateApiClient(
+//           this.userName, this.password, cochleaAppSettings.apiHost);
+//       },
+//
+//       queryChange: function(event) {
+//         this.query = () => this.annotateClient().getAnnotations(this.textQuery);
+//       },
+//
+//       changeFeature: function() {
+//         this.handleSubmit();
+//       },
+//
+//       handleSubmit: function() {
+//         this.query()
+//           .then(data => {
+//             const searchResults = document.querySelector('#search-results');
+//
+//             // clear the results
+//             while(searchResults.firstChild) {
+//               searchResults.firstChild.remove();
+//             }
+//
+//             const featureDataMapping = {};
+//             data.items.forEach(annotation => {
+//               const fp = () => featurePromise(
+//                 annotation,
+//                 featureDataMapping,
+//                 searchResults,
+//                 annotation.sound);
+//               return new FeatureView(
+//                 searchResults,
+//                 fp,
+//                 annotation.sound,
+//                 annotation.start_seconds);
+//             });
+//           });
+//       },
+//
+//       remoteSearch: function() {
+//         const soundUri = this.candidateQuery.soundUri;
+//         const startSeconds = this.candidateQuery.startSeconds;
+//         const host = this.remoteSearchHost;
+//         const uri = `${host}?sound=${soundUri}&seconds=${startSeconds}`;
+//         this.textQuery = '';
+//         this.query = () => fetch(uri).then(data => data.json());
+//         this.handleSubmit();
+//       },
+//     }
+//   });
+//
+//   document.addEventListener('candidateQuery', e => {
+//     console.log('Candidate Query', e.detail);
+//     app.candidateQuery = e.detail;
+//   });
+// });
