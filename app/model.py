@@ -128,6 +128,7 @@ class Sound(BaseAppEntity):
         context.user_type != UserType.FEATUREBOT)
     info_url = URL(required=True)
     audio_url = URL(required=True)
+    low_quality_audio_url = URL(required=False)
     license_type = Immutable(value_transform=LicenseType, required=True)
     title = Immutable(required=True)
     duration_seconds = Immutable(required=True, value_transform=float)

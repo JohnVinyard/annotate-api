@@ -52,6 +52,7 @@ class SoundMapper(BaseMapper):
     created_by = EntityMapping(Sound.created_by, User)
     info_url = BaseMapping(Sound.info_url)
     audio_url = BaseMapping(Sound.audio_url)
+    low_quality_audio_url = BaseMapping(Sound.low_quality_audio_url)
     license_type = EnumMapping(Sound.license_type, LicenseType)
     title = BaseMapping(Sound.title)
     duration_seconds = BaseMapping(Sound.duration_seconds)

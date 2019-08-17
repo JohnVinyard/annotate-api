@@ -54,15 +54,23 @@ class BaseTests(object):
             license_type=None,
             title=None,
             duration_seconds=None,
-            tags=None):
+            tags=None,
+            low_quality_audio_url=None):
+
+        if audio_url is None:
+            audio_url = 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg'
+
+        if low_quality_audio_url is None:
+            low_quality_audio_url = audio_url
+
         return dict(
             info_url=info_url or 'https://archive.org/details/Greatest_Speeches_of_the_20th_Century',
-            audio_url=audio_url or 'https://archive.org/download/Greatest_Speeches_of_the_20th_Century/AbdicationAddress.ogg',
+            audio_url=audio_url,
             license_type=license_type or 'https://creativecommons.org/licenses/by/4.0',
             title='Abdication Address - King Edward VIII' if title is None else title,
             duration_seconds=duration_seconds or (6 * 60) + 42,
-            tags=tags
-        )
+            tags=tags,
+            low_quality_audio_url=low_quality_audio_url)
 
     def annotation_data(
             self,
@@ -581,6 +589,26 @@ class SoundTests(BaseTests, unittest2.TestCase):
         sound_resp = requests.get(self.url(sound_location), auth=auth)
         self.assertEqual(client.OK, sound_resp.status_code)
         self.assertEqual(sound_data['info_url'], sound_resp.json()['info_url'])
+
+    def test_can_create_sound_with_low_quality_url(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        audio_url = 'https://example.com/audio.wav'
+        low_quality_audio_url = 'https://example.com/audio.mp3'
+
+        sound_data = self.sound_data(
+            audio_url=audio_url,
+            low_quality_audio_url=low_quality_audio_url)
+
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.get(self.url(sound_location), auth=auth)
+        self.assertEqual(client.OK, sound_resp.status_code)
+        self.assertEqual(audio_url, sound_resp.json()['audio_url'])
+        self.assertEqual(
+            low_quality_audio_url, sound_resp.json()['low_quality_audio_url'])
 
     def test_cannot_create_duplicate_sound(self):
         user1, user1_location = self.create_user(user_type='dataset')
