@@ -4,85 +4,164 @@
     <meta charset="UTF-8">
     <title>Annotate UI</title>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
     <script type="text/javascript" src="settings.js"></script>
     <script type="text/javascript" src="app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css" />
-    <link rel="stylesheet" href="style.css" />
+    <script type="text/javascript" src="app2.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css"
+      integrity="sha256-vK3UTo/8wHbaUn+dTQD0X6dzidqc5l7gczvH+Bnowwk="
+      crossorigin="anonymous" />
 </head>
-<body>
+<body >
 
-    <template id="sound-view-template">
-        <div class="sound-view-outer-container">
-            <div class="sound-view-controls">
-                <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
-                <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
-            </div>
-
-            <div class="sound-view-container">
-                <canvas class="sound-view-visualization">
-                </canvas>
-            </div>
-        </div>
-    </template>
-
-    <header class="container">
-        <div class="columns">
-            <div class="column col-1">Annotate</div>
-            <div class="column col-11"></div>
-        </div>
-    </header>
-
-    <main id="app">
-
-        <!-- Credentials -->
-        <section>
-          <label for="username">User name</label>
-          <input name="username" type="text" v-model.lazy="userName" />
-          <label for="password">Password</label>
-          <input
-              name="password"
-              v-bind:type="showPassword ? 'text' : 'password'"
-              v-model.lazy="password" />
-          <label for="show-password">Show password?</label>
-          <input type="checkbox" name="show-password" v-model="showPassword" />
-        </section>
-        <!-- Feature selection -->
-        {{ currentFeature ? currentFeature.user_name : undefined }}
-        <select id="feature-bots" v-model="currentFeature" @change="changeFeature">
-          <option v-for="feature in features" v-bind:value="feature">
-            {{ feature.user_name }}
-          </option>
-        </select>
-
-        <!-- Search -->
-        <section class="container">
-
-            <div class="columns">
-                <div class="column col-12">
-                    <input
-                            id="search-criteria"
-                            type="text"
-                            placeholder="tags"
-                            v-model="textQuery"
-                            @keyup="queryChange" />
-                    <input id="search" type="submit" v-on:click="handleSubmit" />
-                </div>
-            </div>
-
-            <div v-on:click="remoteSearch">
-              {{ candidateQuery ? candidateQuery.soundUri : undefined }}
-            </div>
-        </section>
-    </main>
-
-    <section class="container">
-      <div class="columns">
-          <div class="column col-12">
-              <ul id="search-results">
-
-              </ul>
-          </div>
+  <template id="welcome-template">
+    <section class="section">
+      <div class="content has-text-centered">
+        <h1>Welcome to Cochlea!</h1>
+        <p>
+          It looks like you don't have an account yet.  Please <router-link
+            :to="{ name: 'sign-in', params: { user }}"
+            v-if="!user.data">
+            sign in</router-link> or <router-link
+            to="/register"
+            v-if="!user.data">register</router-link>!
+        </p>
       </div>
     </section>
+  </template>
+
+  <template id="sign-in-template">
+    <section class="section">
+      <div class="container">
+
+        <article v-if="error" class="message is-danger">
+          <div class="message-body">
+            You supplied invalid credentials.
+          </div>
+        </article>
+
+        <!-- User Name -->
+        <div class="field">
+          <label class="label" for="user-name">User Name</label>
+          <div class="control">
+            <input class="input" type="text" id="user-name" v-model="user.name"/>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="field">
+          <label class="label" for="password">Password</label>
+          <div class="control">
+            <input class="input" type="password" id="password" v-model="user.password"/>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="field">
+          <div class="control">
+            <button
+              class="button is-link"
+              type="submit"
+              v-on:click="signIn">Submit</button>
+          </div>
+        </div>
+
+      </div>
+
+    </<section>
+  </template>
+
+  <template id="register-template">
+    <section>
+      Register
+    </<section>
+  </template>
+
+  <template id="user-detail-template">
+    <section class="section">
+      <div class="content">
+        <h1>{{ userName }}</h1>
+        <p>
+          <a v-bind:href="infoUrl">More info</a>
+        </p>
+        <p>{{ aboutMe }}</p>
+      </div>
+    </section>
+  </template>
+
+  <template id="user-summary-template">
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-header-title">{{ user.user_name }}</h3>
+      </div>
+      <div class="card-content">
+        <div class="content">
+          {{ user.about_me }}
+        </div>
+      </div>
+    </div>
+
+  </template>
+
+  <template id="users-template">
+    <div class="container">
+
+      <!-- Text search -->
+      <div class="section">
+        <div class="container">
+          <!-- User Name -->
+          <div class="field">
+            <label class="label" for="query">Query</label>
+            <div class="control">
+              <input class="input" type="text" id="query" v-model="query"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="section">
+        <div class="container">
+          <user-summary v-for="user in users" :user="user" />
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="annotations-template">
+    <section>
+      Annotations List
+    </<section>
+  </template>
+
+  <template id="sound-template">
+    <section>
+      Individual Sound {{ id }}
+    </<section>
+  </template>
+
+
+  <div id="app">
+    <!-- Header -->
+    <header class="hero is-light" id="header">
+      <div class="hero-body">
+          <h3>Cochlea</h3>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <section class="section" id="main-content">
+      <div class="container">
+        <!-- route outlet -->
+        <!-- component matched by the route will render here -->
+        <router-view></router-view>
+      </div>
+    </section>
+
+  </div>
+
 </body>
 </html>

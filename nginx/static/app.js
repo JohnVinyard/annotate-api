@@ -390,6 +390,11 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
+  getUsers() {
+    const url = this.buildUri('/users/');
+    return this.getResource(url);
+  }
+
   getSounds(pageSize=100) {
     const url = this.buildUri(`/sounds?page_size=${pageSize}`);
     return this.getResource(url);
