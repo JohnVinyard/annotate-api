@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', function() {
     template: '#welcome-template'
   });
 
+  const Menu = Vue.component('menu', {
+    template: '#menu-template'
+  });
+
   const UserDetail = Vue.component('user', {
     props: ['user', 'id'],
     template: '#user-detail-template',
@@ -27,6 +31,36 @@ document.addEventListener('DOMContentLoaded', function() {
           this.infoUrl = data.info_url;
         });
 
+    }
+  });
+
+  const Annotation = Vue.component('annotation', {
+    template: '#annotation-template',
+    props: ['annotation'],
+    data: function() {
+      return {
+
+      };
+    }
+  });
+
+  const Annotations = Vue.component('annotations', {
+    template: '#annotations-template',
+    data: function() {
+      return {
+        query: null,
+        annotations: []
+      }
+    },
+    mounted: function() {
+      const identity = auth.tryGetUserIdentity();
+      const client = new AnnotateApiClient(
+        identity.name, identity.password, cochleaAppSettings.apiHost);
+      client
+        .getAnnotations()
+        .then(data => {
+          this.annotations = data.items;
+        });
     }
   });
 
@@ -115,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
           .then(data => {
             this.user.data = data;
             // TODO: The sign-in location should be factored out somewhere
-            this.$router.push({ name: 'users' });
+            this.$router.push({ name: 'menu' });
           })
           .catch(error => {
             this.user.name = null;
@@ -126,8 +160,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  const Annotations = Vue.component('annotations', {
-    template: '#annotations-template'
+
+
+  const Sounds = Vue.component('sounds', {
+    template: '#sounds-template'
   });
 
   const Sound = Vue.component('sound', {
@@ -140,14 +176,16 @@ document.addEventListener('DOMContentLoaded', function() {
   const router = new VueRouter({
     routes: [
       { path: routerPath('/welcome'), name: 'welcome', component: Welcome, props: true },
+      { path: routerPath('/menu'), name: 'menu', component: Menu},
       { path: routerPath('/sign-in'), name: 'sign-in', component: SignIn, props: true },
       { path: routerPath('/register'), name: 'register', component: Register},
       { path: routerPath('/annotations'), name: 'annotations', component: Annotations},
+      { path: routerPath('/sounds'), name: 'sounds', component: Sounds },
       { path: routerPath('/sounds/:id'), name: 'sound', component: Sound, props: true},
       { path: routerPath('/users/:id'), name: 'user', component: UserDetail, props: true},
       { path: routerPath('/users'), name: 'users', component: UserList, props: true}
     ],
-    mode: 'history'
+    // mode: 'history'
   });
 
   app = new Vue({
@@ -171,18 +209,24 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       isAuthenticated: function() {
         return Boolean(this.user.data);
+      },
+      logOut: function() {
+        auth.logOut();
+        this.user = {
+          name: null,
+          password: null,
+          data: null
+        };
+        this.$router.push({ name: 'welcome', params: { user: this.user } });
+      },
+      homeLink: function() {
+        return this.isAuthenticated() ?
+          { name: 'menu' } : { name: 'welcome', params: { user: this.user }};
       }
     },
     mounted: function() {
       this.initializeCredentials();
-      if (this.isAuthenticated()) {
-        this.$router.push({ name: 'users' });
-      } else {
-        this.$router.push({ name: 'welcome', params: {
-          user: this.user
-        }});
-      }
-
+      this.$router.push(this.homeLink());
     },
   }).$mount('#app');
 });

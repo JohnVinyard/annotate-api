@@ -13,6 +13,7 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css"
       integrity="sha256-vK3UTo/8wHbaUn+dTQD0X6dzidqc5l7gczvH+Bnowwk="
       crossorigin="anonymous" />
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body >
 
@@ -28,6 +29,21 @@
             to="/register"
             v-if="!user.data">register</router-link>!
         </p>
+      </div>
+    </section>
+  </template>
+
+  <template id="menu-template">
+    <section class="section">
+      <div class="content has-text-centered">
+        <ul>
+          <li>
+            <router-link :to="{ name: 'users' }">Users</router-link>
+          </li>
+          <li>
+            <router-link :to="{ name: 'annotations' }">Annotations</router-link>
+          </li>
+        </ul>
       </div>
     </section>
   </template>
@@ -91,6 +107,45 @@
     </section>
   </template>
 
+  <template id="annotation-template">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-header-title">{{ annotation.sound }}</h3>
+      </div>
+      <div class="card-content">
+        {{annotation.id}}
+      </div class>
+    </div>
+  </template>
+
+  <template id="annotations-template">
+    <section>
+      <div class="container">
+
+        <!-- Text search -->
+        <div class="section">
+          <div class="container">
+            <!-- User Name -->
+            <div class="field">
+              <label class="label" for="query">Query</label>
+              <div class="control">
+                <input class="input" type="text" id="query" v-model="query"/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="section">
+          <div class="container">
+            <annotation
+              v-for="annotation in annotations" :annotation="annotation" />
+          </div>
+        </div>
+      </div>
+    </<section>
+  </template>
+
   <template id="user-summary-template">
 
     <div class="card">
@@ -131,10 +186,13 @@
     </div>
   </template>
 
-  <template id="annotations-template">
-    <section>
-      Annotations List
-    </<section>
+
+  <template id="sounds-template">
+    <section class="section">
+      <div class="container">
+        SOUNDS!
+      </div>
+    </section>
   </template>
 
   <template id="sound-template">
@@ -148,7 +206,18 @@
     <!-- Header -->
     <header class="hero is-light" id="header">
       <div class="hero-body">
-          <h3>Cochlea</h3>
+          <div class="level">
+            <div class="level-left">
+              <router-link :to="homeLink()"><h3>Cochlea</h3></router-link>
+            </div>
+            <div class="level-right" v-if="user.data">
+              <button
+                class="button is-link"
+                type="submit"
+                v-on:click="logOut">Log Out</button>
+            </div>
+          </div>
+
       </div>
     </header>
 

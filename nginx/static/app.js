@@ -405,9 +405,11 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
-  getAnnotations(rawQuery, pageSize=100) {
-    const url = this.buildUri(
-      `/annotations?tags=${rawQuery}&page_size=${pageSize}`);
+  getAnnotations(rawQuery=null, pageSize=100) {
+    let url = this.buildUri(`/annotations?page_size=${pageSize}`);
+    if (rawQuery) {
+      url += `&tags=${rawQuery}`;
+    }
     return this.getResource(url);
   }
 
