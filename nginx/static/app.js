@@ -103,22 +103,24 @@ const onClick = (selector, handler) => {
 
 const debounced = (element, event, func, debounce) => {
   let timeout = null;
-  element.addEventListener(event, function(event) {
+  const f = function(event) {
     if(timeout !== null) {
       clearTimeout(timeout);
     }
     timeout = setTimeout(function() {
       func();
     }, debounce);
-  });
+  };
+  element.addEventListener(event, f);
+  return f;
 };
 
 const onScroll = (element, func, debounce=100) => {
-  debounced(element, 'scroll', func, debounce);
+  return debounced(element, 'scroll', func, debounce);
 };
 
 const onResize = (element, func, debounce=100) => {
-  debounced(element, 'resize', func, debounce);
+  return debounced(element, 'resize', func, debounce);
 };
 
 
@@ -135,20 +137,26 @@ const isVisible = (element) => {
 };
 
 const scrolledIntoView = (element) => {
-  return new Promise(function(resolve, reject) {
+  let eventHandler = [];
 
+  const promise = new Promise(function(resolve, reject) {
     if(isVisible(element)) {
       resolve(element);
       return;
     }
 
-    onScroll(document, function checkVisibility(event) {
+    function checkVisibility(event) {
       if(isVisible(element)) {
         document.removeEventListener('scroll', checkVisibility);
         resolve(element);
       }
-    }, 100);
+    }
+
+    const handler = onScroll(document, checkVisibility, 100);
+    eventHandler.push(handler);
   });
+
+  return [eventHandler, promise];
 };
 
 Vue.component('feature-view', {

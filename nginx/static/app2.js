@@ -1,3 +1,38 @@
+class Authenticator {
+  refreshUserIdentity(userName, password) {
+    const client = new AnnotateApiClient(
+      userName, password, cochleaAppSettings.apiHost);
+
+    return client.getUserByName(userName)
+      .then(data => {
+        // set the item in local storage
+        window.localStorage.setItem('identity', JSON.stringify({
+          name: userName,
+          password: password,
+          data: data.items[0]
+        }));
+        return data.items[0];
+      });
+  }
+
+  tryGetUserIdentity() {
+    return JSON.parse(window.localStorage.getItem('identity'));
+  }
+
+  logOut() {
+    window.localStorage.removeItem('identity');
+  }
+}
+
+const auth = new Authenticator();
+
+const getApiClient = () => {
+  const identity = auth.tryGetUserIdentity();
+  const client = new AnnotateApiClient(
+    identity.name, identity.password, cochleaAppSettings.apiHost);
+  return client;
+};
+
 document.addEventListener('DOMContentLoaded', function() {
 
   const Welcome = Vue.component('welcome', {
@@ -30,7 +65,6 @@ document.addEventListener('DOMContentLoaded', function() {
           this.aboutMe = data.about_me;
           this.infoUrl = data.info_url;
         });
-
     }
   });
 
@@ -41,7 +75,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return {
         isVisible: false,
         zoom: 1,
-        featureData: undefined
+        featureData: null,
+        scrollListener: null
       };
     },
     methods: {
@@ -52,13 +87,19 @@ document.addEventListener('DOMContentLoaded', function() {
         this.zoom = Math.max(1, this.zoom - 1);
       }
     },
+    destroyed: function() {
+      console.log('destroyed');
+      document.removeEventListener('scroll', this.scrollListener[0]);
+    },
     mounted: function() {
-      scrolledIntoView(this.$refs.container)
+      const [checkVisibility, promise] = scrolledIntoView(this.$refs.container);
+      this.scrollListener = checkVisibility;
+      promise
         .then(() => {
           this.isVisible = true;
           const drawContext = this.$refs.canvas.getContext('2d');
           // drawContext.fillRect(Math.random() * 100, Math.random() * 100, 10, 10);
-          drawContext.fillText((new Date()).toString(), 10, 50);
+          drawContext.fillText(this.annotation.sound, 10, 50);
         });
     },
   });
@@ -69,6 +110,25 @@ document.addEventListener('DOMContentLoaded', function() {
       return {
         query: null,
         annotations: []
+      }
+    },
+    methods: {
+      handleSubmit: function() {
+        getApiClient()
+          .getAnnotations(this.query)
+          .then(data => {
+            const annotations = data.items;
+            const featureDataMapping = {};
+            annotations.forEach(annotation => {
+              const fp = () => featurePromise(
+                annotation,
+                featureDataMapping,
+                searchResults,
+                annotation.sound);
+              annotation.featurePromise = fp;
+            });
+            this.annotations = annotations;
+          });
       }
     },
     mounted: function() {
@@ -123,33 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  class Authenticator {
-    refreshUserIdentity(userName, password) {
-      const client = new AnnotateApiClient(
-        userName, password, cochleaAppSettings.apiHost);
 
-      return client.getUserByName(userName)
-        .then(data => {
-          // set the item in local storage
-          window.localStorage.setItem('identity', JSON.stringify({
-            name: userName,
-            password: password,
-            data: data.items[0]
-          }));
-          return data.items[0];
-        });
-    }
-
-    tryGetUserIdentity() {
-      return JSON.parse(window.localStorage.getItem('identity'));
-    }
-
-    logOut() {
-      window.localStorage.removeItem('identity');
-    }
-  }
-
-  const auth = new Authenticator();
 
   const SignIn = Vue.component('sign-in', {
     props: ['user'],
