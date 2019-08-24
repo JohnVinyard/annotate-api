@@ -39,9 +39,28 @@ document.addEventListener('DOMContentLoaded', function() {
     props: ['annotation'],
     data: function() {
       return {
-
+        isVisible: false,
+        zoom: 1,
+        featureData: undefined
       };
-    }
+    },
+    methods: {
+      zoomIn: function() {
+        this.zoom = Math.min(20, this.zoom + 1);
+      },
+      zoomOut: function() {
+        this.zoom = Math.max(1, this.zoom - 1);
+      }
+    },
+    mounted: function() {
+      scrolledIntoView(this.$refs.container)
+        .then(() => {
+          this.isVisible = true;
+          const drawContext = this.$refs.canvas.getContext('2d');
+          // drawContext.fillRect(Math.random() * 100, Math.random() * 100, 10, 10);
+          drawContext.fillText((new Date()).toString(), 10, 50);
+        });
+    },
   });
 
   const Annotations = Vue.component('annotations', {

@@ -197,7 +197,9 @@ class FeatureView {
 
         audioUrlPromise.then(audioUrl => {
           this.audioUrl = audioUrl;
-          // This handler depends on the audio being loaded
+
+          // This handler depends on the audio being loaded and plays short
+          // segments of audio starting at the click point
           onClick(this.canvas, (event) => {
             // the starting point in seconds relative to this slice
             const relativeStartSeconds =
@@ -216,11 +218,21 @@ class FeatureView {
           });
         });
 
+
         slicedPromise.then(featureData => {
           this.featureData = featureData;
+
+          // render for the first time once scrolled into view and feature data
+          // is loaded
           this.draw();
+
+          // re-draw whenever the scroll position changes
           onScroll(this.container, () => this.draw(false), 100);
+
+          // re-draw whenever the window is resized
           onResize(window, () => this.draw(true), 100);
+
+          // click handlers to handle zoom in and out
           onClick(this.outerContainer.querySelector('.sound-view-zoom-in'), () => {
             this.setZoom(Math.min(20, this.zoom + 1));
           });
@@ -533,8 +545,13 @@ const unpackFeatureData = (data) => {
 };
 
 const featurePromise = (annotation, featureDataMapping, searchResults) => {
+
+  // Check if we've already fetched features for this sound
   let featureDataPromise = featureDataMapping[annotation.sound];
-  if(featureDataPromise === undefined) {
+
+
+  if (featureDataPromise === undefined) {
+    // audio and features have not yet been fetched
     featureDataPromise = app.annotateClient()
       // Get sound data from the API
       .getResource(app.annotateClient().buildUri(annotation.sound))
@@ -554,6 +571,8 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
       });
 
       if(app.currentFeature.user_name === 'audio') {
+        // If the current feature being viewed is audio, we've already fetched
+        // it
         featureDataPromise = featureDataPromise
           .then(data => {
             const {buffer, audioUrl, soundUri} = data;
@@ -564,6 +583,7 @@ const featurePromise = (annotation, featureDataMapping, searchResults) => {
             return {featureData: fd, audioUrl};
           });
       } else {
+        // The feature being viewed is other than audio and needs to be fetched
         featureDataPromise = featureDataPromise
           .then(data => {
             const {buffer, audioUrl, soundUri, soundId} = data;

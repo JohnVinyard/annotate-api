@@ -108,13 +108,21 @@
   </template>
 
   <template id="annotation-template">
-    <div class="card">
+    <div class="card" ref="container">
       <div class="card-header">
         <h3 class="card-header-title">{{ annotation.sound }}</h3>
       </div>
-      <div class="card-content">
-        {{annotation.id}}
-      </div class>
+      <div class="sound-view-outer-container">
+          <div class="sound-view-controls">
+              <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
+              <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
+          </div>
+
+          <div class="sound-view-container">
+              <canvas ref="canvas" class="sound-view-visualization">
+              </canvas>
+          </div>
+      </div>
     </div>
   </template>
 
