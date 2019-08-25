@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.zoom = Math.max(1, this.zoom - 1);
         this.draw();
       },
-      draw:  function() {
+      draw:  function(preserveOffset=false) {
         const drawContext = this.$refs.canvas.getContext('2d');
         // drawContext.fillRect(Math.random() * 100, Math.random() * 100, 10, 10);
         drawContext.fillText(this.featureData, 10, 50);
