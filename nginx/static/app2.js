@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
     template: '#welcome-template'
   });
 
-  const Menu = Vue.component('menu', {
+  const Menu = Vue.component('main-menu', {
     template: '#menu-template'
   });
 
@@ -170,6 +170,9 @@ document.addEventListener('DOMContentLoaded', function() {
       };
     },
     methods: {
+      selectQuery: function(tag) {
+        this.$emit('select-query', tag);
+      },
       zoomIn: function() {
         this.zoom = Math.min(20, this.zoom + 1);
         this.draw();
@@ -270,6 +273,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       },
       draw2D: function(_, increment, height, imageData) {
+        const container = this.$refs.container;
+
         // The Uint8ClampedArray contains height × width × 4
         const timeDim = this.featureData.dimensions[0];
         const featureDim = this.featureData.dimensions[1];
@@ -283,7 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const x = (i / stride) % imageData.width;
           const y = Math.floor((i / stride) / imageData.width);
 
-          const timeIndex = Math.floor((this.$refs.container.scrollLeft + x) * timeRatio);
+          const timeIndex = Math.floor((container.scrollLeft + x) * timeRatio);
           // // since the coordinate system goes from top to bottom, we'll need to
           // // invert the order we draw features in
           const featureIndex = featureDim - Math.floor(y * featureRatio);
@@ -299,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
           imageData.data[i + 2] = imageValue;
           imageData.data[i + 3] = 255;
         }
-        this.drawContext.putImageData(imageData, this.container.scrollLeft, 0);
+        this.drawContext.putImageData(imageData, container.scrollLeft, 0);
       }
     },
     beforeDestroy: function() {
@@ -308,6 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
       window.removeEventListener('resize', this.resizeListener);
     },
     mounted: function() {
+
       const [checkVisibility, promise] = scrolledIntoView(this.$refs.container);
       this.scrollListener = checkVisibility;
       this.drawContext = this.$refs.canvas.getContext('2d');
@@ -352,11 +358,17 @@ document.addEventListener('DOMContentLoaded', function() {
         annotations: [],
         currentFeature: {
           user_name: 'audio'
-        }
+        },
+        allFeatures: []
       }
     },
     methods: {
+      setQuery: function(tag) {
+        this.query = tag;
+        this.handleSubmit();
+      },
       handleSubmit: function() {
+        this.annotations = [];
         getApiClient()
           .getAnnotations(this.query)
           .then(data => {
@@ -372,13 +384,19 @@ document.addEventListener('DOMContentLoaded', function() {
             this.annotations = annotations;
           });
       },
-      setQuery: function(query) {
-        this.query = query;
+      changeFeature: function() {
         this.handleSubmit();
       }
     },
     mounted: function() {
+
+
+      this.allFeatures.push(this.currentFeature);
       this.handleSubmit();
+      getApiClient().getFeatureBots()
+        .then(data => {
+          this.allFeatures = this.allFeatures.concat(data.items);
+        });
     }
   });
 

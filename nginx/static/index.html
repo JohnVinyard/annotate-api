@@ -129,7 +129,7 @@
 
         <div class="tags">
           <div
-            v-on:click="setQuery(tag)"
+            v-on:click="selectQuery(tag)"
             v-for="tag in annotation.tags"
             class="tag is-info">{{ tag }}</div>
         </div>
@@ -140,12 +140,27 @@
   </template>
 
   <template id="annotations-template">
-    <section>
+    <section class="section">
       <div class="container">
 
         <!-- Text search -->
         <div class="section">
           <div class="container">
+            <!-- Feature selection -->
+            <div class="field">
+                <label class="label" for="feature-selection">Feature</label>
+                <div class="control">
+                  <select id="feature-selection" v-model="currentFeature" @change="changeFeature">
+                    <option
+                      v-for="feature in allFeatures"
+                      v-bind:value="feature"
+                      v-bind:key="feature.id">
+                      {{ feature.user_name }}
+                    </option>
+                  </select>
+                </div>
+            </div>
+
             <!-- User Name -->
             <div class="field">
               <label class="label" for="query">Query</label>
@@ -168,6 +183,7 @@
         <div class="section">
           <div class="container">
             <annotation
+              @select-query="setQuery"
               v-for="annotation in annotations"
               :annotation="annotation"
               v-bind:key="annotation.id" />
