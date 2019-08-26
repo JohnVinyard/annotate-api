@@ -371,6 +371,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             this.annotations = annotations;
           });
+      },
+      setQuery: function(query) {
+        this.query = query;
+        this.handleSubmit();
       }
     },
     mounted: function() {
