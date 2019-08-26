@@ -251,9 +251,7 @@ class FeatureView {
       });
   }
 
-  get containerWidth() {
-    return this.container.clientWidth;
-  }
+
 
   clear() {
     this.drawContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -350,6 +348,10 @@ class FeatureView {
     } else {
       throw new Error('Dimensions greater than 2 not currently supported');
     }
+  }
+
+  get containerWidth() {
+    return this.container.clientWidth;
   }
 
   get elementWidth() {

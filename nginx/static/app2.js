@@ -38,7 +38,7 @@ const getApiClient = () => {
 *
 *
 */
-const featurePromise = (annotation, featureDataMapping, featureName) => {
+const featurePromise = (annotation, featureDataMapping, feature) => {
 
   // Check if we've already fetched features for this sound
   let featureDataPromise = featureDataMapping[annotation.sound];
@@ -66,7 +66,7 @@ const featurePromise = (annotation, featureDataMapping, featureName) => {
         });
       });
 
-      if(featureName === 'audio') {
+      if(feature.user_name === 'audio') {
         // If the current feature being viewed is audio, we've already fetched
         // it
         featureDataPromise = featureDataPromise
@@ -85,7 +85,7 @@ const featurePromise = (annotation, featureDataMapping, featureName) => {
             const {buffer, audioUrl, soundUri, soundId} = data;
 
             const promise = getApiClient().getSoundAnnotationsByUser(
-              soundId, app.currentFeature.id);
+              soundId, feature.id);
             return promiseContext(promise, r => ({audioUrl}));
           })
           .then(result => {
@@ -161,9 +161,12 @@ document.addEventListener('DOMContentLoaded', function() {
         isVisible: false,
         zoom: 1,
         featureData: null,
+        audioUrl: null,
         scrollListener: null,
         panListener: null,
-        resizeListener: null
+        resizeListener: null,
+        drawContext: null,
+        offsetPercent: null
       };
     },
     methods: {
@@ -175,19 +178,131 @@ document.addEventListener('DOMContentLoaded', function() {
         this.zoom = Math.max(1, this.zoom - 1);
         this.draw();
       },
+      offsetSeconds: function() {
+        return this.annotation.start_seconds;
+      },
+      containerWidth: function() {
+        return this.$refs.container.clientWidth;
+      },
+      elementWidth: function() {
+        return this.containerWidth() * this.zoom;
+      },
+      playAudio: function(event) {
+        // the starting point in seconds relative to this slice
+        const relativeStartSeconds =
+          (event.offsetX / this.elementWidth()) * this.featureData.durationSeconds;
+        // the starting point in seconds in the sound as a whole
+        const startSeconds = this.offsetSeconds() + relativeStartSeconds;
+        const durationSeconds =
+          Math.min(2.5, this.featureData.durationSeconds - relativeStartSeconds);
+
+        const candidateQueryEvent = new CustomEvent(
+          'candidateQuery',
+          { detail: {soundUri: this.soundUri, startSeconds}});
+        document.dispatchEvent(candidateQueryEvent);
+        playAudio(this.audioUrl, context, startSeconds, durationSeconds);
+      },
+      clear: function() {
+        this.drawContext.clearRect(
+          0, 0, this.$refs.canvas.width, this.$refs.canvas.height);
+      },
       draw:  function(preserveOffset=false) {
-        const drawContext = this.$refs.canvas.getContext('2d');
-        // drawContext.fillRect(Math.random() * 100, Math.random() * 100, 10, 10);
-        drawContext.fillText(this.featureData, 10, 50);
-      },
-      draw1D: function() {
 
-      },
-      draw2D: function() {
+        const canvas = this.$refs.canvas;
+        const container = this.$refs.container;
+        const elementWidth = this.elementWidth();
 
+        canvas.width = elementWidth;
+        canvas.style.width = `${this.zoom * 100}%`;
+        canvas.height = container.clientHeight;
+        canvas.style.height = '100%';
+
+        this.clear();
+
+        if(preserveOffset) {
+          container.scrollLeft = this.offsetPercent * elementWidth;
+        } else {
+          const offsetPercent = container.scrollLeft / elementWidth;
+          this.offsetPercent = offsetPercent;
+        }
+
+        if(this.featureData === undefined) {
+          return;
+        }
+
+        const height = container.clientHeight;
+
+        const stride = this.featureData.length / elementWidth;
+        const increment = Math.max(1, 1 / stride);
+
+        const imageData = this.drawContext.getImageData(
+          container.scrollLeft,
+          0,
+          this.containerWidth(),
+          container.clientHeight);
+
+        if (this.featureData.rank === 2) {
+          this.draw2D(stride, increment, height, imageData);
+        } else if(this.featureData.rank === 1) {
+          this.draw1D(stride, increment, height, imageData);
+        } else {
+          throw new Error('Dimensions greater than 2 not currently supported');
+        }
+      },
+      draw1D: function(stride, increment, height, imageData) {
+        for (let i = 0; i < this.containerWidth(); i++) {
+          const index =
+            (this.featureData.length * this.offsetPercent) + (i * stride);
+          const sample =
+            Math.abs(this.featureData.binaryData[Math.round(index)]);
+
+          // KLUDGE: This assumes that all data will be in range 0-1
+          const value = 0.25 + (sample);
+          const color = `rgba(0, 0, 0, ${value})`;
+          this.drawContext.fillStyle = color;
+
+          const size = sample * height;
+          this.drawContext.fillRect(
+            this.$refs.container.scrollLeft + i,
+            (height - size) / 2,
+            increment,
+            size);
+        }
+      },
+      draw2D: function(_, increment, height, imageData) {
+        // The Uint8ClampedArray contains height × width × 4
+        const timeDim = this.featureData.dimensions[0];
+        const featureDim = this.featureData.dimensions[1];
+        const stride = 4;
+
+        const timeRatio = timeDim / this.elementWidth();
+        const featureRatio = featureDim / imageData.height;
+
+        for(let i = 0; i < imageData.data.length; i += stride) {
+          // compute image coordinates
+          const x = (i / stride) % imageData.width;
+          const y = Math.floor((i / stride) / imageData.width);
+
+          const timeIndex = Math.floor((this.$refs.container.scrollLeft + x) * timeRatio);
+          // // since the coordinate system goes from top to bottom, we'll need to
+          // // invert the order we draw features in
+          const featureIndex = featureDim - Math.floor(y * featureRatio);
+
+          // normalize to the range 0-1 based on statistics from the metadata
+          const maxValue = this.featureData.metadata.max_value;
+          const value = this.featureData.item([timeIndex, featureIndex]) / maxValue;
+          const imageValue = Math.floor(255 * value);
+
+          // Translate the scalar value into color space
+          imageData.data[i] = imageValue;
+          imageData.data[i + 1] = imageValue;
+          imageData.data[i + 2] = imageValue;
+          imageData.data[i + 3] = 255;
+        }
+        this.drawContext.putImageData(imageData, this.container.scrollLeft, 0);
       }
     },
-    destroyed: function() {
+    beforeDestroy: function() {
       document.removeEventListener('scroll', this.scrollListener[0]);
       this.$refs.container.removeEventListener('scroll', this.panListener);
       window.removeEventListener('resize', this.resizeListener);
@@ -195,27 +310,36 @@ document.addEventListener('DOMContentLoaded', function() {
     mounted: function() {
       const [checkVisibility, promise] = scrolledIntoView(this.$refs.container);
       this.scrollListener = checkVisibility;
+      this.drawContext = this.$refs.canvas.getContext('2d');
+
       promise
         .then(() => {
           this.isVisible = true;
           const [slicedPromise, audioUrlPromise] =
             this.annotation.featurePromise();
 
-            slicedPromise.then(featureData => {
-              this.featureData = featureData;
+          audioUrlPromise.then(audioUrl => {
+            this.audioUrl = audioUrl;
+            // This handler depends on the audio being loaded and plays short
+            // segments of audio starting at the click point
+            onClick(this.$refs.canvas, this.playAudio);
+          });
 
-              // render for the first time once scrolled into view and feature data
-              // is loaded
-              this.draw();
+          slicedPromise.then(featureData => {
+            this.featureData = featureData;
 
-              // re-draw whenever the scroll position changes
-              this.panListener =
-                onScroll(this.$refs.container, () => this.draw(false), 100);
+            // render for the first time once scrolled into view and feature data
+            // is loaded
+            this.draw();
 
-              // re-draw whenever the window is resized
-              this.resizeHandler =
-                onResize(window, () => this.draw(true), 100);
-            });
+            // re-draw whenever the scroll position changes
+            this.panListener =
+              onScroll(this.$refs.container, () => this.draw(false), 100);
+
+            // re-draw whenever the window is resized
+            this.resizeHandler =
+              onResize(window, () => this.draw(true), 100);
+          });
         });
     },
   });
@@ -225,7 +349,10 @@ document.addEventListener('DOMContentLoaded', function() {
     data: function() {
       return {
         query: null,
-        annotations: []
+        annotations: [],
+        currentFeature: {
+          user_name: 'audio'
+        }
       }
     },
     methods: {
@@ -239,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
               const fp = () => featurePromise(
                 annotation,
                 featureDataMapping,
-                annotation.sound);
+                this.currentFeature);
               annotation.featurePromise = fp;
             });
             this.annotations = annotations;
