@@ -3,11 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Annotate UI</title>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/timeago.js/3.0.2/timeago.min.js"
+      integrity="sha256-jwCP0NAdCBloaIWTWHmW4i3snUNMHUNO+jr9rYd2iOI="
+      crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
     <script type="text/javascript" src="settings.js"></script>
     <script type="text/javascript" src="app.js"></script>
     <script type="text/javascript" src="app2.js"></script>
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css"
@@ -111,7 +116,22 @@
     <div class="card">
 
       <div class="card-header">
-        <h3 class="card-header-title">{{ annotation.sound }}</h3>
+
+        <div class="level">
+          <div class="level-left">
+            <div class="level-item">
+              <router-link :to="annotation.sound">
+                <h3 class="card-header-title">{{ annotation.sound }}</h3>
+              </router-link>
+            </div>
+          </div>
+          <div class="level-right">
+            <div class="level-item">
+              created {{ timeago.format(annotation.date_created) }}
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div class="card-content">
@@ -243,8 +263,10 @@
   </template>
 
   <template id="sound-template">
-    <section>
-      Individual Sound {{ id }}
+    <section class="section">
+      <div class="container">
+        <annotation :annotation="annotation" />
+      </div>
     </<section>
   </template>
 

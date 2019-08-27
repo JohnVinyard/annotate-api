@@ -1,3 +1,4 @@
+const timeAgo = timeago();
 
 class Authenticator {
   refreshUserIdentity(userName, password) {
@@ -38,10 +39,11 @@ const getApiClient = () => {
 *
 *
 */
-const featurePromise = (annotation, featureDataMapping, feature) => {
+const featurePromise =
+  (sound, featureDataMapping, feature, startSeconds, durationSeconds) => {
 
   // Check if we've already fetched features for this sound
-  let featureDataPromise = featureDataMapping[annotation.sound];
+  let featureDataPromise = featureDataMapping[sound];
 
 
   if (featureDataPromise === undefined) {
@@ -50,7 +52,7 @@ const featurePromise = (annotation, featureDataMapping, feature) => {
     // audio and features have not yet been fetched
     featureDataPromise = apiClient
       // Get sound data from the API
-      .getResource(apiClient.buildUri(annotation.sound))
+      .getResource(apiClient.buildUri(sound))
       // Fetch audio data from the remote audio url
       .then(data => {
         const audioUrl = data.low_quality_audio_url || data.audio_url;
@@ -59,8 +61,8 @@ const featurePromise = (annotation, featureDataMapping, feature) => {
             resolve({
               buffer,
               audioUrl,
-              soundUri: annotation.sound,
-              soundId: data.id
+              soundUri: sound,
+              sound: data
              });
           });
         });
@@ -71,21 +73,21 @@ const featurePromise = (annotation, featureDataMapping, feature) => {
         // it
         featureDataPromise = featureDataPromise
           .then(data => {
-            const {buffer, audioUrl, soundUri} = data;
+            const {buffer, audioUrl, soundUri, sound} = data;
             const audioData = buffer.getChannelData(0);
             const frequency = 1 / buffer.sampleRate;
             const fd = new FeatureData(
               audioData, [audioData.length], frequency, frequency);
-            return {featureData: fd, audioUrl};
+            return {featureData: fd, audioUrl, sound};
           });
       } else {
         // The feature being viewed is other than audio and needs to be fetched
         featureDataPromise = featureDataPromise
           .then(data => {
-            const {buffer, audioUrl, soundUri, soundId} = data;
+            const {buffer, audioUrl, soundUri, sound} = data;
 
             const promise = getApiClient().getSoundAnnotationsByUser(
-              soundId, feature.id);
+              sound.id, feature.id);
             return promiseContext(promise, r => ({audioUrl}));
           })
           .then(result => {
@@ -101,17 +103,17 @@ const featurePromise = (annotation, featureDataMapping, feature) => {
       }
 
     // Put the pending promise into the map
-    featureDataMapping[annotation.sound] = featureDataPromise;
+    featureDataMapping[sound] = featureDataPromise;
   }
 
   const slicedPromise = featureDataPromise.then(data => {
-    const {featureData, audioUrl} = data;
+    const {featureData, audioUrl, sound} = data;
     return featureData.timeSlice(
-      annotation.start_seconds, annotation.duration_seconds);
+      startSeconds, durationSeconds);
   });
 
   const audioUrlPromise = featureDataPromise.then(data => {
-    const {featureData, audioUrl} = data;
+    const {featureData, audioUrl, sound} = data;
     return audioUrl;
   });
 
@@ -158,6 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
     props: ['annotation'],
     data: function() {
       return {
+        timeago: timeAgo,
         isVisible: false,
         zoom: 1,
         featureData: null,
@@ -376,9 +379,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const featureDataMapping = {};
             annotations.forEach(annotation => {
               const fp = () => featurePromise(
-                annotation,
+                annotation.sound,
                 featureDataMapping,
-                this.currentFeature);
+                this.currentFeature,
+                annotation.start_seconds,
+                annotation.duration_seconds);
               annotation.featurePromise = fp;
             });
             this.annotations = annotations;
@@ -477,8 +482,14 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   const Sound = Vue.component('sound', {
-    props: ['id'],
-    template: '#sound-template'
+    props: ['id', 'annotation'],
+    template: '#sound-template',
+    data: function() {
+      return { };
+    },
+    mounted: function() {
+
+    }
   });
 
   const routerPath = (path) => cochleaAppSettings.basePath + path;
