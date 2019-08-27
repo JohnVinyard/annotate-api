@@ -159,6 +159,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  const Selection = Vue.component('selection', {
+    template: '#selection-template',
+    props: ['start', 'duration', 'isSelecting'],
+    methods: {
+      adjustLeft: function() {
+        console.log('adjust left');
+      },
+      adjustRight: function() {
+        console.log('adjust right');
+      },
+      adjust: function() {
+        console.log('adjust');
+      }
+    }
+  });
+
   const SoundView = Vue.component('sound-view', {
     template: '#sound-view-template',
     props: ['featureData', 'audioUrl', 'startSeconds'],
@@ -166,7 +182,13 @@ document.addEventListener('DOMContentLoaded', function() {
       return {
         zoom: 1,
         panListener: null,
-        resizeHandler: null
+        resizeHandler: null,
+        selection: {
+          start: null,
+          end: null
+        },
+        isSelecting: false,
+        rect: null
       }
     },
     watch: {
@@ -178,10 +200,51 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     methods: {
+      resetSelection: function() {
+        this.selection = { start: null, end: null };
+      },
+      selectionWidth: function(event) {
+        return Math.abs(this.selection.end - this.selection.start);
+      },
+      selectionStart: function(event) {
+        if (this.$refs.container === undefined) {
+          return 0;
+        }
+        const start = Math.min(this.selection.start, this.selection.end);
+        return start - this.$refs.container.scrollLeft;
+      },
+      updateSelection: function(event) {
+        const pos = event.offsetX;
+        this.selection.end = pos;
+        const selection = {...this.selection};
+      },
+      startSelection: function(event) {
+        this.resetSelection();
+        this.isSelecting = true;
+        console.log('starting selection');
+        // TODO: This needs to take into account overall offset as well.  This
+        // should be factored out because I'm surely doing it elsewhere
+        this.selection.start = event.offsetX;
+        this.$refs.canvas.addEventListener('mousemove', this.updateSelection);
+      },
+      endSelection: function(event) {
+        this.$refs.canvas.removeEventListener(
+          'mousemove', this.updateSelection);
+        console.log('end selection', event);
+        const startSeconds = this.coordinateToSeconds(
+          Math.min(this.selection.start, this.selection.end));
+        const endSeconds = this.coordinateToSeconds(
+          Math.max(this.selection.start, this.selection.end));
+        console.log('Selection created', startSeconds, endSeconds);
+        this.isSelecting = false;
+        // TODO: fire an event and clear the selection
+      },
       zoomIn: function() {
+        this.resetSelection();
         this.zoom = Math.min(20, this.zoom + 1);
       },
       zoomOut: function() {
+        this.resetSelection();
         this.zoom = Math.max(1, this.zoom - 1);
       },
       containerWidth: function() {
@@ -190,7 +253,16 @@ document.addEventListener('DOMContentLoaded', function() {
       elementWidth: function() {
         return this.containerWidth() * this.zoom;
       },
+      coordinateToSeconds: function(coordinate) {
+        // the starting point in seconds relative to this slice
+        const relativeStartSeconds =
+          (coordinate / this.elementWidth()) * this.featureData.durationSeconds;
+        // the starting point in seconds in the sound as a whole
+        const startSeconds = this.startSeconds + relativeStartSeconds;
+        return startSeconds;
+      },
       playAudio: function(event) {
+        this.resetSelection();
         // the starting point in seconds relative to this slice
         const relativeStartSeconds =
           (event.offsetX / this.elementWidth()) * this.featureData.durationSeconds;
@@ -308,9 +380,13 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     mounted: function() {
       this.drawContext = this.$refs.canvas.getContext('2d');
+      this.rect = this.$refs.canvas.getBoundingClientRect();
       // re-draw whenever the scroll position changes
       this.panListener =
-        onScroll(this.$refs.container, () => this.draw(false), 100);
+        onScroll(this.$refs.container, () => {
+          this.draw(false);
+          this.resetSelection();
+        }, 100);
       // re-draw whenever the window is resized
       this.resizeHandler =
         onResize(window, () => this.draw(true), 100);
