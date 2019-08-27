@@ -40,7 +40,7 @@ const getApiClient = () => {
 *
 */
 const featurePromise =
-  (sound, featureDataMapping, feature, startSeconds, durationSeconds) => {
+  (sound, featureDataMapping, feature, startSeconds, durationSeconds=null) => {
 
   // Check if we've already fetched features for this sound
   let featureDataPromise = featureDataMapping[sound];
@@ -88,17 +88,17 @@ const featurePromise =
 
             const promise = getApiClient().getSoundAnnotationsByUser(
               sound.id, feature.id);
-            return promiseContext(promise, r => ({audioUrl}));
+            return promiseContext(promise, r => ({audioUrl, sound}));
           })
           .then(result => {
-            const {data, audioUrl} = result;
+            const {data, audioUrl, sound} = result;
             const promise = fetchBinary(data.items[0].data_url);
-            return promiseContext(promise, r => ({audioUrl}));
+            return promiseContext(promise, r => ({audioUrl, sound}));
           })
           .then(result => {
-            const {data, audioUrl} = result;
+            const {data, audioUrl, sound} = result;
             const featureData = unpackFeatureData(data);
-            return {featureData, audioUrl};
+            return {featureData, audioUrl, sound};
           });
       }
 
@@ -109,7 +109,7 @@ const featurePromise =
   const slicedPromise = featureDataPromise.then(data => {
     const {featureData, audioUrl, sound} = data;
     return featureData.timeSlice(
-      startSeconds, durationSeconds);
+      startSeconds, durationSeconds || sound.duration_seconds);
   });
 
   const audioUrlPromise = featureDataPromise.then(data => {
@@ -117,7 +117,11 @@ const featurePromise =
     return audioUrl;
   });
 
-  return [slicedPromise, audioUrlPromise];
+  const soundPromise = featureDataPromise.then(data => {
+    return sound;
+  });
+
+  return [slicedPromise, audioUrlPromise, soundPromise];
 };
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -155,37 +159,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  const Annotation = Vue.component('annotation', {
-    template: '#annotation-template',
-    props: ['annotation'],
+  const SoundView = Vue.component('sound-view', {
+    template: '#sound-view-template',
+    props: ['featureData', 'audioUrl', 'startSeconds'],
     data: function() {
       return {
-        timeago: timeAgo,
-        isVisible: false,
         zoom: 1,
-        featureData: null,
-        audioUrl: null,
-        scrollListener: null,
         panListener: null,
-        resizeListener: null,
-        drawContext: null,
-        offsetPercent: null
-      };
+        resizeHandler: null
+      }
+    },
+    watch: {
+      zoom: function(val) {
+        this.draw();
+      },
+      featureData: function(val) {
+        this.draw();
+      }
     },
     methods: {
-      selectQuery: function(tag) {
-        this.$emit('select-query', tag);
-      },
       zoomIn: function() {
         this.zoom = Math.min(20, this.zoom + 1);
-        this.draw();
       },
       zoomOut: function() {
         this.zoom = Math.max(1, this.zoom - 1);
-        this.draw();
-      },
-      offsetSeconds: function() {
-        return this.annotation.start_seconds;
       },
       containerWidth: function() {
         return this.$refs.container.clientWidth;
@@ -198,21 +195,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const relativeStartSeconds =
           (event.offsetX / this.elementWidth()) * this.featureData.durationSeconds;
         // the starting point in seconds in the sound as a whole
-        const startSeconds = this.offsetSeconds() + relativeStartSeconds;
+        const startSeconds = this.startSeconds + relativeStartSeconds;
         const durationSeconds =
           Math.min(2.5, this.featureData.durationSeconds - relativeStartSeconds);
-
-        const candidateQueryEvent = new CustomEvent(
-          'candidateQuery',
-          { detail: {soundUri: this.soundUri, startSeconds}});
-        document.dispatchEvent(candidateQueryEvent);
         playAudio(this.audioUrl, context, startSeconds, durationSeconds);
       },
       clear: function() {
         this.drawContext.clearRect(
           0, 0, this.$refs.canvas.width, this.$refs.canvas.height);
       },
-      draw:  function(preserveOffset=false) {
+      draw: function(preserveOffset=false) {
 
         const canvas = this.$refs.canvas;
         const container = this.$refs.container;
@@ -232,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
           this.offsetPercent = offsetPercent;
         }
 
-        if(this.featureData === undefined) {
+        if(this.featureData === null) {
           return;
         }
 
@@ -311,15 +303,45 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     beforeDestroy: function() {
-      document.removeEventListener('scroll', this.scrollListener[0]);
       this.$refs.container.removeEventListener('scroll', this.panListener);
       window.removeEventListener('resize', this.resizeListener);
     },
     mounted: function() {
+      this.drawContext = this.$refs.canvas.getContext('2d');
+      // re-draw whenever the scroll position changes
+      this.panListener =
+        onScroll(this.$refs.container, () => this.draw(false), 100);
+      // re-draw whenever the window is resized
+      this.resizeHandler =
+        onResize(window, () => this.draw(true), 100);
+    },
+  });
 
+  const Annotation = Vue.component('annotation', {
+    template: '#annotation-template',
+    props: ['annotation'],
+    data: function() {
+      return {
+        timeago: timeAgo,
+        featureData: null,
+        audioUrl: null,
+        scrollListener: null,
+      };
+    },
+    methods: {
+      selectQuery: function(tag) {
+        this.$emit('select-query', tag);
+      },
+      offsetSeconds: function() {
+        return this.annotation.start_seconds;
+      },
+    },
+    beforeDestroy: function() {
+      document.removeEventListener('scroll', this.scrollListener[0]);
+    },
+    mounted: function() {
       const [checkVisibility, promise] = scrolledIntoView(this.$refs.container);
       this.scrollListener = checkVisibility;
-      this.drawContext = this.$refs.canvas.getContext('2d');
 
       promise
         .then(() => {
@@ -329,25 +351,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
           audioUrlPromise.then(audioUrl => {
             this.audioUrl = audioUrl;
-            // This handler depends on the audio being loaded and plays short
-            // segments of audio starting at the click point
-            onClick(this.$refs.canvas, this.playAudio);
           });
 
           slicedPromise.then(featureData => {
             this.featureData = featureData;
-
-            // render for the first time once scrolled into view and feature data
-            // is loaded
-            this.draw();
-
-            // re-draw whenever the scroll position changes
-            this.panListener =
-              onScroll(this.$refs.container, () => this.draw(false), 100);
-
-            // re-draw whenever the window is resized
-            this.resizeHandler =
-              onResize(window, () => this.draw(true), 100);
           });
         });
     },
@@ -482,13 +489,27 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   const Sound = Vue.component('sound', {
-    props: ['id', 'annotation'],
+    props: ['id'],
     template: '#sound-template',
     data: function() {
-      return { };
+      return {
+        featureData: null,
+        audioUrl: null,
+        sound: null
+      };
     },
     mounted: function() {
-
+      const [slicedPromise, audioUrlPromise, soundPromise] =
+        featurePromise(`/sounds/${this.id}`, {}, { user_name: 'audio' }, 0);
+      slicedPromise.then(featureData => {
+        this.featureData = featureData;
+      });
+      audioUrlPromise.then(audioUrl => {
+        this.audioUrl = audioUrl;
+      })
+      soundPromise.then(sound => {
+        this.sound = sound;
+      })
     }
   });
 

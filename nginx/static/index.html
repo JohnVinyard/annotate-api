@@ -112,8 +112,22 @@
     </section>
   </template>
 
+  <template id="sound-view-template">
+    <div class="sound-view-outer-container">
+        <div class="sound-view-controls">
+            <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
+            <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
+        </div>
+
+        <div ref="container" class="sound-view-container">
+            <canvas v-on:click="playAudio" ref="canvas" class="sound-view-visualization">
+            </canvas>
+        </div>
+    </div>
+  </template>
+
   <template id="annotation-template">
-    <div class="card">
+    <div class="card" ref="container">
 
       <div class="card-header">
 
@@ -135,18 +149,10 @@
       </div>
 
       <div class="card-content">
-        <div class="sound-view-outer-container">
-            <div class="sound-view-controls">
-                <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
-                <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
-            </div>
-
-            <div ref="container" class="sound-view-container">
-                <canvas ref="canvas" class="sound-view-visualization">
-                </canvas>
-            </div>
-        </div>
-
+        <sound-view
+          :feature-data="featureData"
+          :audio-url="audioUrl"
+          :start-seconds="offsetSeconds()"></sound-view>
         <div class="tags">
           <div
             v-on:click="selectQuery(tag)"
@@ -265,7 +271,10 @@
   <template id="sound-template">
     <section class="section">
       <div class="container">
-        <annotation :annotation="annotation" />
+        <sound-view
+          :feature-data="featureData"
+          :audio-url="audioUrl"
+          :start-seconds="0"></sound-view>
       </div>
     </<section>
   </template>
