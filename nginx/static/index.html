@@ -172,6 +172,7 @@
         pointerEvents: acceptsEvents ? 'auto' : 'none'
       }">
       <add-annotation-modal
+        @confirm-annotation="confirmAnnotation"
         @modal-close="closeModal"
         :span="span()"
         :feature-data="featureData"
@@ -221,6 +222,7 @@
     <div class="sound-view-outer-container">
         <div ref="container" class="sound-view-container">
           <selection
+              @save-annotation="saveAnnotation"
               v-if="selectable"
               :feature-data="featureData"
               :audio-url="audioUrl"
@@ -267,6 +269,7 @@
 
       <div class="card-content">
         <sound-view
+          :sound="sound"
           :feature-data="featureData"
           :audio-url="audioUrl"
           :start-seconds="offsetSeconds()"></sound-view>
@@ -417,6 +420,17 @@
 
       </div>
     </header>
+
+    <div
+      v-if="globalMessage"
+      class="global-notification notification has-text-centered"
+      v-bind:class="{
+        'is-success': globalMessage.type === 'success',
+        'is-danger': globalMessage.type === 'error'
+      }">
+      <button @click="clearGlobalMessage" class="delete"></button>
+      {{ globalMessage.message }}
+    </div>
 
     <!-- Main Content -->
     <section class="section" id="main-content">

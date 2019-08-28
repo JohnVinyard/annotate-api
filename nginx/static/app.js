@@ -392,14 +392,18 @@ class AnnotateApiClient {
     return headers;
   }
 
-  getResource(url) {
-    return fetch(url, {headers: this.authHeaders, mode: 'cors'})
-      .then(resp => {
-        if (!resp.ok) {
-          throw Error(resp.statusText);
-        }
-        return resp.json();
-      });
+  getResource(url, method='GET', data=null) {
+    return fetch(url, {
+      headers: this.authHeaders,
+      mode: 'cors',
+      method,
+      data: data ? JSON.stringify(data) : null
+    }).then(resp => {
+      if (!resp.ok) {
+        throw Error(resp.statusText);
+      }
+      return resp.json();
+    });
   }
 
   getUserByName(userName) {
@@ -445,6 +449,15 @@ class AnnotateApiClient {
     const url = this.buildUri(
       `/users?user_type=featurebot&page_size=${pageSize}`);
     return this.getResource(url);
+  }
+
+  createAnnotation(soundId, startSeconds, durationSeconds, tags=null) {
+    const url = this.buildUri(`/sounds/${soundId}/annotations`);
+    return this.getResource(url, 'POST', {
+      start_seconds: startSeconds,
+      duration_seconds: durationSeconds,
+      tags: tags
+    })
   }
 }
 

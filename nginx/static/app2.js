@@ -1,5 +1,7 @@
 const timeAgo = timeago();
 
+const EventBus = new Vue();
+
 class Authenticator {
   refreshUserIdentity(userName, password) {
     const client = new AnnotateApiClient(
@@ -181,16 +183,14 @@ document.addEventListener('DOMContentLoaded', function() {
         this.span.startSeconds, this.span.durationSeconds);
       this.modifiedStartSeconds = this.startSeconds + this.span.startSeconds;
     },
-    mounted: function() {
-
-    },
     methods: {
       close: function() {
         this.$emit('modal-close');
       },
       createAnnotation: function() {
         console.log('create annotation!')
-        this.$emit('save-annotation');
+        this.$emit('confirm-annotation', { tags: Array.from(this.tags) });
+        this.close();
       }
     }
   });
@@ -210,6 +210,19 @@ document.addEventListener('DOMContentLoaded', function() {
       };
     },
     methods: {
+      confirmAnnotation: function(event) {
+        console.log('Selection is confirming annotation')
+        const span = this.span();
+        this.$emit('save-annotation', {
+          startSeconds: this.startSeconds + span.startSeconds,
+          durationSeconds: span.durationSeconds,
+          tags: event.tags
+        });
+        this.clearSelection();
+      },
+      clearSelection: function() {
+        this.pointA = this.pointB = null;
+      },
       span: function() {
         const start = Math.min(this.pointA, this.pointB);
         const end = Math.max(this.pointA, this.pointB);
@@ -318,7 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
       selectable: {
         type: Boolean,
         default: true
-      }
+      },
+      sound: Object
     },
     data: function() {
       return {
@@ -338,7 +352,25 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     methods: {
-
+      saveAnnotation: function(event) {
+        console.log('savingAnnotation', event);
+        getApiClient()
+          .createAnnotation(
+            this.sound.id, null, event.durationSeconds, event.tags)
+          .then(data => {
+            EventBus.$emit('global-message', {
+              message: 'Annotation Created',
+              type: 'success'
+            });
+          })
+          .catch(error => {
+            console.log(error);
+            EventBus.$emit('global-message', {
+              message: 'Something went wrong!',
+              type: 'error'
+            });
+          });
+      },
       zoomIn: function() {
         this.zoom = Math.min(20, this.zoom + 1);
       },
@@ -377,7 +409,6 @@ document.addEventListener('DOMContentLoaded', function() {
           0, 0, this.$refs.canvas.width, this.$refs.canvas.height);
       },
       draw: function(preserveOffset=false) {
-        console.log('DRAWING');
         const canvas = this.$refs.canvas;
         const container = this.$refs.container;
         const elementWidth = this.elementWidth();
@@ -718,8 +749,12 @@ document.addEventListener('DOMContentLoaded', function() {
         password: null,
         data: null
       },
+      globalMessage: null
     },
     methods: {
+      clearGlobalMessage: function() {
+        this.globalMessage = null;
+      },
       initializeCredentials: function() {
         const identity = auth.tryGetUserIdentity();
         if (identity === null) {
@@ -744,11 +779,16 @@ document.addEventListener('DOMContentLoaded', function() {
       homeLink: function() {
         return this.isAuthenticated() ?
           { name: 'menu' } : { name: 'welcome', params: { user: this.user }};
-      }
+      },
+
     },
     mounted: function() {
       this.initializeCredentials();
       this.$router.push(this.homeLink());
+      EventBus.$on('global-message', (event) => {
+        this.globalMessage = event;
+        setTimeout(() => this.globalMessage = null, 10 * 1000);
+      });
     },
   }).$mount('#app');
 });
