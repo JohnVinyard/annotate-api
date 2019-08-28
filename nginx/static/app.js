@@ -393,16 +393,21 @@ class AnnotateApiClient {
   }
 
   getResource(url, method='GET', data=null) {
+    let headers = this.authHeaders;
+    if (data) {
+      headers = new Headers(headers);
+      headers.append('Content-Type', 'application/json');
+    }
     return fetch(url, {
-      headers: this.authHeaders,
+      headers,
       mode: 'cors',
       method,
-      data: data ? JSON.stringify(data) : null
+      body: data ? JSON.stringify(data) : null
     }).then(resp => {
-      if (!resp.ok) {
+      if (resp.status >= 400) {
         throw Error(resp.statusText);
       }
-      return resp.json();
+      return method == 'GET' ? resp.json() : {};
     });
   }
 
@@ -454,9 +459,13 @@ class AnnotateApiClient {
   createAnnotation(soundId, startSeconds, durationSeconds, tags=null) {
     const url = this.buildUri(`/sounds/${soundId}/annotations`);
     return this.getResource(url, 'POST', {
-      start_seconds: startSeconds,
-      duration_seconds: durationSeconds,
-      tags: tags
+      annotations: [
+          {
+            start_seconds: startSeconds,
+            duration_seconds: durationSeconds,
+            tags: tags
+          }
+      ]
     })
   }
 }

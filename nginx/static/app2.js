@@ -356,15 +356,15 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('savingAnnotation', event);
         getApiClient()
           .createAnnotation(
-            this.sound.id, null, event.durationSeconds, event.tags)
+            this.sound.id, event.startSeconds, event.durationSeconds, event.tags)
           .then(data => {
+            console.log('SUCCESS');
             EventBus.$emit('global-message', {
               message: 'Annotation Created',
               type: 'success'
             });
           })
           .catch(error => {
-            console.log(error);
             EventBus.$emit('global-message', {
               message: 'Something went wrong!',
               type: 'error'
@@ -786,6 +786,7 @@ document.addEventListener('DOMContentLoaded', function() {
       this.initializeCredentials();
       this.$router.push(this.homeLink());
       EventBus.$on('global-message', (event) => {
+        console.log('global message', event);
         this.globalMessage = event;
         setTimeout(() => this.globalMessage = null, 10 * 1000);
       });
