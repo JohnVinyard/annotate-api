@@ -190,7 +190,7 @@ class SmokeTests(BaseTests, unittest2.TestCase):
         self.assertIn('totalUsers', data)
 
     def test_root_resource_includes_cors_headers(self):
-        self.fail()
+        self.assertIn('Access-Control-Allow-Origin', self.resp.headers)
 
 
 class UserTests(BaseTests, unittest2.TestCase):
@@ -200,6 +200,10 @@ class UserTests(BaseTests, unittest2.TestCase):
 
     def tearDown(self):
         self.delete_all_data()
+
+    def test_user_resource_supports_cors(self):
+        resp = requests.options(self.users_resource())
+        self.assertIn('Access-Control-Allow-Origin', resp.headers)
 
     def test_can_create_and_fetch_new_user(self):
         create_data = self._user_create_data(user_name='HalIncandenza')
@@ -1141,6 +1145,9 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
         self.assertEqual(1, len(items))
         self.assertEqual('snare', items[0]['tags'][0])
 
+    def test_annotations_resource_supports_cors(self):
+        resp = requests.options(self.sounds_resource('blah'))
+        self.assertIn('Access-Control-Allow-Origin', resp.headers)
 
     def test_human_can_create_annotation(self):
         user, user_location = self.create_user(user_type='human')
@@ -1307,6 +1314,9 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
             json={'annotations': [annotation_data]},
             auth=auth)
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
+
+    def test_bad_request_when_no_annotations_are_provided(self):
+        self.fail()
 
     def test_can_create_annotation_with_start_seconds_of_zero(self):
         user, user_location = self.create_user(user_type='human')

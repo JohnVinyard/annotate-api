@@ -435,6 +435,9 @@ class SoundAnnotationsResource(object):
             tags=['snare', 'hi-hat'],
             data_url='https://s3/data/numpy-fft-feature.dat')
 
+    # def on_options(self, req, resp, *args, **kwargs):
+    #     pass
+
     @falcon.before(basic_auth)
     def on_post(self, req, resp, sound_id, session, actor):
         """
@@ -460,6 +463,7 @@ class SoundAnnotationsResource(object):
               description: User is not permitted to create annotations
         """
         sound = session.find_one(Sound.id == sound_id)
+
 
         for annotation in req.media['annotations']:
             annotation['created_by'] = actor
