@@ -118,6 +118,7 @@ const featurePromise =
   });
 
   const soundPromise = featureDataPromise.then(data => {
+    const {featureData, audioUrl, sound} = data;
     return sound;
   });
 
@@ -159,6 +160,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  const AddAnnotationModel = Vue.component('add-annotation-modal', {
+    template: '#add-annotation-modal-template',
+    props: [],
+    data: function() {
+      return {
+
+      };
+    },
+    methods: {
+      close: function() {
+        console.log('closing!')
+        this.$emit('modal-close');
+      }
+    }
+  });
+
   const Selection = Vue.component('selection', {
     template: '#selection-template',
     props: ['width'],
@@ -169,9 +186,17 @@ document.addEventListener('DOMContentLoaded', function() {
         pointB: null,
         handleWidth: 5,
         isSelecting: false,
+        isAdjusting: false,
+        isAddingAnnotation: false
       };
     },
     methods: {
+      addAnnotation: function() {
+        this.isAddingAnnotation = true;
+      },
+      closeModal: function() {
+        this.isAddingAnnotation = false;
+      },
       acceptEvents: function(event) {
         if (event.key !== 'Control') { return ;}
         this.acceptsEvents = true;
@@ -190,13 +215,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
       },
       startSelection: function(event) {
-        console.log('starting selection');
         this.isSelecting = true;
         this.pointA = this.pointB = this.percentLocation(event);
         this.$refs.container.addEventListener('mousemove', this.updatePointB);
       },
       endSelection: function(event) {
-        console.log('ending selection');
         this.isSelecting = false;
         this.$refs.container.removeEventListener('mousemove', this.updatePointB);
       },
@@ -207,6 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return Math.abs(this.pointA - this.pointB) * this.width;
       },
       adjustLeft: function(event) {
+        this.isAdjusting = true;
         this.acceptsEvents = true;
         this.$refs.container.removeEventListener('mousemove', this.updateLaterPoint);
         this.$refs.container.removeEventListener('mousemove', this.updatePointB);
@@ -221,6 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       },
       adjustRight: function(event) {
+        this.isAdjusting = true;
         this.acceptsEvents = true;
         this.$refs.container.removeEventListener('mousemove', this.updateEarlierPoint);
         this.$refs.container.removeEventListener('mousemove', this.updatePointB);
@@ -238,6 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       },
       endAdjustments: function() {
+        this.isAdjusting = false;
         this.acceptsEvents = false;
         this.$refs.container.removeEventListener('mousemove', this.updateEarlierPoint);
         this.$refs.container.removeEventListener('mousemove', this.updateLaterPoint);
@@ -261,11 +287,6 @@ document.addEventListener('DOMContentLoaded', function() {
         zoom: 1,
         panListener: null,
         resizeHandler: null,
-        // selection: {
-        //   start: null,
-        //   end: null
-        // },
-        // isSelecting: false,
         rect: null,
         canvasWidth: 0
       }
@@ -441,6 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
         featureData: null,
         audioUrl: null,
         scrollListener: null,
+        sound: null
       };
     },
     methods: {
@@ -461,8 +483,12 @@ document.addEventListener('DOMContentLoaded', function() {
       promise
         .then(() => {
           this.isVisible = true;
-          const [slicedPromise, audioUrlPromise] =
+          const [slicedPromise, audioUrlPromise, soundPromise] =
             this.annotation.featurePromise();
+
+          soundPromise.then(sound => {
+            this.sound = sound;
+          });
 
           audioUrlPromise.then(audioUrl => {
             this.audioUrl = audioUrl;

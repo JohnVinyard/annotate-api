@@ -112,6 +112,24 @@
     </section>
   </template>
 
+  <template id="add-annotation-modal-template">
+    <div class="modal is-active" style="z-index:999">
+        <div class="modal-background"></div>
+        <div class="modal-card">
+      <header class="modal-card-head">
+        <p class="modal-card-title">Create Annotation</p>
+        <button @click="close" class="delete" aria-label="close"></button>
+      </header>
+      <section class="modal-card-body">
+        OH HAI!
+      </section>
+      <footer class="modal-card-foot">
+        <button class="button is-success">Save changes</button>
+        <button @click="close" class="button">Cancel</button>
+      </footer>
+    </div>
+  </template>
+
   <template id="selection-template">
     <div
       ref="container"
@@ -126,6 +144,7 @@
         backgroundColor: '#ffffff00',
         pointerEvents: acceptsEvents ? 'auto' : 'none'
       }">
+      <add-annotation-modal v-if="isAddingAnnotation"></add-annotation-modal>
       <div class="selection" v-bind:style="{
           position: 'absolute',
           left: startPixels().toString() + 'px',
@@ -152,6 +171,16 @@
           pointerEvents: isSelecting ? 'none' : 'auto',
           cursor: 'grab'
         }"></div>
+      <div
+        v-if="!(isAdjusting || isSelecting)"
+        @click="addAnnotation"
+        class="add-annotation"
+        v-bind:style="{
+          position: 'absolute',
+          left: (startPixels() + widthPixels() - 20).toString() + 'px',
+          top: '20px',
+          pointerEvents: 'auto'
+      }">+</div>
     </div>
   </template>
 
@@ -183,13 +212,16 @@
           <div class="level-left">
             <div class="level-item">
               <router-link :to="annotation.sound">
-                <h3 class="card-header-title">{{ annotation.sound }}</h3>
+                <h3 class="card-header-title">{{ sound ? sound.title : '' }}</h3>
               </router-link>
+              <h3>{{ `${annotation.start_seconds.toFixed(2)} - ${annotation.end_seconds.toFixed(2)}` }} seconds</h3>
             </div>
           </div>
           <div class="level-right">
             <div class="level-item">
-              created {{ timeago.format(annotation.date_created) }}
+              <p class="is-size-7">
+                created {{ timeago.format(annotation.date_created) }}
+              </p>
             </div>
           </div>
         </div>
