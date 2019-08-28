@@ -113,60 +113,63 @@
   </template>
 
   <template id="selection-template">
-    <div class="selection-container" v-bind:style="{
-      position: 'absolute',
-      left: start.toString() + 'px',
-      width: duration.toString() + 'px',
-      backgroundColor: '#ff000033',
-      height: '100%',
-      pointerEvents: isSelecting ? 'none': 'auto',
-      cursor: 'grab'
-    }">
-      <div @mousedown="adjustLeft" v-bind:style="{
+    <div
+      ref="container"
+      class="selection-container"
+      @mousedown.ctrl="startSelection"
+      @mouseup.ctrl="endSelection"
+      @mouseup="endAdjustments"
+      v-bind:style="{
         position: 'absolute',
-        left: '-10px',
-        width: '10px',
         height: '100%',
-        backgroundColor: '#ff0000',
-      }"></div>
-      <div @mousedown="adjust" v-bind:style="{
+        width: width.toString() + 'px',
+        backgroundColor: '#ffffff00',
+        pointerEvents: acceptsEvents ? 'auto' : 'none'
+      }">
+      <div class="selection" v-bind:style="{
           position: 'absolute',
-          left: '0px',
-          width: '100%',
-          height: '100%',
+          left: startPixels().toString() + 'px',
+          width: widthPixels().toString() + 'px',
           backgroundColor: '#ff000033',
+          height: '100%',
+          pointerEvents: isSelecting ? 'none' : 'auto'
+        }"></div>
+      <div @mousedown="adjustLeft" v-bind:style="{
+          position: 'absolute',
+          left: (startPixels() - handleWidth).toString() + 'px',
+          width: handleWidth.toString() + 'px',
+          height: '100%',
+          backgroundColor: '#ff0000',
+          pointerEvents: isSelecting ? 'none' : 'auto',
+          cursor: 'grab'
         }"></div>
       <div @mousedown="adjustRight" v-bind:style="{
-        position: 'absolute',
-        right: '0px',
-        width: '10px',
-        height: '100%',
-        backgroundColor: '#ff0000',
-      }"></div>
+          position: 'absolute',
+          left: (startPixels() + widthPixels()).toString() + 'px',
+          width: handleWidth.toString() + 'px',
+          height: '100%',
+          backgroundColor: '#ff0000',
+          pointerEvents: isSelecting ? 'none' : 'auto',
+          cursor: 'grab'
+        }"></div>
     </div>
   </template>
 
   <template id="sound-view-template">
     <div class="sound-view-outer-container">
-
-        <div class="sound-view-controls">
-            <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
-            <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
-        </div>
-
-        <selection
-          :start="selectionStart()"
-          :duration="selectionWidth()"
-          :is-selecting="isSelecting"></selection>
-
         <div ref="container" class="sound-view-container">
+          <selection
+              :width="canvasWidth"></selection>
             <canvas
-              @mousedown.ctrl="startSelection"
-              @mouseup.ctrl="endSelection"
               @click.exact="playAudio"
               ref="canvas"
               class="sound-view-visualization">
             </canvas>
+        </div>
+
+        <div class="sound-view-controls">
+            <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
+            <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
         </div>
     </div>
   </template>

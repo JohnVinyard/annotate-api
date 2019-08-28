@@ -161,17 +161,95 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const Selection = Vue.component('selection', {
     template: '#selection-template',
-    props: ['start', 'duration', 'isSelecting'],
+    props: ['width'],
+    data: function() {
+      return {
+        acceptsEvents: false,
+        pointA: null,
+        pointB: null,
+        handleWidth: 5,
+        isSelecting: false,
+      };
+    },
     methods: {
-      adjustLeft: function() {
-        console.log('adjust left');
+      acceptEvents: function(event) {
+        if (event.key !== 'Control') { return ;}
+        this.acceptsEvents = true;
       },
-      adjustRight: function() {
-        console.log('adjust right');
+      rejectEvents: function(event) {
+        if (event.key !== 'Control') { return ;}
+        this.acceptsEvents = false;
       },
-      adjust: function() {
-        console.log('adjust');
-      }
+      percentLocation: function(event) {
+        if (event.target === this.$refs.container) {
+          return event.offsetX / this.width;
+        } else {
+          const bounds = this.$refs.container.getBoundingClientRect();
+          return (event.clientX - bounds.left) / this.width;
+        }
+
+      },
+      startSelection: function(event) {
+        console.log('starting selection');
+        this.isSelecting = true;
+        this.pointA = this.pointB = this.percentLocation(event);
+        this.$refs.container.addEventListener('mousemove', this.updatePointB);
+      },
+      endSelection: function(event) {
+        console.log('ending selection');
+        this.isSelecting = false;
+        this.$refs.container.removeEventListener('mousemove', this.updatePointB);
+      },
+      startPixels: function() {
+        return Math.min(this.pointA, this.pointB) * this.width;
+      },
+      widthPixels: function() {
+        return Math.abs(this.pointA - this.pointB) * this.width;
+      },
+      adjustLeft: function(event) {
+        this.acceptsEvents = true;
+        this.$refs.container.removeEventListener('mousemove', this.updateLaterPoint);
+        this.$refs.container.removeEventListener('mousemove', this.updatePointB);
+        this.$refs.container.addEventListener('mousemove', this.updateEarlierPoint);
+      },
+      updateEarlierPoint: function(event) {
+        const pos = this.percentLocation(event);
+        if (this.pointA < this.pointB) {
+          this.pointA = pos;
+        } else {
+          this.pointB = pos;
+        }
+      },
+      adjustRight: function(event) {
+        this.acceptsEvents = true;
+        this.$refs.container.removeEventListener('mousemove', this.updateEarlierPoint);
+        this.$refs.container.removeEventListener('mousemove', this.updatePointB);
+        this.$refs.container.addEventListener('mousemove', this.updateLaterPoint);
+      },
+      updatePointB: function(event) {
+        this.pointB = this.percentLocation(event);
+      },
+      updateLaterPoint: function(event) {
+        const pos = this.percentLocation(event);
+        if (this.pointA > this.pointB) {
+          this.pointA = pos;
+        } else {
+          this.pointB = pos;
+        }
+      },
+      endAdjustments: function() {
+        this.acceptsEvents = false;
+        this.$refs.container.removeEventListener('mousemove', this.updateEarlierPoint);
+        this.$refs.container.removeEventListener('mousemove', this.updateLaterPoint);
+      },
+    },
+    mounted: function() {
+      document.addEventListener('keydown', this.acceptEvents);
+      document.addEventListener('keyup', this.rejectEvents);
+    },
+    beforeDestroy: function() {
+      document.removeEventListener('keydown', this.acceptEvents);
+      document.removeEventListener('keyup', this.rejectEvents);
     }
   });
 
@@ -183,12 +261,13 @@ document.addEventListener('DOMContentLoaded', function() {
         zoom: 1,
         panListener: null,
         resizeHandler: null,
-        selection: {
-          start: null,
-          end: null
-        },
-        isSelecting: false,
-        rect: null
+        // selection: {
+        //   start: null,
+        //   end: null
+        // },
+        // isSelecting: false,
+        rect: null,
+        canvasWidth: 0
       }
     },
     watch: {
@@ -200,54 +279,17 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     methods: {
-      resetSelection: function() {
-        this.selection = { start: null, end: null };
-      },
-      selectionWidth: function(event) {
-        return Math.abs(this.selection.end - this.selection.start);
-      },
-      selectionStart: function(event) {
-        if (this.$refs.container === undefined) {
-          return 0;
-        }
-        const start = Math.min(this.selection.start, this.selection.end);
-        return start - this.$refs.container.scrollLeft;
-      },
-      updateSelection: function(event) {
-        const pos = event.offsetX;
-        this.selection.end = pos;
-        const selection = {...this.selection};
-      },
-      startSelection: function(event) {
-        this.resetSelection();
-        this.isSelecting = true;
-        console.log('starting selection');
-        // TODO: This needs to take into account overall offset as well.  This
-        // should be factored out because I'm surely doing it elsewhere
-        this.selection.start = event.offsetX;
-        this.$refs.canvas.addEventListener('mousemove', this.updateSelection);
-      },
-      endSelection: function(event) {
-        this.$refs.canvas.removeEventListener(
-          'mousemove', this.updateSelection);
-        console.log('end selection', event);
-        const startSeconds = this.coordinateToSeconds(
-          Math.min(this.selection.start, this.selection.end));
-        const endSeconds = this.coordinateToSeconds(
-          Math.max(this.selection.start, this.selection.end));
-        console.log('Selection created', startSeconds, endSeconds);
-        this.isSelecting = false;
-        // TODO: fire an event and clear the selection
-      },
+
       zoomIn: function() {
-        this.resetSelection();
         this.zoom = Math.min(20, this.zoom + 1);
       },
       zoomOut: function() {
-        this.resetSelection();
         this.zoom = Math.max(1, this.zoom - 1);
       },
       containerWidth: function() {
+        if (this.$refs.container === undefined) {
+          return 0;
+        }
         return this.$refs.container.clientWidth;
       },
       elementWidth: function() {
@@ -262,7 +304,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return startSeconds;
       },
       playAudio: function(event) {
-        this.resetSelection();
         // the starting point in seconds relative to this slice
         const relativeStartSeconds =
           (event.offsetX / this.elementWidth()) * this.featureData.durationSeconds;
@@ -283,6 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const elementWidth = this.elementWidth();
 
         canvas.width = elementWidth;
+        this.canvasWidth = elementWidth;
         canvas.style.width = `${this.zoom * 100}%`;
         canvas.height = container.clientHeight;
         canvas.style.height = '100%';
@@ -383,10 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
       this.rect = this.$refs.canvas.getBoundingClientRect();
       // re-draw whenever the scroll position changes
       this.panListener =
-        onScroll(this.$refs.container, () => {
-          this.draw(false);
-          this.resetSelection();
-        }, 100);
+        onScroll(this.$refs.container, () => this.draw(false), 100);
       // re-draw whenever the window is resized
       this.resizeHandler =
         onResize(window, () => this.draw(true), 100);
