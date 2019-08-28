@@ -464,8 +464,16 @@ class SoundAnnotationsResource(object):
         """
         sound = session.find_one(Sound.id == sound_id)
 
+        annotations_key = 'annotations'
 
-        for annotation in req.media['annotations']:
+        annotations = req.media.get(annotations_key)
+        if not annotations:
+            error = ValueError(
+                'You must provide one or more '
+                'annotations in field "annotations"')
+            raise CompositeValidationError((annotations_key, error))
+
+        for annotation in annotations:
             annotation['created_by'] = actor
             annotation['sound'] = sound
             Annotation.create(

@@ -1316,7 +1316,16 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
         self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_bad_request_when_no_annotations_are_provided(self):
-        self.fail()
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(
+            data_url='https://example.com', start_seconds=0)
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json=annotation_data,
+            auth=auth)
+        self.assertEqual(client.BAD_REQUEST, resp.status_code)
 
     def test_can_create_annotation_with_start_seconds_of_zero(self):
         user, user_location = self.create_user(user_type='human')
