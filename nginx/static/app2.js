@@ -160,25 +160,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  const AddAnnotationModel = Vue.component('add-annotation-modal', {
+  const AddAnnotationModal = Vue.component('add-annotation-modal', {
     template: '#add-annotation-modal-template',
-    props: [],
+    props: ['featureData', 'audioUrl', 'startSeconds', 'span'],
     data: function() {
       return {
-
+        rawTags: '',
+        slicedFeatureData: null,
+        modifiedStartSeconds: null
       };
+    },
+    computed: {
+      tags: function() {
+        return new Set(
+          this.rawTags.split(' ').filter(x => x).map(x => x.toLowerCase()));
+      }
+    },
+    created: function() {
+      this.slicedFeatureData = this.featureData.timeSlice(
+        this.span.startSeconds, this.span.durationSeconds);
+      this.modifiedStartSeconds = this.startSeconds + this.span.startSeconds;
+    },
+    mounted: function() {
+
     },
     methods: {
       close: function() {
-        console.log('closing!')
         this.$emit('modal-close');
+      },
+      createAnnotation: function() {
+        console.log('create annotation!')
+        this.$emit('save-annotation');
       }
     }
   });
 
   const Selection = Vue.component('selection', {
     template: '#selection-template',
-    props: ['width'],
+    props: ['width', 'featureData', 'audioUrl', 'startSeconds'],
     data: function() {
       return {
         acceptsEvents: false,
@@ -191,6 +210,17 @@ document.addEventListener('DOMContentLoaded', function() {
       };
     },
     methods: {
+      span: function() {
+        const start = Math.min(this.pointA, this.pointB);
+        const end = Math.max(this.pointA, this.pointB);
+        const startSeconds = start * this.featureData.durationSeconds;
+        const endSeconds = end * this.featureData.durationSeconds;
+        return {
+          startSeconds,
+          endSeconds,
+          durationSeconds: endSeconds - startSeconds
+        };
+      },
       addAnnotation: function() {
         this.isAddingAnnotation = true;
       },
@@ -281,7 +311,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const SoundView = Vue.component('sound-view', {
     template: '#sound-view-template',
-    props: ['featureData', 'audioUrl', 'startSeconds'],
+    props: {
+      featureData: FeatureData,
+      audioUrl: String,
+      startSeconds: Number,
+      selectable: {
+        type: Boolean,
+        default: true
+      }
+    },
     data: function() {
       return {
         zoom: 1,
@@ -339,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
           0, 0, this.$refs.canvas.width, this.$refs.canvas.height);
       },
       draw: function(preserveOffset=false) {
-
+        console.log('DRAWING');
         const canvas = this.$refs.canvas;
         const container = this.$refs.container;
         const elementWidth = this.elementWidth();
@@ -450,6 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // re-draw whenever the window is resized
       this.resizeHandler =
         onResize(window, () => this.draw(true), 100);
+      this.draw();
     },
   });
 

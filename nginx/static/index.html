@@ -113,7 +113,7 @@
   </template>
 
   <template id="add-annotation-modal-template">
-    <div class="modal is-active" style="z-index:999">
+    <div class="modal is-active">
         <div class="modal-background"></div>
         <div class="modal-card">
       <header class="modal-card-head">
@@ -121,10 +121,37 @@
         <button @click="close" class="delete" aria-label="close"></button>
       </header>
       <section class="modal-card-body">
-        OH HAI!
+
+        <sound-view
+          :selectable="false"
+          :feature-data="slicedFeatureData"
+          :audio-url="audioUrl"
+          :start-seconds="modifiedStartSeconds"></sound-view>
+
+        <div class="field">
+          <label class="label" for="annotation-tags">Space-Delimited Tags</label>
+          <div class="control">
+            <input
+              class="input"
+              type="text"
+              id="annotation-tags"
+              v-model="rawTags"/>
+          </div>
+        </div>
+
+        <div class="container">
+          <div class="tags">
+            <div
+              v-for="tag in tags"
+              class="tag is-info">{{ tag }}</div>
+          </div>
+        </div>
+
       </section>
       <footer class="modal-card-foot">
-        <button class="button is-success">Save changes</button>
+        <button
+          @click="createAnnotation"
+          class="button is-success">Save changes</button>
         <button @click="close" class="button">Cancel</button>
       </footer>
     </div>
@@ -144,7 +171,13 @@
         backgroundColor: '#ffffff00',
         pointerEvents: acceptsEvents ? 'auto' : 'none'
       }">
-      <add-annotation-modal v-if="isAddingAnnotation"></add-annotation-modal>
+      <add-annotation-modal
+        @modal-close="closeModal"
+        :span="span()"
+        :feature-data="featureData"
+        :audio-url="audioUrl"
+        :start-seconds="startSeconds"
+        v-if="isAddingAnnotation"></add-annotation-modal>
       <div class="selection" v-bind:style="{
           position: 'absolute',
           left: startPixels().toString() + 'px',
@@ -188,6 +221,10 @@
     <div class="sound-view-outer-container">
         <div ref="container" class="sound-view-container">
           <selection
+              v-if="selectable"
+              :feature-data="featureData"
+              :audio-url="audioUrl"
+              :start-seconds="startSeconds"
               :width="canvasWidth"></selection>
             <canvas
               @click.exact="playAudio"
@@ -273,13 +310,15 @@
               <div class="control">
                 <input class="input" type="text" id="query" v-model="query"/>
               </div>
-              <div class="field">
-                <div class="control">
-                  <button
-                    class="button is-link"
-                    type="submit"
-                    v-on:click="handleSubmit">Search</button>
-                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="field">
+              <div class="control">
+                <button
+                  class="button is-link"
+                  type="submit"
+                  v-on:click="handleSubmit">Search</button>
               </div>
             </div>
           </div>

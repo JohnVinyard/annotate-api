@@ -38,3 +38,7 @@
 .sound-view-visualization {
   cursor: pointer;
 }
+
+.modal {
+	pointer-events: auto;
+}
