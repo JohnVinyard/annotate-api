@@ -165,10 +165,7 @@
       @mouseup.ctrl="endSelection"
       @mouseup="endAdjustments"
       v-bind:style="{
-        position: 'absolute',
-        height: '100%',
         width: width.toString() + 'px',
-        backgroundColor: '#ffffff00',
         pointerEvents: acceptsEvents ? 'auto' : 'none'
       }">
       <add-annotation-modal
@@ -180,40 +177,26 @@
         :start-seconds="startSeconds"
         v-if="isAddingAnnotation"></add-annotation-modal>
       <div class="selection" v-bind:style="{
-          position: 'absolute',
           left: startPixels().toString() + 'px',
           width: widthPixels().toString() + 'px',
-          backgroundColor: '#ff000033',
-          height: '100%',
           pointerEvents: isSelecting ? 'none' : 'auto'
         }"></div>
-      <div @mousedown="adjustLeft" v-bind:style="{
-          position: 'absolute',
+      <div class="selection-handle" @mousedown="adjustLeft" v-bind:style="{
           left: (startPixels() - handleWidth).toString() + 'px',
           width: handleWidth.toString() + 'px',
-          height: '100%',
-          backgroundColor: '#ff0000',
           pointerEvents: isSelecting ? 'none' : 'auto',
-          cursor: 'grab'
         }"></div>
-      <div @mousedown="adjustRight" v-bind:style="{
-          position: 'absolute',
+      <div class="selection-handle" @mousedown="adjustRight" v-bind:style="{
           left: (startPixels() + widthPixels()).toString() + 'px',
           width: handleWidth.toString() + 'px',
-          height: '100%',
-          backgroundColor: '#ff0000',
           pointerEvents: isSelecting ? 'none' : 'auto',
-          cursor: 'grab'
         }"></div>
       <div
         v-if="!(isAdjusting || isSelecting)"
         @click="addAnnotation"
         class="add-annotation"
         v-bind:style="{
-          position: 'absolute',
           left: (startPixels() + widthPixels() - 20).toString() + 'px',
-          top: '20px',
-          pointerEvents: 'auto'
       }">+</div>
     </div>
   </template>

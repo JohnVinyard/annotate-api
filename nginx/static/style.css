@@ -13,9 +13,6 @@
   position:absolute;
   top: 5px;
   right:20px;
-  /* font-weight:bold;
-  font-size:2em;
-  cursor: pointer; */
 }
 
 .add-annotation, .sound-view-controls {
@@ -26,6 +23,9 @@
 .add-annotation {
 	background-color: #00ff00;
 	border-radius: 25px;
+	top: 20px;
+	position: absolute;
+	pointer-events: auto;
 }
 .sound-view-container {
     overflow-x: auto;
@@ -37,6 +37,25 @@
 
 .sound-view-visualization {
   cursor: pointer;
+}
+
+.selection-container,
+.selection,
+.selection-handle {
+	position: absolute;
+	height: 100%;
+}
+
+.selection-container {
+	background-color: #ffffff00;
+}
+
+.selection {
+	background-color: #ff000033;
+}
+.selection-handle {
+	background-color: #ff0000;
+	cursor: grab;
 }
 
 .modal {
