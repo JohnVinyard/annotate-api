@@ -1118,7 +1118,35 @@ class AnnotationsTests(BaseTests, unittest2.TestCase):
         self.assertEqual(2, len(items))
 
     def test_tags_should_be_formatted_correctly_in_next_link(self):
-        self.fail()
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=['drums']),
+            self.annotation_data(tags=['snare'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        user2, user2_location = self.create_user(user_type='human')
+        auth2 = self._get_auth(user2)
+        sound_id2 = self._create_sound_with_user(auth2)
+        annotation_data2 = [
+            self.annotation_data(tags=['kick']),
+            self.annotation_data(tags=['snare'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id2),
+            json={'annotations': annotation_data2},
+            auth=auth)
+
+        resp = requests.get(
+            self.annotations_resource(),
+            params={'page_size': 1, 'tags': ['snare']},
+            auth=auth)
+        self.assertIn('tags=snare', resp.json()['next'])
 
 
 class AnnotationTests(BaseTests, unittest2.TestCase):

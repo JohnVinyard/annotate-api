@@ -14,7 +14,7 @@ def exclude_from_docs(f):
 
 def encode_query_parameters(**kwargs):
     filtered_params = {k: v for k, v in kwargs.items() if v}
-    return urllib.parse.urlencode(filtered_params)
+    return urllib.parse.urlencode(filtered_params, doseq=True)
 
 
 def decode_auth_header(auth):
