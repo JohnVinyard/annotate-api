@@ -594,6 +594,18 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(client.OK, sound_resp.status_code)
         self.assertEqual(sound_data['info_url'], sound_resp.json()['info_url'])
 
+    def test_created_by_user_name_is_included(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.get(self.url(sound_location), auth=auth)
+        self.assertEqual(client.OK, sound_resp.status_code)
+        self.assertEqual(
+            user1['user_name'], sound_resp.json()['created_by_user_name'])
+
     def test_can_create_sound_with_low_quality_url(self):
         user1, user1_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user1)
@@ -1159,6 +1171,23 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
             json={'annotations': [annotation_data]},
             auth=auth)
         self.assertEqual(client.CREATED, resp.status_code)
+
+    def test_created_by_user_name_is_included(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = self.annotation_data(tags=['drums'])
+        resp = requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': [annotation_data]},
+            auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+
+        results = requests.get(
+            self.sound_annotations_resource(sound_id), auth=auth)
+        item = results.json()['items'][0]
+        self.assertEqual(
+            user['user_name'], item['created_by_user_name'])
 
     def test_featurebot_can_create_annotation(self):
         user, user_location = self.create_user(user_type='human')

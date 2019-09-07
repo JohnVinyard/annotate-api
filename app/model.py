@@ -142,6 +142,9 @@ class Sound(BaseAppEntity):
         required=True,
         evaluate_context=lambda instance, context:
             context.user_type in Sound.ALLOWED_CREATOR_TYPES)
+    created_by_user_name = Immutable(
+        default_value=lambda instance:
+        instance.created_by.user_name)
     info_url = URL(required=True)
     audio_url = URL(required=True)
     low_quality_audio_url = URL(required=False)
@@ -164,6 +167,9 @@ class Annotation(BaseAppEntity):
         required=True,
         evaluate_context=lambda instance, context:
             context.user_type in Annotation.ALLOWED_CREATOR_TYPES)
+    created_by_user_name = Immutable(
+        default_value=lambda instance:
+        instance.created_by.user_name)
     sound = Immutable(required=True)
     start_seconds = Immutable(required=True, value_transform=float)
     duration_seconds = Immutable(required=True, value_transform=float)

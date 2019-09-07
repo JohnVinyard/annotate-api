@@ -192,6 +192,11 @@ class SoundTests(unittest2.TestCase):
         snd = sound(user)
         self.assertEqual(snd.created_by, user)
 
+    def test_created_by_user_name_is_computed(self):
+        user = User.create(**user1())
+        snd = sound(user)
+        self.assertEqual(snd.created_by_user_name, user.user_name)
+
     def test_permission_error_when_creator_is_featurebot(self):
         user = User.create(**user1(user_type=UserType.FEATUREBOT))
         self.assertRaises(PermissionsError, lambda: sound(user))
@@ -282,6 +287,30 @@ class AnnotationDataTests(unittest2.TestCase):
                 data_url=None)
 
         self.assertEqual(2, annotation.end_seconds)
+
+    def test_created_by_user_name_is_computed(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = next(s.filter(Sound.id == sound_id))
+            annotation = Annotation.create(
+                creator=user,
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['drums'],
+                data_url=None)
+
+        self.assertEqual(user.user_name, annotation.created_by_user_name)
 
     def test_error_when_setting_computed_field(self):
         with self._session():
