@@ -7,6 +7,10 @@
       src="https://cdnjs.cloudflare.com/ajax/libs/timeago.js/3.0.2/timeago.min.js"
       integrity="sha256-jwCP0NAdCBloaIWTWHmW4i3snUNMHUNO+jr9rYd2iOI="
       crossorigin="anonymous"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.0/showdown.min.js"
+      integrity="sha256-LSUpTY0kkXGKvcBC9kbmgibmx3NVVgJvAEfTZbs51mU="
+      crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
     <script type="text/javascript" src="settings.js"></script>
@@ -100,17 +104,7 @@
     </<section>
   </template>
 
-  <template id="user-detail-template">
-    <section class="section">
-      <div class="content">
-        <h1>{{ userName }}</h1>
-        <p>
-          <a v-bind:href="infoUrl">More info</a>
-        </p>
-        <p>{{ aboutMe }}</p>
-      </div>
-    </section>
-  </template>
+
 
   <template id="add-annotation-modal-template">
     <div class="modal is-active">
@@ -324,15 +318,41 @@
     </<section>
   </template>
 
+  <template id="user-detail-template">
+    <section class="section">
+      <div class="content">
+        <h1>{{ user.user_name }}</h1>
+        <p class="is=size-7">
+          created {{ timeago.format(user.date_created) }}
+        </p>
+        <p>
+          <a v-bind:href="user.info_url">More info</a>
+        </p>
+        <p v-html="aboutMe()"></p>
+      </div>
+    </section>
+  </template>
+
   <template id="user-summary-template">
 
     <div class="card">
       <div class="card-header">
-        <h3 class="card-header-title">{{ user.user_name }}</h3>
+        <div class="level">
+          <div class="level-left">
+            <router-link :to="{ name: 'user', params: { id: user.id }}">
+              <h3 class="card-header-title">{{ user.user_name }}</h3>
+            </router-link>
+          </div>
+          <div class="level-right">
+            <span class="is-size-7">
+              created {{ timeago.format(user.date_created) }}
+            </span>
+          </div>
+        </div>
+
       </div>
-      <div class="card-content">
-        <div class="content">
-          {{ user.about_me }}
+      <div class="card-content user-summary-about-me">
+        <div class="content" v-html="aboutMeRendered()">
         </div>
       </div>
     </div>

@@ -67,3 +67,7 @@
 	width: 100%;
 	z-index: 999;
 }
+.user-summary-about-me {
+	max-height: 200px;
+	overflow: hidden;
+}

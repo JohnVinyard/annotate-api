@@ -138,29 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
     template: '#menu-template'
   });
 
-  const UserDetail = Vue.component('user', {
-    props: ['user', 'id'],
-    template: '#user-detail-template',
-    data: function() {
-      return {
-        userName: null,
-        aboutMe: null,
-        infoUrl: null
-      }
-    },
-    mounted: function() {
-      const client = new AnnotateApiClient(
-        this.user.name,
-        this.user.password,
-        cochleaAppSettings.apiHost);
-      client.getUser(this.user.data.id)
-        .then(data => {
-          this.userName = data.user_name;
-          this.aboutMe = data.about_me;
-          this.infoUrl = data.info_url;
-        });
-    }
-  });
+
 
   const AddAnnotationModal = Vue.component('add-annotation-modal', {
     template: '#add-annotation-modal-template',
@@ -623,14 +601,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  const UserDetail = Vue.component('user', {
+    props: ['id'],
+    template: '#user-detail-template',
+    data: function() {
+      return {
+        timeago: timeAgo,
+        user: {}
+      }
+    },
+    mounted: function() {
+      getApiClient()
+        .getUser(this.id)
+        .then(data => {
+          this.user = data;
+        });
+    },
+    methods: {
+      aboutMe: function() {
+        return new showdown.Converter().makeHtml(this.user.about_me);
+      }
+    }
+  });
+
 
   const UserSummary = Vue.component('user-summary', {
     props: ['user'],
     template: '#user-summary-template',
     data: function() {
       return {
-
+        timeago: timeAgo
       };
+    },
+    methods: {
+      aboutMeRendered: function() {
+        return new showdown.Converter().makeHtml(this.user.about_me);
+      }
     }
   });
 
