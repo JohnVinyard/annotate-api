@@ -224,19 +224,24 @@
 
       <div class="card-header">
 
-        <div class="level">
+        <div class="level is-fullwidth">
           <div class="level-left">
             <div class="level-item">
               <router-link :to="annotation.sound">
                 <h3 class="card-header-title">{{ sound ? sound.title : '' }}</h3>
               </router-link>
               <h3>{{ `${annotation.start_seconds.toFixed(2)} - ${annotation.end_seconds.toFixed(2)}` }} seconds</h3>
+
             </div>
           </div>
           <div class="level-right">
             <div class="level-item">
               <p class="is-size-7">
-                created {{ timeago.format(annotation.date_created) }}
+                  Created by
+                  <router-link :to="annotation.created_by">
+                    {{ annotation.created_by_user_name }}
+                  </router-link>
+                  {{ timeago.format(annotation.date_created) }}
               </p>
             </div>
           </div>
