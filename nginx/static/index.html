@@ -321,8 +321,68 @@
               v-bind:key="annotation.id" />
           </div>
         </div>
+
+        <div class="section">
+          <div class="container">
+            <pagination
+              @change-page="changePage"
+              :total-pages="totalPages"
+              :current-page="pageNumber"
+              :max-display-pages="5"
+              ></pagination>
+          </div>
+        </div>
       </div>
     </<section>
+  </template>
+
+  <template id="pagination-template">
+    <section class="section">
+      <div class="container">
+        <nav class="pagination is-centered" role="navigation" aria-label="pagination">
+
+          <!-- Previous and Next Links -->
+          <a
+            v-bind:disabled="isFirstPage"
+            @click="visitPreviousPage()"
+            class="pagination-previous">Previous page</a>
+          <a
+            v-bind:disabled="isLastPage"
+            @click="visitNextPage()"
+            class="pagination-next">Next page</a>
+
+          <ul class="pagination-list">
+
+            <!-- First Page Link -->
+            <li v-if="needsFirstPageLink">
+              <a @click="visitFirstPage()" class="pagination-link">0</a>
+            </li>
+            <li v-if="needsFirstPageLink">
+              <span class="pagination-ellipsis">&hellip;</span>
+            </li>
+
+            <!-- Page Links -->
+            <li v-for="page in displayPages">
+              <a
+                @click="visit(page)"
+                v-bind:class="{
+                  'is-current': page === currentPage
+                }"
+                class="pagination-link">{{page}}</a>
+            </li>
+
+            <!-- Last Page Link -->
+            <li v-if="needsLastPageLink">
+              <span class="pagination-ellipsis">&hellip;</span>
+            </li>
+            <li v-if="needsLastPageLink">
+              <a @click="visitLastPage()" class="pagination-link">{{lastPage}}</a>
+            </li>
+
+          </ul>
+        </nav>
+      </div>
+    </section>
   </template>
 
   <template id="user-detail-template">

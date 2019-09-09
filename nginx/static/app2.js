@@ -564,7 +564,11 @@ document.addEventListener('DOMContentLoaded', function() {
         currentFeature: {
           user_name: 'audio'
         },
-        allFeatures: []
+        allFeatures: [],
+        pageSize: 10,
+        totalResults: 0,
+        totalPages: 0,
+        pageNumber: 0
       }
     },
     methods: {
@@ -572,12 +576,18 @@ document.addEventListener('DOMContentLoaded', function() {
         this.query = tag;
         this.handleSubmit();
       },
+      changePage: function(event) {
+        this.pageNumber = event.pageNumber;
+        this.handleSubmit();
+      },
       handleSubmit: function() {
         this.annotations = [];
         getApiClient()
-          .getAnnotations(this.query)
+          .getAnnotations(this.query, this.pageSize, this.pageNumber)
           .then(data => {
             const annotations = data.items;
+            this.totalResults = data.total_count;
+            this.totalPages = Math.ceil(data.total_count / this.pageSize);
             const featureDataMapping = {};
             annotations.forEach(annotation => {
               const fp = () => featurePromise(
@@ -604,6 +614,74 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
           this.allFeatures = this.allFeatures.concat(data.items);
         });
+    }
+  });
+
+  const Pagination = Vue.component('pagination', {
+    template: '#pagination-template',
+    props: {
+      currentPage: {
+          type: Number,
+          default: 0
+      },
+      totalPages: Number,
+      maxDisplayPages : {
+        type: Number,
+        default: 10
+      }
+    },
+    computed: {
+      displayPages: function() {
+        const display = [this.currentPage];
+        if (this.totalPages === 0) {
+          return display;
+        }
+        while (display.length <= this.maxDisplayPages) {
+          const nextItem = display[display.length - 1] + 1;
+          if (nextItem <= this.lastPage) {
+            display.push(nextItem);
+          }
+          const previousItem = display[0] - 1;
+          if(previousItem >= 0) {
+            display.unshift(previousItem);
+          }
+        }
+        return display;
+      },
+      needsFirstPageLink: function() {
+        return !this.displayPages.includes(0);
+      },
+      needsLastPageLink: function() {
+        return !this.displayPages.includes(this.lastPage);
+      },
+      lastPage: function() {
+        return this.totalPages - 1;
+      },
+      isFirstPage: function() {
+        return this.currentPage === 0;
+      },
+      isLastPage: function() {
+        return this.currentPage === this.lastPage;
+      }
+    },
+    methods: {
+      visitFirstPage: function() {
+        this.visit(0);
+      },
+      visitLastPage: function() {
+        this.visit(this.totalPages - 1);
+      },
+      visitPreviousPage: function() {
+        if (this.isFirstPage()) { return; }
+        this.visit(this.currentPage - 1);
+      },
+      visitNextPage: function() {
+        if (this.isLastPage()) { return; }
+        this.visit(this.currentPage + 1);
+      },
+      visit: function(page) {
+        this.$emit('change-page', { pageNumber: page });
+      }
     }
   });
 
