@@ -520,6 +520,12 @@ document.addEventListener('DOMContentLoaded', function() {
       offsetSeconds: function() {
         return this.annotation.start_seconds;
       },
+      soundId: function() {
+        return this.annotation.sound.split('/').pop();
+      },
+      createdByUserId: function() {
+        return this.annotation.created_by.split('/').pop();
+      }
     },
     beforeDestroy: function() {
       document.removeEventListener('scroll', this.scrollListener[0]);
@@ -734,17 +740,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const router = new VueRouter({
     routes: [
+
+      // Landing Page
       { path: routerPath('/welcome'), name: 'welcome', component: Welcome, props: true },
-      { path: routerPath('/menu'), name: 'menu', component: Menu},
+
+      // Sign in and register
       { path: routerPath('/sign-in'), name: 'sign-in', component: SignIn, props: true },
       { path: routerPath('/register'), name: 'register', component: Register},
+
+      // Main menu for authenticated users
+      { path: routerPath('/menu'), name: 'menu', component: Menu},
+      { path: routerPath('/'), name: 'menu', component: Menu},
+
+      // Annotations
       { path: routerPath('/annotations'), name: 'annotations', component: Annotations},
+
+      // Sounds
       { path: routerPath('/sounds'), name: 'sounds', component: Sounds },
       { path: routerPath('/sounds/:id'), name: 'sound', component: Sound, props: true},
+
+      // Users
       { path: routerPath('/users/:id'), name: 'user', component: UserDetail, props: true},
       { path: routerPath('/users'), name: 'users', component: UserList, props: true}
     ],
-    // mode: 'history'
+    mode: 'history'
   });
 
   app = new Vue({
@@ -790,7 +809,10 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     mounted: function() {
       this.initializeCredentials();
-      this.$router.push(this.homeLink());
+      if (!this.isAuthenticated()) {
+        this.$router.push({ name: 'welcome', params: { user: this.user }});
+      }
+      // this.$router.push(this.homeLink());
       EventBus.$on('global-message', (event) => {
         console.log('global message', event);
         this.globalMessage = event;

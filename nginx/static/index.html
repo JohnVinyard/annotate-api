@@ -13,16 +13,18 @@
       crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
-    <script type="text/javascript" src="settings.js"></script>
-    <script type="text/javascript" src="app.js"></script>
-    <script type="text/javascript" src="app2.js"></script>
+
+    <script type="text/javascript" src="/static/settings.js"></script>
+    <script type="text/javascript" src="/static/app.js"></script>
+    <script type="text/javascript" src="/static/app2.js"></script>
 
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css"
       integrity="sha256-vK3UTo/8wHbaUn+dTQD0X6dzidqc5l7gczvH+Bnowwk="
       crossorigin="anonymous" />
-    <link rel="stylesheet" href="style.css" />
+
+    <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body >
 
@@ -227,7 +229,7 @@
         <div class="level is-fullwidth">
           <div class="level-left">
             <div class="level-item">
-              <router-link :to="annotation.sound">
+              <router-link :to="{ name: 'sound', params: { id: soundId() }}">
                 <h3 class="card-header-title">{{ sound ? sound.title : '' }}</h3>
               </router-link>
               <h3>{{ `${annotation.start_seconds.toFixed(2)} - ${annotation.end_seconds.toFixed(2)}` }} seconds</h3>
@@ -238,7 +240,7 @@
             <div class="level-item">
               <p class="is-size-7">
                   Created by
-                  <router-link :to="annotation.created_by">
+                  <router-link :to="{ name: 'user', params: { id: createdByUserId() }}">
                     {{ annotation.created_by_user_name }}
                   </router-link>
                   {{ timeago.format(annotation.date_created) }}

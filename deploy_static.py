@@ -92,7 +92,8 @@ class StaticResource(Requirement):
 
     @property
     def filename(self):
-        return os.path.split(self.local_path)[-1]
+        filename = os.path.split(self.local_path)[-1]
+        return f'/static/{filename}'
 
     def _get_file_contents(self):
         with open(self.local_path, 'rb') as f:
