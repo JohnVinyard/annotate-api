@@ -1117,6 +1117,45 @@ class AnnotationsTests(BaseTests, unittest2.TestCase):
         items = resp.json()['items']
         self.assertEqual(2, len(items))
 
+    def test_can_list_annotations_from_most_to_least_recent(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=['drums']),
+            self.annotation_data(tags=['snare'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        user2, user2_location = self.create_user(user_type='human')
+        auth2 = self._get_auth(user2)
+        sound_id2 = self._create_sound_with_user(auth2)
+        annotation_data2 = [
+            self.annotation_data(tags=['kick']),
+            self.annotation_data(tags=['snare'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id2),
+            json={'annotations': annotation_data2},
+            auth=auth)
+
+        resp1 = requests.get(
+            self.annotations_resource(),
+            params={'page_size': 100, 'tags': ['snare']},
+            auth=auth)
+        items1 = resp1.json()['items']
+
+        resp2 = requests.get(
+            self.annotations_resource(),
+            params={'page_size': 100, 'tags': ['snare'], 'order': 'desc'},
+            auth=auth)
+        items2 = resp2.json()['items']
+
+        self.assertSequenceEqual(items1, items2[::-1])
+
     def test_tags_should_be_formatted_correctly_in_next_link(self):
         user, user_location = self.create_user(user_type='human')
         auth = self._get_auth(user)

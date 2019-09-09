@@ -123,9 +123,11 @@ def list_entity(
         session,
         actor,
         query,
-        result_order,
+        entity_type,
         link_template,
-        additional_params=None):
+        additional_params=None,
+        default_result_order=None):
+
     page_size = req.get_param_as_int('page_size') or 100
     page_number = req.get_param_as_int('page_number') or 0
 
@@ -142,6 +144,19 @@ def list_entity(
     if low_id is not None:
         query = query & (query.entity_class.id > low_id)
         additional_params['low_id'] = low_id
+
+    # KLUDGE: The use of low_id and desc order should really be mutually
+    # exclusive
+    order = req.get_param('order')
+    orders = {
+        'asc': entity_type.date_created.ascending(),
+        'desc': entity_type.date_created.descending()
+    }
+    try:
+        result_order = additional_params['order'] = orders[order]
+    except KeyError:
+        result_order = \
+            default_result_order or entity_type.date_created.ascending()
 
     query_result = session.filter(
         query,
@@ -287,7 +302,7 @@ class SoundsResource(object):
             session,
             actor,
             query,
-            Sound.date_created.ascending(),
+            Sound,
             SoundsResource.LINK_TEMPLATE,
             additional_params=additional_params)
 
@@ -422,7 +437,7 @@ class AnnotationsResource(object):
             session,
             actor,
             query,
-            Annotation.date_created.ascending(),
+            Annotation,
             self.LINK_TEMPLATE,
             additional_params=additional_params)
 
@@ -609,7 +624,7 @@ class SoundAnnotationsResource(object):
             session,
             actor,
             query,
-            Annotation.date_created.ascending(),
+            Annotation,
             self.link_template(sound_id),
             additional_params=additional_params)
 
@@ -710,7 +725,7 @@ class UserSoundsResource(object):
             session,
             actor,
             query,
-            Sound.date_created.ascending(),
+            Sound,
             self.link_template(user_id),
             additional_params=additional_params)
 
@@ -799,7 +814,7 @@ class UserAnnotationResource(object):
             session,
             actor,
             query,
-            Annotation.date_created.ascending(),
+            Annotation,
             self.link_template(user_id))
 
 
@@ -915,9 +930,10 @@ class UsersResource(object):
             session,
             actor,
             query,
-            User.date_created.descending(),
+            User,
             UsersResource.LINK_TEMPLATE,
-            additional_params=additional_params)
+            additional_params=additional_params,
+            default_result_order=User.date_created.descending())
 
 
 class SoundResource(object):
