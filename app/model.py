@@ -177,4 +177,4 @@ class Annotation(BaseAppEntity):
         default_value=lambda instance:
         instance.start_seconds + instance.duration_seconds)
     data_url = URL(default_value=None)
-    tags = Immutable()
+    tags = Immutable(default_value=[])

@@ -127,7 +127,6 @@ def list_entity(
         link_template,
         additional_params=None,
         default_result_order=None):
-
     page_size = req.get_param_as_int('page_size') or 100
     page_number = req.get_param_as_int('page_number') or 0
 
@@ -426,10 +425,16 @@ class AnnotationsResource(object):
         # factor it out
         additional_params = {}
         tags = req.get_param_as_list('tags')
+        with_tags = req.get_param_as_bool('with_tags')
         if tags:
+            # look for specific tags
             additional_params['tags'] = tags
             for tag in tags:
                 query = query & (Annotation.tags == tag)
+        elif with_tags:
+            # only ensure that some tags are present
+            additional_params['with_tags'] = with_tags
+            query = query & (Annotation.tags != [])
 
         list_entity(
             req,

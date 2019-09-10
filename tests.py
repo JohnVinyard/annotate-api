@@ -1085,6 +1085,37 @@ class AnnotationsTests(BaseTests, unittest2.TestCase):
     def tearDown(self):
         self.delete_all_data()
 
+    def test_can_exclude_sounds_with_no_tags(self):
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=['drums']),
+            self.annotation_data(tags=['snare'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        user2, user2_location = self.create_user(user_type='featurebot')
+        auth2 = self._get_auth(user2)
+        annotation_data2 = [
+            self.annotation_data(data_url='http://example.com/1'),
+            self.annotation_data(data_url='http://example.com/2')
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data2},
+            auth=auth2)
+
+        resp = requests.get(
+            self.annotations_resource(),
+            params={'page_size': 100, 'with_tags': True},
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(2, len(items))
+
     def test_can_search_across_sounds_by_tag(self):
         user, user_location = self.create_user(user_type='human')
         auth = self._get_auth(user)

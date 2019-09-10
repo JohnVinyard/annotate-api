@@ -366,6 +366,76 @@ class AnnotationDataTests(unittest2.TestCase):
             annotation = next(s.filter(Annotation.id == annotation_id))
             self.assertIsNone(annotation.data_url)
 
+    def test_can_exclude_annotations_with_empty_tags(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = next(s.filter(Sound.id == sound_id))
+            annotation = Annotation.create(
+                creator=user,
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['drums'],
+                data_url=None)
+            Annotation.create(
+                creator=user,
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=[],
+                data_url=None)
+
+        with self._session() as s:
+            annotations = list(s.filter(Annotation.tags != []))
+            self.assertEqual(1, len(annotations))
+            self.assertEqual(annotation.id, annotations[0].id)
+
+    def test_can_exclude_annotations_with_null_tags(self):
+        with self._session():
+            user = User.create(**user1())
+            user_id = user.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = sound(user)
+            sound_id = snd.id
+
+        with self._session() as s:
+            user = next(s.filter(User.id == user_id))
+            snd = next(s.filter(Sound.id == sound_id))
+            annotation = Annotation.create(
+                creator=user,
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=['drums'],
+                data_url=None)
+            Annotation.create(
+                creator=user,
+                created_by=user,
+                sound=snd,
+                start_seconds=1,
+                duration_seconds=1,
+                tags=None,
+                data_url=None)
+
+        with self._session() as s:
+            annotations = list(s.filter(Annotation.tags != []))
+            self.assertEqual(1, len(annotations))
+            self.assertEqual(annotation.id, annotations[0].id)
+
 
 class SoundDataTests(unittest2.TestCase):
     def setUp(self):
