@@ -436,9 +436,9 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
-  getAnnotations(rawQuery=null, pageSize=100, pageNumber=0) {
+  getAnnotations(rawQuery=null, pageSize=100, pageNumber=0, order='desc') {
     let url = this.buildUri(
-      `/annotations?page_size=${pageSize}&page_number=${pageNumber}`);
+      `/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
     if (rawQuery) {
       url += `&tags=${rawQuery}`;
     }

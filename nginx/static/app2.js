@@ -606,8 +606,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     mounted: function() {
-
-
       this.allFeatures.push(this.currentFeature);
       this.handleSubmit();
       getApiClient().getFeatureBots()
@@ -636,7 +634,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.totalPages === 0) {
           return display;
         }
+
         while (display.length <= this.maxDisplayPages) {
+          const startLength = display.length;
+
           const nextItem = display[display.length - 1] + 1;
           if (nextItem <= this.lastPage) {
             display.push(nextItem);
@@ -644,6 +645,10 @@ document.addEventListener('DOMContentLoaded', function() {
           const previousItem = display[0] - 1;
           if(previousItem >= 0) {
             display.unshift(previousItem);
+          }
+
+          if (display.length === startLength) {
+            break;
           }
         }
         return display;
