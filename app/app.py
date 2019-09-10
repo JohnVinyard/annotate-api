@@ -408,6 +408,8 @@ class AnnotationsResource(object):
             page_number: The page of results to view
             low_id: Only return identifiers occurring later in the series than
                 this one
+            order: If `desc`, return results from most to least recent, if `asc`
+                return results from least to most recent.
             tags: Only return annotations with all specified tags
             with_tags: Only return annotations that have at least one tag,
                 generally excluding dense features computed by featurebots.  This
@@ -582,6 +584,8 @@ class SoundAnnotationsResource(object):
         query_params:
             page_size: The number of results per page
             page_number: The page of results to view
+            order: If `desc`, return results from most to least recent, if `asc`
+                return results from least to most recent.
             low_id: Only return identifiers occurring later in the series than
                 this one
             time_range: Only return annotations overlapping with the specified
@@ -705,6 +709,8 @@ class UserSoundsResource(object):
             page_number: The page of results to view
             low_id: Only return identifiers occurring later in the series than
                 this one
+            order: If `desc`, return results from most to least recent, if `asc`
+                return results from least to most recent.
             tags: Only return sounds with all tags specified
         responses:
             - status_code: 200
@@ -801,6 +807,8 @@ class UserAnnotationResource(object):
         query_params:
             page_size: The number of results per page
             page_number: The current page
+            order: If `desc`, return results from most to least recent, if `asc`
+                return results from least to most recent.
         responses:
             - status_code: 200
               description: Successfully fetched a list of annotations
@@ -904,6 +912,8 @@ class UsersResource(object):
             page_number: The page of results to view
             low_id: Only return identifiers occurring later in the series than
                 this one
+            order: If `desc`, return results from most to least recent, if `asc`
+                return results from least to most recent.
             user_type: Only return users with this type
             user_name: Only return users matching this name
         responses:

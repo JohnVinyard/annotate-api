@@ -57,6 +57,7 @@ Get a list of users
 |`page_size`|The number of results per page|
 |`page_number`|The page of results to view|
 |`low_id`|Only return identifiers occurring later in the series than this one|
+|`order`|If `desc`, return results from most to least recent, if `asc` return results from least to most recent.|
 |`user_type`|Only return users with this type|
 |`user_name`|Only return users matching this name|
 
@@ -71,8 +72,8 @@ Successfully fetched a list of users
 {
     "items": [
         {
-            "id": "592330e4b3747ba78eccd2970f8eb",
-            "date_created": "2019-09-10T13:41:04.351061Z",
+            "id": "592331917c34939c82e2bffb84c8a",
+            "date_created": "2019-09-10T13:44:05.528408Z",
             "user_name": "HalIncandenza",
             "user_type": "human",
             "email": "hal@eta.net",
@@ -80,16 +81,16 @@ Successfully fetched a list of users
             "info_url": "https://halation.com"
         },
         {
-            "id": "592330e4b378ecb8c842e179a00fc",
-            "date_created": "2019-09-10T13:41:04.351126Z",
+            "id": "592331917c38ed6d6fd6fc1865fca",
+            "date_created": "2019-09-10T13:44:05.528482Z",
             "user_name": "MikePemulis",
             "user_type": "human",
             "about_me": "Tennis 4 Life",
             "info_url": "https://peemster.com"
         },
         {
-            "id": "592330e4b37c67fbf71c14168577f",
-            "date_created": "2019-09-10T13:41:04.351181Z",
+            "id": "592331917c3dd173537e20afe9aff",
+            "date_created": "2019-09-10T13:44:05.528550Z",
             "user_name": "MarioIncandenza",
             "user_type": "human",
             "about_me": "Movies 4 Life",
@@ -167,8 +168,8 @@ Successfully fetched a user
 
 ```json
 {
-    "id": "592330e4b4c847aa57ac367bcc3dd",
-    "date_created": "2019-09-10T13:41:04.356496Z",
+    "id": "592331917d88cd64b5d8dd6566289",
+    "date_created": "2019-09-10T13:44:05.533846Z",
     "user_name": "HalIncandenza",
     "user_type": "human",
     "email": "hal@enfield.com",
@@ -259,9 +260,9 @@ Successfully fetched a list of sounds
 {
     "items": [
         {
-            "id": "592330e4b652e8598bf1fc319cbbd",
-            "date_created": "2019-09-10T13:41:04.362806Z",
-            "created_by": "/users/592330e4b64d8984861e58e03923e",
+            "id": "592331917f04764a2c2d1119a6a5b",
+            "date_created": "2019-09-10T13:44:05.539919Z",
+            "created_by": "/users/592331917eff48efc84e68ffe3a69",
             "created_by_user_name": "HalIncandenza",
             "info_url": "https://example.com/sound1",
             "audio_url": "https://example.com/sound1/file.wav",
@@ -274,9 +275,9 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "592330e4b6573811bcbcc50629359",
-            "date_created": "2019-09-10T13:41:04.362874Z",
-            "created_by": "/users/592330e4b64d8984861e58e03923e",
+            "id": "592331917f08921937871f0a45236",
+            "date_created": "2019-09-10T13:44:05.539984Z",
+            "created_by": "/users/592331917eff48efc84e68ffe3a69",
             "created_by_user_name": "HalIncandenza",
             "info_url": "https://example.com/sound2",
             "audio_url": "https://example.com/sound2/file.wav",
@@ -289,9 +290,9 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "592330e4b65b55aa86cec72ab86a5",
-            "date_created": "2019-09-10T13:41:04.362940Z",
-            "created_by": "/users/592330e4b64d8984861e58e03923e",
+            "id": "592331917f0c8df9020f978923167",
+            "date_created": "2019-09-10T13:44:05.540047Z",
+            "created_by": "/users/592331917eff48efc84e68ffe3a69",
             "created_by_user_name": "HalIncandenza",
             "info_url": "https://example.com/sound3",
             "audio_url": "https://example.com/sound3/file.wav",
@@ -361,9 +362,9 @@ Successfully fetched sound
 
 ```json
 {
-    "id": "592330e4b72f5fffa4a085efdd18d",
-    "date_created": "2019-09-10T13:41:04.366333Z",
-    "created_by": "/users/592330e4b72a546b1c48725c7ab9f",
+    "id": "592331917fec55099bbae9c87dfe8",
+    "date_created": "2019-09-10T13:44:05.543630Z",
+    "created_by": "/users/592331917fe76d776bfa0e3c0766e",
     "created_by_user_name": "HalIncandenza",
     "info_url": "https://example.com/sound",
     "audio_url": "https://example.com/sound/file.wav",
@@ -409,6 +410,7 @@ Get a list of annotations for the sound with id `sound_id`
 |---|---|
 |`page_size`|The number of results per page|
 |`page_number`|The page of results to view|
+|`order`|If `desc`, return results from most to least recent, if `asc` return results from least to most recent.|
 |`low_id`|Only return identifiers occurring later in the series than this one|
 |`time_range`|Only return annotations overlapping with the specified time range|
 
@@ -423,11 +425,11 @@ Successfully fetched a list of annotations
 {
     "items": [
         {
-            "id": "592330e4b84749b3bdba6e78f56fd",
-            "date_created": "2019-09-10T13:41:04.370811Z",
-            "created_by": "/users/592330e4b83d7ee7a61a3c7fa62e1",
+            "id": "59233191811923ca73a89a111529e",
+            "date_created": "2019-09-10T13:44:05.548440Z",
+            "created_by": "/users/592331918110445a3e218aebb47d1",
             "created_by_user_name": "HalIncandenza",
-            "sound": "/sounds/592330e4b844b9215196a04b1b76f",
+            "sound": "/sounds/592331918116c45da1d8cfc2d1dd4",
             "start_seconds": 1.0,
             "duration_seconds": 1.0,
             "end_seconds": 2.0,
@@ -437,11 +439,11 @@ Successfully fetched a list of annotations
             ]
         },
         {
-            "id": "592330e4b849ba7a7a173cf915f88",
-            "date_created": "2019-09-10T13:41:04.370849Z",
-            "created_by": "/users/592330e4b83d7ee7a61a3c7fa62e1",
+            "id": "59233191811bf3981657d00a46f0f",
+            "date_created": "2019-09-10T13:44:05.548489Z",
+            "created_by": "/users/592331918110445a3e218aebb47d1",
             "created_by_user_name": "HalIncandenza",
-            "sound": "/sounds/592330e4b844b9215196a04b1b76f",
+            "sound": "/sounds/592331918116c45da1d8cfc2d1dd4",
             "start_seconds": 2.0,
             "duration_seconds": 1.0,
             "end_seconds": 3.0,
@@ -451,11 +453,11 @@ Successfully fetched a list of annotations
             ]
         },
         {
-            "id": "592330e4b84cf732c8a3c36513643",
-            "date_created": "2019-09-10T13:41:04.370902Z",
-            "created_by": "/users/592330e4b840bef145b18ee85c1ce",
+            "id": "59233191811f40ca713bef574df92",
+            "date_created": "2019-09-10T13:44:05.548540Z",
+            "created_by": "/users/59233191811325c510c307fdf9f8a",
             "created_by_user_name": "FFTBot",
-            "sound": "/sounds/592330e4b844b9215196a04b1b76f",
+            "sound": "/sounds/592331918116c45da1d8cfc2d1dd4",
             "start_seconds": 0.0,
             "duration_seconds": 12.3,
             "end_seconds": 12.3,
@@ -464,7 +466,7 @@ Successfully fetched a list of annotations
         }
     ],
     "total_count": 100,
-    "next": "/sounds/592330e4b844b9215196a04b1b76f/annotations?page_size=3&page_number=2"
+    "next": "/sounds/592331918116c45da1d8cfc2d1dd4/annotations?page_size=3&page_number=2"
 }
 ```
 #### `404 Not Found`
@@ -529,6 +531,7 @@ Get a list of sounds belonging to a user with id `user_id`
 |`page_size`|The number of results per page|
 |`page_number`|The page of results to view|
 |`low_id`|Only return identifiers occurring later in the series than this one|
+|`order`|If `desc`, return results from most to least recent, if `asc` return results from least to most recent.|
 |`tags`|Only return sounds with all tags specified|
 
 ### Responses
@@ -542,9 +545,9 @@ Successfully fetched a list of sounds
 {
     "items": [
         {
-            "id": "592330e4b9b349894fd6e03e9b557",
-            "date_created": "2019-09-10T13:41:04.376635Z",
-            "created_by": "/users/592330e4b9ade7e024910d15862ab",
+            "id": "59233191829cfef9f749741216566",
+            "date_created": "2019-09-10T13:44:05.554646Z",
+            "created_by": "/users/592331918298fc9a1986784450090",
             "created_by_user_name": "HalIncandenza",
             "info_url": "https://example.com/sound1",
             "audio_url": "https://example.com/sound1/file.wav",
@@ -557,9 +560,9 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "592330e4b9b68b2cd7090896557dd",
-            "date_created": "2019-09-10T13:41:04.376687Z",
-            "created_by": "/users/592330e4b9ade7e024910d15862ab",
+            "id": "5923319182a03fcdd7df0f26d1fc6",
+            "date_created": "2019-09-10T13:44:05.554697Z",
+            "created_by": "/users/592331918298fc9a1986784450090",
             "created_by_user_name": "HalIncandenza",
             "info_url": "https://example.com/sound2",
             "audio_url": "https://example.com/sound2/file.wav",
@@ -572,9 +575,9 @@ Successfully fetched a list of sounds
             ]
         },
         {
-            "id": "592330e4b9b9a9f0b81d02af4673e",
-            "date_created": "2019-09-10T13:41:04.376735Z",
-            "created_by": "/users/592330e4b9ade7e024910d15862ab",
+            "id": "5923319182a33fcb0c05cb6f6a4f2",
+            "date_created": "2019-09-10T13:44:05.554745Z",
+            "created_by": "/users/592331918298fc9a1986784450090",
             "created_by_user_name": "HalIncandenza",
             "info_url": "https://example.com/sound3",
             "audio_url": "https://example.com/sound3/file.wav",
@@ -588,7 +591,7 @@ Successfully fetched a list of sounds
         }
     ],
     "total_count": 100,
-    "next": "/users/592330e4b9ade7e024910d15862ab/sounds?page_number=2&page_size=3"
+    "next": "/users/592331918298fc9a1986784450090/sounds?page_number=2&page_size=3"
 }
 ```
 #### `404 Not Found`
@@ -614,6 +617,7 @@ List annotations created by a user with id `user_id`
 |---|---|
 |`page_size`|The number of results per page|
 |`page_number`|The current page|
+|`order`|If `desc`, return results from most to least recent, if `asc` return results from least to most recent.|
 
 ### Responses
 
@@ -626,11 +630,11 @@ Successfully fetched a list of annotations
 {
     "items": [
         {
-            "id": "592330e4ba7f6252a1b50f8ba24ea",
-            "date_created": "2019-09-10T13:41:04.379901Z",
-            "created_by": "/users/592330e4ba781e1cf7f60bc9d9808",
+            "id": "59233191835e71d80c2a6ab72e378",
+            "date_created": "2019-09-10T13:44:05.557741Z",
+            "created_by": "/users/5923319183583c34bb53dd048c0ef",
             "created_by_user_name": "HalIncandenza",
-            "sound": "/sounds/592330e4ba7cca822ec8fe15ecc85",
+            "sound": "/sounds/59233191835c3906e22d5547fa142",
             "start_seconds": 1.0,
             "duration_seconds": 1.0,
             "end_seconds": 2.0,
@@ -640,11 +644,11 @@ Successfully fetched a list of annotations
             ]
         },
         {
-            "id": "592330e4ba81c98f2d822747cfc63",
-            "date_created": "2019-09-10T13:41:04.379938Z",
-            "created_by": "/users/592330e4ba781e1cf7f60bc9d9808",
+            "id": "592331918360823f6829a39715a42",
+            "date_created": "2019-09-10T13:44:05.557774Z",
+            "created_by": "/users/5923319183583c34bb53dd048c0ef",
             "created_by_user_name": "HalIncandenza",
-            "sound": "/sounds/592330e4ba7cca822ec8fe15ecc85",
+            "sound": "/sounds/59233191835c3906e22d5547fa142",
             "start_seconds": 2.0,
             "duration_seconds": 1.0,
             "end_seconds": 3.0,
@@ -655,7 +659,7 @@ Successfully fetched a list of annotations
         }
     ],
     "total_count": 100,
-    "next": "/users/592330e4ba781e1cf7f60bc9d9808/annotations?page_size=2&page_number=2"
+    "next": "/users/5923319183583c34bb53dd048c0ef/annotations?page_size=2&page_number=2"
 }
 ```
 #### `404 Not Found`
@@ -676,6 +680,7 @@ Get a list of annotations
 |`page_size`|The number of results per page|
 |`page_number`|The page of results to view|
 |`low_id`|Only return identifiers occurring later in the series than this one|
+|`order`|If `desc`, return results from most to least recent, if `asc` return results from least to most recent.|
 |`tags`|Only return annotations with all specified tags|
 |`with_tags`|Only return annotations that have at least one tag, generally excluding dense features computed by featurebots.  This parameter is mutually exclusive with `tags` and will be ignored if it is present.|
 
@@ -690,11 +695,11 @@ Successfully fetched an annotation
 {
     "items": [
         {
-            "id": "592330e4bb44ed24d1fdbbfba5134",
-            "date_created": "2019-09-10T13:41:04.383060Z",
-            "created_by": "/users/592330e4bb3b5100697d108a97b86",
+            "id": "59233191842ad6a55b2548e77b166",
+            "date_created": "2019-09-10T13:44:05.561010Z",
+            "created_by": "/users/5923319184218c1205e47acc0e491",
             "created_by_user_name": "HalIncandenza",
-            "sound": "/sounds/592330e4bb3f50adf28bc2c1cc15c",
+            "sound": "/sounds/592331918425749b21e6ffd48d2a2",
             "start_seconds": 1.0,
             "duration_seconds": 1.0,
             "end_seconds": 2.0,
@@ -704,11 +709,11 @@ Successfully fetched an annotation
             ]
         },
         {
-            "id": "592330e4bb470b0e05a1064e38037",
-            "date_created": "2019-09-10T13:41:04.383094Z",
-            "created_by": "/users/592330e4bb3b5100697d108a97b86",
+            "id": "59233191842d977eadee88016949b",
+            "date_created": "2019-09-10T13:44:05.561055Z",
+            "created_by": "/users/5923319184218c1205e47acc0e491",
             "created_by_user_name": "HalIncandenza",
-            "sound": "/sounds/592330e4bb3f50adf28bc2c1cc15c",
+            "sound": "/sounds/592331918425749b21e6ffd48d2a2",
             "start_seconds": 2.0,
             "duration_seconds": 1.0,
             "end_seconds": 3.0,
@@ -718,11 +723,11 @@ Successfully fetched an annotation
             ]
         },
         {
-            "id": "592330e4bb491597e2e99f210201b",
-            "date_created": "2019-09-10T13:41:04.383126Z",
-            "created_by": "/users/592330e4bb3b5100697d108a97b86",
+            "id": "59233191842fc114a52ecb0418698",
+            "date_created": "2019-09-10T13:44:05.561090Z",
+            "created_by": "/users/5923319184218c1205e47acc0e491",
             "created_by_user_name": "HalIncandenza",
-            "sound": "/sounds/592330e4bb42b9a4bfb6d10c78b55",
+            "sound": "/sounds/592331918428b02f0f7cadd62bd64",
             "start_seconds": 10.0,
             "duration_seconds": 5.0,
             "end_seconds": 15.0,
