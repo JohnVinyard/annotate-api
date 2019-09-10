@@ -409,6 +409,10 @@ class AnnotationsResource(object):
             low_id: Only return identifiers occurring later in the series than
                 this one
             tags: Only return annotations with all specified tags
+            with_tags: Only return annotations that have at least one tag,
+                generally excluding dense features computed by featurebots.  This
+                parameter is mutually exclusive with `tags` and will be ignored
+                if it is present.
         responses:
             - status_code: 200
               description: Successfully fetched an annotation
