@@ -134,11 +134,13 @@ document.addEventListener('DOMContentLoaded', function() {
     template: '#welcome-template'
   });
 
+  const NotFound = Vue.component('not-found', {
+    template: '#not-found-template'
+  });
+
   const Menu = Vue.component('main-menu', {
     template: '#menu-template'
   });
-
-
 
   const AddAnnotationModal = Vue.component('add-annotation-modal', {
     template: '#add-annotation-modal-template',
@@ -336,7 +338,6 @@ document.addEventListener('DOMContentLoaded', function() {
           .createAnnotation(
             this.sound.id, event.startSeconds, event.durationSeconds, event.tags)
           .then(data => {
-            console.log('SUCCESS');
             EventBus.$emit('global-message', {
               message: 'Annotation Created',
               type: 'success'
@@ -574,7 +575,7 @@ document.addEventListener('DOMContentLoaded', function() {
     methods: {
       setQuery: function(tag) {
         this.query = tag;
-        this.handleSubmit();
+        this.newSearch();
       },
       changePage: function(event) {
         this.pageNumber = event.pageNumber;
@@ -762,8 +763,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-
-
   const SignIn = Vue.component('sign-in', {
     props: ['user'],
     template: '#sign-in-template',
@@ -848,7 +847,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Users
       { path: routerPath('/users/:id'), name: 'user', component: UserDetail, props: true},
-      { path: routerPath('/users'), name: 'users', component: UserList, props: true}
+      { path: routerPath('/users'), name: 'users', component: UserList, props: true},
+      { path: routerPath('*'), name: 'not-found', component: NotFound }
     ],
     mode: 'history'
   });
