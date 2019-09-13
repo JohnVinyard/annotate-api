@@ -305,7 +305,7 @@
                 <button
                   class="button is-link"
                   type="submit"
-                  v-on:click="handleSubmit">Search</button>
+                  v-on:click="newSearch">Search</button>
               </div>
             </div>
           </div>
@@ -314,6 +314,9 @@
         <!-- Results -->
         <div class="section">
           <div class="container">
+            <div class="content has-text-centered" v-if="!annotations.length">
+              <h2>No Results</h2>
+            </div>
             <annotation
               @select-query="setQuery"
               v-for="annotation in annotations"
@@ -339,7 +342,11 @@
   <template id="pagination-template">
     <section class="section">
       <div class="container">
-        <nav class="pagination is-centered" role="navigation" aria-label="pagination">
+        <nav
+          v-if="totalPages > 1"
+          class="pagination is-centered"
+          role="navigation"
+          aria-label="pagination">
 
           <!-- Previous and Next Links -->
           <a

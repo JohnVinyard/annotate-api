@@ -580,6 +580,10 @@ document.addEventListener('DOMContentLoaded', function() {
         this.pageNumber = event.pageNumber;
         this.handleSubmit();
       },
+      newSearch: function() {
+        this.pageNumber = 0;
+        this.handleSubmit();
+      },
       handleSubmit: function() {
         this.annotations = [];
         getApiClient()
@@ -660,7 +664,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return !this.displayPages.includes(this.lastPage);
       },
       lastPage: function() {
-        return this.totalPages - 1;
+        return Math.max(0, this.totalPages - 1);
       },
       isFirstPage: function() {
         return this.currentPage === 0;
@@ -677,11 +681,11 @@ document.addEventListener('DOMContentLoaded', function() {
         this.visit(this.totalPages - 1);
       },
       visitPreviousPage: function() {
-        if (this.isFirstPage()) { return; }
+        if (this.isFirstPage) { return; }
         this.visit(this.currentPage - 1);
       },
       visitNextPage: function() {
-        if (this.isLastPage()) { return; }
+        if (this.isLastPage) { return; }
         this.visit(this.currentPage + 1);
       },
       visit: function(page) {
