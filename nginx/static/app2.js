@@ -505,6 +505,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const Annotation = Vue.component('annotation', {
     template: '#annotation-template',
     props: ['annotation'],
+    beforeRouteUpdate: function(to, from, next) {
+      console.log('hook!');
+    },
     data: function() {
       return {
         timeago: timeAgo,
@@ -558,6 +561,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const Annotations = Vue.component('annotations', {
     template: '#annotations-template',
+    beforeRouteUpdate:  function(to, from, next) {
+      this.query = to.query.query;
+      this.pageNumber = Number.parseInt(to.query.pageNumber) || 0;
+      this.handleSubmit(pushHistory=false);
+      next();
+    },
     data: function() {
       return {
         query: null,
@@ -585,7 +594,19 @@ document.addEventListener('DOMContentLoaded', function() {
         this.pageNumber = 0;
         this.handleSubmit();
       },
-      handleSubmit: function() {
+      handleSubmit: function(pushHistory=true) {
+        if (pushHistory) {
+          const query = {
+            query: this.query
+          };
+          if (this.pageNumber > 0) {
+            query.pageNumber = this.pageNumber;
+          }
+          this.$router.push({
+            path: this.$route.path,
+            query
+          });
+        }
         this.annotations = [];
         getApiClient()
           .getAnnotations(this.query, this.pageSize, this.pageNumber)
@@ -612,6 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     mounted: function() {
       this.allFeatures.push(this.currentFeature);
+      this.query = this.$route.query.query;
       this.handleSubmit();
       getApiClient().getFeatureBots()
         .then(data => {
