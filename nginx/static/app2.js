@@ -168,7 +168,6 @@ document.addEventListener('DOMContentLoaded', function() {
         this.$emit('modal-close');
       },
       createAnnotation: function() {
-        console.log('create annotation!')
         this.$emit('confirm-annotation', { tags: Array.from(this.tags) });
         this.close();
       }
@@ -191,7 +190,6 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     methods: {
       confirmAnnotation: function(event) {
-        console.log('Selection is confirming annotation')
         const span = this.span();
         this.$emit('save-annotation', {
           startSeconds: this.startSeconds + span.startSeconds,
@@ -333,7 +331,6 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     methods: {
       saveAnnotation: function(event) {
-        console.log('savingAnnotation', event);
         getApiClient()
           .createAnnotation(
             this.sound.id, event.startSeconds, event.durationSeconds, event.tags)
@@ -505,9 +502,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const Annotation = Vue.component('annotation', {
     template: '#annotation-template',
     props: ['annotation'],
-    beforeRouteUpdate: function(to, from, next) {
-      console.log('hook!');
-    },
     data: function() {
       return {
         timeago: timeAgo,
@@ -559,6 +553,29 @@ document.addEventListener('DOMContentLoaded', function() {
     },
   });
 
+  const TextQuery = Vue.component('text-query', {
+    template: '#text-query-template',
+    props: ['query'],
+    watch: {
+      query: function(newVal, oldVal) {
+        this.textQuery = newVal;
+      }
+    },
+    data: function() {
+      return {
+        textQuery: this.query
+      };
+    },
+    methods: {
+      queryChange: function() {
+        this.$emit('text-query-change', this.textQuery);
+      },
+      newSearch: function() {
+        this.$emit('new-search', this.textQuery);
+      }
+    }
+  });
+
   const Annotations = Vue.component('annotations', {
     template: '#annotations-template',
     beforeRouteUpdate:  function(to, from, next) {
@@ -582,6 +599,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     methods: {
+      queryChange: function(value) {
+        this.query = value;
+      },
       setQuery: function(tag) {
         this.query = tag;
         this.newSearch();

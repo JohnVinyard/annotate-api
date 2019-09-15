@@ -277,6 +277,33 @@
     </div>
   </template>
 
+  <template id="text-query-template">
+    <div>
+      <!-- Query -->
+      <div class="field">
+        <label class="label" for="query">Query</label>
+        <div class="control">
+          <input
+            class="input"
+            type="text"
+            id="query"
+            v-model="textQuery"
+            v-on:change="queryChange"/>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="field">
+        <div class="control">
+          <button
+            class="button is-link"
+            type="submit"
+            v-on:click="newSearch">Search</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <template id="annotations-template">
     <section class="section">
       <div class="container">
@@ -299,23 +326,11 @@
                 </div>
             </div>
 
-            <!-- User Name -->
-            <div class="field">
-              <label class="label" for="query">Query</label>
-              <div class="control">
-                <input class="input" type="text" id="query" v-model="query"/>
-              </div>
-            </div>
+            <text-query
+              :query="query"
+              v-on:new-search="newSearch"
+              v-on:text-query-change="queryChange"></text-query>
 
-            <!-- Submit Button -->
-            <div class="field">
-              <div class="control">
-                <button
-                  class="button is-link"
-                  type="submit"
-                  v-on:click="newSearch">Search</button>
-              </div>
-            </div>
           </div>
         </div>
 
