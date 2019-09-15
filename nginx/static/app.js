@@ -421,8 +421,21 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
-  getUsers() {
-    const url = this.buildUri('/users/');
+  getUsers(
+    userName=null,
+    userType=null,
+    pageSize=100,
+    pageNumber=0,
+    order='desc') {
+
+    let url = this.buildUri(
+      `/users?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
+    if (userName) {
+      url += `&user_name=${userName}`;
+    }
+    if (userType) {
+      url += `&user_type=${userType}`;
+    }
     return this.getResource(url);
   }
 

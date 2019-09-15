@@ -348,16 +348,7 @@
           </div>
         </div>
 
-        <div class="section">
-          <div class="container">
-            <pagination
-              @change-page="changePage"
-              :total-pages="totalPages"
-              :current-page="pageNumber"
-              :max-display-pages="5"
-              ></pagination>
-          </div>
-        </div>
+
       </div>
     </<section>
   </template>
@@ -460,22 +451,30 @@
     <div class="container">
 
       <!-- Text search -->
-      <div class="section">
-        <div class="container">
-          <!-- User Name -->
-          <div class="field">
-            <label class="label" for="query">Query</label>
-            <div class="control">
-              <input class="input" type="text" id="query" v-model="query"/>
-            </div>
-          </div>
-        </div>
-      </div>
+      <text-query
+        :query="query"
+        v-on:new-search="newSearch"
+        v-on:text-query-change="queryChange"></text-query>
 
       <!-- Results -->
       <div class="section">
         <div class="container">
-          <user-summary v-for="user in users" :user="user" />
+          <user-summary
+            v-for="user in users"
+            v-bind:key="user.id"
+            :user="user" />
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="section">
+        <div class="container">
+          <pagination
+            @change-page="changePage"
+            :total-pages="totalPages"
+            :current-page="pageNumber"
+            :max-display-pages="5"
+            ></pagination>
         </div>
       </div>
     </div>

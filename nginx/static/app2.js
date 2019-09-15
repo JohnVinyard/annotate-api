@@ -654,7 +654,7 @@ document.addEventListener('DOMContentLoaded', function() {
     mounted: function() {
       this.allFeatures.push(this.currentFeature);
       this.query = this.$route.query.query;
-      this.handleSubmit();
+      this.handleSubmit(pushHistory=false);
       getApiClient().getFeatureBots()
         .then(data => {
           this.allFeatures = this.allFeatures.concat(data.items);
@@ -778,21 +778,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const UserList = Vue.component('user-list', {
     template: '#users-template',
+    beforeRouteUpdate:  function(to, from, next) {
+      this.query = to.query.query;
+      console.log('before route update', this.query);
+      this.pageNumber = Number.parseInt(to.query.pageNumber) || 0;
+      this.handleSubmit(pushHistory=false);
+      next();
+    },
     data: function() {
       return {
         query: null,
-        users: []
+        pageNumber: 0,
+        totalPages: 0,
+        totalResults: 0,
+        users: [],
+        pageSize: 5
       };
     },
+    methods: {
+      queryChange: function(value) {
+        this.query = value;
+      },
+      changePage: function(event) {
+        this.pageNumber = event.pageNumber;
+        this.handleSubmit();
+      },
+      newSearch: function() {
+        this.pageNumber = 0;
+        this.handleSubmit();
+      },
+      handleSubmit: function(pushHistory=true) {
+        if (pushHistory) {
+          const query = {
+            query: this.query
+          };
+          if (this.pageNumber > 0) {
+            query.pageNumber = this.pageNumber;
+          }
+          this.$router.push({
+            path: this.$route.path,
+            query
+          });
+        }
+        this.users = [];
+        getApiClient()
+          .getUsers(this.query, null, this.pageSize, this.pageNumber)
+          .then(data => {
+            this.users = data.items;
+            this.totalResults = data.total_count;
+            this.totalPages = Math.ceil(data.total_count / this.pageSize);
+          });
+      },
+    },
     mounted: function() {
-      const identity = auth.tryGetUserIdentity();
-      const client = new AnnotateApiClient(
-        identity.name, identity.password, cochleaAppSettings.apiHost);
-      client
-        .getUsers()
-        .then(data => {
-          this.users = data.items;
-        });
+      this.query = this.$route.query.query;
+      this.handleSubmit(pushHistory=false);
     }
   });
 
