@@ -555,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const TextQuery = Vue.component('text-query', {
     template: '#text-query-template',
-    props: ['query'],
+    props: ['query', 'placeHolderText', 'labelText'],
     watch: {
       query: function(newVal, oldVal) {
         this.textQuery = newVal;

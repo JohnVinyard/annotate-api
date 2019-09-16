@@ -281,11 +281,12 @@
     <div>
       <!-- Query -->
       <div class="field">
-        <label class="label" for="query">Query</label>
+        <label class="label" for="query">{{ labelText }}</label>
         <div class="control">
           <input
             class="input"
             type="text"
+            :placeholder="placeHolderText"
             id="query"
             v-model="textQuery"
             v-on:change="queryChange"/>
@@ -327,6 +328,8 @@
             </div>
 
             <text-query
+              label-text="Tags"
+              place-holder-text="e.g. snare, guitar or crunchy"
               :query="query"
               v-on:new-search="newSearch"
               v-on:text-query-change="queryChange"></text-query>
@@ -452,6 +455,8 @@
 
       <!-- Text search -->
       <text-query
+        label-text="User Name"
+        place-holder-text="e.g. fft or mfcc"
         :query="query"
         v-on:new-search="newSearch"
         v-on:text-query-change="queryChange"></text-query>
