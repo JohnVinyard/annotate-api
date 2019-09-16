@@ -19,6 +19,9 @@
     <script type="text/javascript" src="/static/app2.js"></script>
 
     <link
+      href="https://unpkg.com/ionicons@4.5.10-0/dist/css/ionicons.min.css"
+      rel="stylesheet">
+    <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css"
       integrity="sha256-vK3UTo/8wHbaUn+dTQD0X6dzidqc5l7gczvH+Bnowwk="
@@ -412,7 +415,10 @@
   <template id="user-detail-template">
     <section class="section">
       <div class="content">
-        <h1>{{ user.user_name }}</h1>
+        <h1>
+          <user-type-icon :user-type="user.user_type"></user-type-icon>
+          {{ user.user_name }}
+        </h1>
         <p class="is=size-7">
           created {{ timeago.format(user.date_created) }}
         </p>
@@ -424,12 +430,23 @@
     </section>
   </template>
 
-  <template id="user-summary-template">
+  <template id="user-type-icon-template">
+    <span class="icon">
+      <i class="icon" v-bind:class="{
+        'ion-md-book': userType === 'dataset',
+        'ion-md-body': userType === 'human',
+        'ion-md-code': userType === 'featurebot',
+        'ion-md-list-box': userType === 'aggregator'
+      }"></i>
+    </span>
+  </template>
 
+  <template id="user-summary-template">
     <div class="card">
       <div class="card-header">
         <div class="level">
           <div class="level-left">
+            <user-type-icon :user-type="user.user_type"></user-type-icon>
             <router-link :to="{ name: 'user', params: { id: user.id }}">
               <h3 class="card-header-title">{{ user.user_name }}</h3>
             </router-link>
@@ -471,19 +488,27 @@
             </label>
             <label class="radio">
               <input type="radio" value="human" v-model="userType">
+              <user-type-icon user-type="human"></user-type-icon>
               User
+
             </label>
             <label class="radio">
               <input type="radio" value="dataset" v-model="userType">
+              <user-type-icon user-type="dataset"></user-type-icon>
               Dataset
+
             </label>
             <label class="radio">
               <input type="radio" value="featurebot" v-model="userType">
+              <user-type-icon user-type="featurebot"></user-type-icon>
               Featurebot
+
             </label>
             <label class="radio">
               <input type="radio" value="aggregator" v-model="userType">
+              <user-type-icon user-type="aggregator"></user-type-icon>
               Aggregator/Indexer
+
             </label>
           </div>
         </div>

@@ -553,6 +553,11 @@ document.addEventListener('DOMContentLoaded', function() {
     },
   });
 
+  const UserTypeIcon = Vue.component('user-type-icon', {
+    template: '#user-type-icon-template',
+    props: ['userType']
+  });
+
   const TextQuery = Vue.component('text-query', {
     template: '#text-query-template',
     props: ['query', 'placeHolderText', 'labelText'],
@@ -798,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     watch: {
       userType: function() {
-        this.handleSubmit();
+        this.newSearch();
       }
     },
     methods: {
