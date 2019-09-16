@@ -780,7 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
     template: '#users-template',
     beforeRouteUpdate:  function(to, from, next) {
       this.query = to.query.query;
-      console.log('before route update', this.query);
+      this.userType = to.query.userType;
       this.pageNumber = Number.parseInt(to.query.pageNumber) || 0;
       this.handleSubmit(pushHistory=false);
       next();
@@ -788,12 +788,18 @@ document.addEventListener('DOMContentLoaded', function() {
     data: function() {
       return {
         query: null,
+        userType: null,
         pageNumber: 0,
         totalPages: 0,
         totalResults: 0,
         users: [],
         pageSize: 5
       };
+    },
+    watch: {
+      userType: function() {
+        this.handleSubmit();
+      }
     },
     methods: {
       queryChange: function(value) {
@@ -812,6 +818,9 @@ document.addEventListener('DOMContentLoaded', function() {
           const query = {
             query: this.query
           };
+          if (this.userType) {
+            query.userType = this.userType;
+          }
           if (this.pageNumber > 0) {
             query.pageNumber = this.pageNumber;
           }
@@ -822,7 +831,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         this.users = [];
         getApiClient()
-          .getUsers(this.query, null, this.pageSize, this.pageNumber)
+          .getUsers(this.query, this.userType, this.pageSize, this.pageNumber)
           .then(data => {
             this.users = data.items;
             this.totalResults = data.total_count;
@@ -832,6 +841,7 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     mounted: function() {
       this.query = this.$route.query.query;
+      this.userType = this.$route.query.userType;
       this.handleSubmit(pushHistory=false);
     }
   });

@@ -456,6 +456,34 @@
         v-on:new-search="newSearch"
         v-on:text-query-change="queryChange"></text-query>
 
+      <!-- User Type Selection -->
+      <div class="section">
+        <div class="container">
+          <div class="control">
+            <label class="radio">
+              <input type="radio" value="" v-model="userType">
+              All User Types
+            </label>
+            <label class="radio">
+              <input type="radio" value="human" v-model="userType">
+              User
+            </label>
+            <label class="radio">
+              <input type="radio" value="dataset" v-model="userType">
+              Dataset
+            </label>
+            <label class="radio">
+              <input type="radio" value="featurebot" v-model="userType">
+              Featurebot
+            </label>
+            <label class="radio">
+              <input type="radio" value="aggregator" v-model="userType">
+              Aggregator/Indexer
+            </label>
+          </div>
+        </div>
+      </div>
+
       <!-- Results -->
       <div class="section">
         <div class="container">
