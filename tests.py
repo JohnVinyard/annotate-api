@@ -201,6 +201,48 @@ class UserTests(BaseTests, unittest2.TestCase):
     def tearDown(self):
         self.delete_all_data()
 
+    def _get_links(self, user_type):
+        create_data = self._user_create_data(user_type=user_type)
+        create_resp = requests.post(self.users_resource(), json=create_data)
+        self.assertEqual(client.CREATED, create_resp.status_code)
+        uri = create_resp.headers['location']
+        user_resp = requests.get(
+            self.url(uri), auth=self._get_auth(create_data))
+        self.assertEqual(client.OK, user_resp.status_code)
+        return user_resp.json()['links']
+
+    def test_human_resource_should_include_link_to_owned_sounds(self):
+        links = self._get_links('human')
+        mapped = {l['rel']: l for l in links}
+        self.assertIn('sounds', mapped)
+
+    def test_human_resource_should_include_link_to_owned_annotations(self):
+        links = self._get_links('human')
+        mapped = {l['rel']: l for l in links}
+        self.assertIn('annotations', mapped)
+
+    def test_dataset_resource_should_include_link_to_owned_sounds(self):
+        links = self._get_links('dataset')
+        mapped = {l['rel']: l for l in links}
+        self.assertIn('sounds', mapped)
+
+    def test_dataset_resource_should_include_link_to_owned_annotations(self):
+        links = self._get_links('dataset')
+        mapped = {l['rel']: l for l in links}
+        self.assertIn('annotations', mapped)
+
+    def test_featurebot_resource_should_include_link_to_owned_annotations(self):
+        links = self._get_links('featurebot')
+        mapped = {l['rel']: l for l in links}
+        self.assertIn('annotations', mapped)
+        self.assertNotIn('sounds', mapped)
+
+    def test_aggregator_resource_should_include_no_links(self):
+        links = self._get_links('aggregator')
+        mapped = {l['rel']: l for l in links}
+        self.assertNotIn('sounds', mapped)
+        self.assertNotIn('annotations', mapped)
+
     def test_user_resource_supports_cors(self):
         resp = requests.options(self.users_resource())
         self.assertIn('Access-Control-Allow-Origin', resp.headers)

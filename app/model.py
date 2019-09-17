@@ -125,6 +125,12 @@ class User(BaseAppEntity):
     def exists_query(cls, user_name, email, **kwargs):
         return (User.user_name == user_name) | (User.email == email)
 
+    def can_create_sound(self):
+        return self.user_type in Sound.ALLOWED_CREATOR_TYPES
+
+    def can_create_annotation(self):
+        return self.user_type in Annotation.ALLOWED_CREATOR_TYPES
+
 
 class LicenseType(Enum):
     BY = 'https://creativecommons.org/licenses/by/4.0'

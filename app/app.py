@@ -306,15 +306,17 @@ class SoundsResource(object):
             additional_params=additional_params)
 
 
-def view_entity(session, actor, query):
+def view_entity(session, actor, query, add_links=None):
     # TODO: There should be an option to exclude the total count here
     entity = session.find_one(query)
     view = entity.view(actor)
+    if add_links:
+        view = add_links(entity, view)
     return view
 
 
-def get_entity(resp, session, actor, query):
-    view = view_entity(session, actor, query)
+def get_entity(resp, session, actor, query, add_links=None):
+    view = view_entity(session, actor, query, add_links=add_links)
     resp.media = view
     resp.status = falcon.HTTP_OK
 
@@ -1012,6 +1014,18 @@ class SoundResource(object):
 
 
 class UserResource(object):
+    def add_links(self, user, view):
+        links = []
+        view['links'] = links
+
+        if user.can_create_sound():
+            links.append(make_link('sounds', 'sounds', 'GET'))
+
+        if user.can_create_annotation():
+            links.append(make_link('annotations', 'annotations', 'GET'))
+
+        return view
+
     def get_model_example(self, content_type):
         user = User.create(
             user_name='HalIncandenza',
@@ -1020,6 +1034,7 @@ class UserResource(object):
             user_type=UserType.HUMAN,
             about_me='Tennis 4 Life')
         view = user.view(user)
+        view = self.add_links(user, view)
         return JSONHandler(AppEntityLinks()) \
             .serialize(view, content_type).decode()
 
@@ -1043,7 +1058,12 @@ class UserResource(object):
             - status_code: 403
               description: User is not permitted to access this user
         """
-        get_entity(resp, session, actor, User.active_user_query(user_id))
+        get_entity(
+            resp,
+            session,
+            actor,
+            User.active_user_query(user_id),
+            add_links=self.add_links)
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id, session, actor):
@@ -1116,6 +1136,14 @@ class UserResource(object):
 
 
 app_entity_links = AppEntityLinks()
+
+
+def make_link(href, rel, type):
+    return {
+        'href': href,
+        'rel': rel,
+        'type': type
+    }
 
 
 # custom errors
