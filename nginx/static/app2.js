@@ -662,7 +662,8 @@ document.addEventListener('DOMContentLoaded', function() {
     data: function() {
       return {
         timeago: timeAgo,
-        user: {}
+        user: {},
+        links: {}
       }
     },
     mounted: function() {
@@ -670,6 +671,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .getUser(this.id)
         .then(data => {
           this.user = data;
+          this.user.links.forEach(link => this.links[link.rel] = link);
         });
     },
     methods: {

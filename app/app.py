@@ -1014,7 +1014,9 @@ class SoundResource(object):
 
 
 class UserResource(object):
-    def add_links(self, user, view):
+
+    @staticmethod
+    def add_links(user, view):
         links = []
         view['links'] = links
 

@@ -430,6 +430,16 @@
           <user-type-icon :user-type="user.user_type"></user-type-icon>
           {{ user.user_name }}
         </h1>
+        <p v-if="links.sounds">
+          <router-link :to="`users/${user.id}/sounds`">
+            Sounds from this user
+          </router-link>
+        </p>
+        <p v-if="links.annotations">
+          <router-link :to="`users/${user.id}/annotations`">
+            Annotations from this user
+          </router-link>
+        </p>
         <p class="is=size-7">
           created {{ timeago.format(user.date_created) }}
         </p>
