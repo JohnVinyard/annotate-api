@@ -343,17 +343,28 @@
         <!-- Results -->
         <div class="section">
           <div class="container">
-            <div class="content has-text-centered" v-if="!annotations.length">
+            <div class="content has-text-centered" v-if="!items.length">
               <h2>No Results</h2>
             </div>
             <annotation
               @select-query="setQuery"
-              v-for="annotation in annotations"
+              v-for="annotation in items"
               :annotation="annotation"
               v-bind:key="annotation.id" />
           </div>
         </div>
 
+        <!-- Pagination -->
+        <div class="section">
+          <div class="container">
+            <pagination
+              @change-page="changePage"
+              :total-pages="totalPages"
+              :current-page="pageNumber"
+              :max-display-pages="5"
+              ></pagination>
+          </div>
+        </div>
 
       </div>
     </<section>
@@ -518,7 +529,7 @@
       <div class="section">
         <div class="container">
           <user-summary
-            v-for="user in users"
+            v-for="user in items"
             v-bind:key="user.id"
             :user="user" />
         </div>

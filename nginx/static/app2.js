@@ -581,92 +581,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  const Annotations = Vue.component('annotations', {
-    template: '#annotations-template',
-    beforeRouteUpdate:  function(to, from, next) {
-      this.query = to.query.query;
-      this.pageNumber = Number.parseInt(to.query.pageNumber) || 0;
-      this.handleSubmit(pushHistory=false);
-      next();
-    },
-    data: function() {
-      return {
-        query: null,
-        annotations: [],
-        currentFeature: {
-          user_name: 'audio'
-        },
-        allFeatures: [],
-        pageSize: 10,
-        totalResults: 0,
-        totalPages: 0,
-        pageNumber: 0
-      }
-    },
-    methods: {
-      queryChange: function(value) {
-        this.query = value;
-      },
-      setQuery: function(tag) {
-        this.query = tag;
-        this.newSearch();
-      },
-      changePage: function(event) {
-        this.pageNumber = event.pageNumber;
-        this.handleSubmit();
-      },
-      newSearch: function() {
-        this.pageNumber = 0;
-        this.handleSubmit();
-      },
-      handleSubmit: function(pushHistory=true) {
-        if (pushHistory) {
-          const query = {
-            query: this.query
-          };
-          if (this.pageNumber > 0) {
-            query.pageNumber = this.pageNumber;
-          }
-          this.$router.push({
-            path: this.$route.path,
-            query
-          });
-        }
-        this.annotations = [];
-        getApiClient()
-          .getAnnotations(this.query, this.pageSize, this.pageNumber)
-          .then(data => {
-            const annotations = data.items;
-            this.totalResults = data.total_count;
-            this.totalPages = Math.ceil(data.total_count / this.pageSize);
-            const featureDataMapping = {};
-            annotations.forEach(annotation => {
-              const fp = () => featurePromise(
-                annotation.sound,
-                featureDataMapping,
-                this.currentFeature,
-                annotation.start_seconds,
-                annotation.duration_seconds);
-              annotation.featurePromise = fp;
-            });
-            this.annotations = annotations;
-          });
-      },
-      changeFeature: function() {
-        this.handleSubmit();
-      }
-    },
-    mounted: function() {
-      this.allFeatures.push(this.currentFeature);
-      this.query = this.$route.query.query;
-      this.handleSubmit(pushHistory=false);
-      getApiClient().getFeatureBots()
-        .then(data => {
-          this.allFeatures = this.allFeatures.concat(data.items);
-        });
-    }
-  });
-
   const Pagination = Vue.component('pagination', {
     template: '#pagination-template',
     props: {
@@ -781,24 +695,142 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  const UserList = Vue.component('user-list', {
-    template: '#users-template',
-    beforeRouteUpdate:  function(to, from, next) {
-      this.query = to.query.query;
-      this.userType = to.query.userType;
-      this.pageNumber = Number.parseInt(to.query.pageNumber) || 0;
-      this.handleSubmit(pushHistory=false);
-      next();
-    },
+  const searchPage = (componentName, options) => {
+    options.initialize = options.initialize || (() => {});
+    options.transformResults = options.transformResults || ((x) => x);
+
+    return Vue.component(componentName, {
+      template: options.template,
+      beforeRouteUpdate: function(to, from, next) {
+        this.queryParams.forEach(qp => {
+          this[qp] = to.query[qp];
+        });
+        this.pageNumber = Number.parseInt(to.query.pageNumber) || 0;
+        this.handleSubmit(pushHistory=false);
+        next();
+      },
+      data: function() {
+        const base = {
+          query: null,
+          pageNumber: 0,
+          totalPages: 0,
+          totalResults: 0,
+          items: [],
+          pageSize: options.pageSize || 5,
+          queryParams: ['query', 'pageNumber', ...(options.queryParams || [])]
+        };
+        return {...base, ...options.data()};
+      },
+      watch: options.watch,
+      methods: {
+        ...options.methods,
+        fetchData: options.fetchData,
+        transformResults: options.transformResults,
+        initialize: options.initialize,
+        queryChange: function(value) {
+          this.query = value;
+        },
+        changePage: function(event) {
+          this.pageNumber = event.pageNumber;
+          this.handleSubmit();
+        },
+        newSearch: function() {
+          this.pageNumber = 0;
+          this.handleSubmit();
+        },
+        handleSubmit: function(pushHistory=true) {
+          if (pushHistory) {
+            const query = {};
+            this.queryParams.forEach(qp => {
+                if (this[qp]) {
+                  query[qp] = this[qp];
+                }
+            });
+            this.$router.push({
+              path: this.$route.path,
+              query
+            });
+          }
+          this.items = [];
+          this
+            .fetchData(this.query, this.pageSize, this.pageNumber)
+            .then(data => {
+                if (this.transformResults) {
+                  this.items = this.transformResults(data.items);
+                } else {
+                  this.items = data.items;
+                }
+                this.totalResults = data.total_count;
+                this.totalPages = Math.ceil(data.total_count / this.pageSize);
+            });
+        },
+      },
+      mounted: function() {
+        if(this.initialize) {
+          this.initialize();
+        }
+        this.queryParams.forEach(qp => {
+          this[qp] = this.$route.query[qp];
+        });
+        this.handleSubmit(pushHistory=false);
+      }
+    });
+  };
+
+  const Annotations = searchPage('annotations', {
+    template: '#annotations-template',
+    pageSize: 10,
     data: function() {
       return {
-        query: null,
-        userType: null,
-        pageNumber: 0,
-        totalPages: 0,
-        totalResults: 0,
-        users: [],
-        pageSize: 5
+        currentFeature: {
+          user_name: 'audio'
+        },
+        allFeatures: [],
+      }
+    },
+    initialize: function() {
+      this.allFeatures.push(this.currentFeature);
+      getApiClient().getFeatureBots()
+        .then(data => {
+          this.allFeatures = this.allFeatures.concat(data.items);
+        });
+    },
+    fetchData: function() {
+      return getApiClient()
+        .getAnnotations(this.query, this.pageSize, this.pageNumber);
+    },
+    transformResults: function(items) {
+      const annotations = items;
+      const featureDataMapping = {};
+      annotations.forEach(annotation => {
+        const fp = () => featurePromise(
+          annotation.sound,
+          featureDataMapping,
+          this.currentFeature,
+          annotation.start_seconds,
+          annotation.duration_seconds);
+        annotation.featurePromise = fp;
+      });
+      return annotations;
+    },
+    methods: {
+      changeFeature: function() {
+        this.handleSubmit();
+      },
+      setQuery: function(tag) {
+        this.query = tag;
+        this.newSearch();
+      },
+    }
+  });
+
+  const UserList = searchPage('user-list', {
+    template: '#users-template',
+    pageSize: 5,
+    queryParams: ['userType'],
+    data: function() {
+      return {
+        userType: null
       };
     },
     watch: {
@@ -806,48 +838,9 @@ document.addEventListener('DOMContentLoaded', function() {
         this.newSearch();
       }
     },
-    methods: {
-      queryChange: function(value) {
-        this.query = value;
-      },
-      changePage: function(event) {
-        this.pageNumber = event.pageNumber;
-        this.handleSubmit();
-      },
-      newSearch: function() {
-        this.pageNumber = 0;
-        this.handleSubmit();
-      },
-      handleSubmit: function(pushHistory=true) {
-        if (pushHistory) {
-          const query = {
-            query: this.query
-          };
-          if (this.userType) {
-            query.userType = this.userType;
-          }
-          if (this.pageNumber > 0) {
-            query.pageNumber = this.pageNumber;
-          }
-          this.$router.push({
-            path: this.$route.path,
-            query
-          });
-        }
-        this.users = [];
-        getApiClient()
-          .getUsers(this.query, this.userType, this.pageSize, this.pageNumber)
-          .then(data => {
-            this.users = data.items;
-            this.totalResults = data.total_count;
-            this.totalPages = Math.ceil(data.total_count / this.pageSize);
-          });
-      },
-    },
-    mounted: function() {
-      this.query = this.$route.query.query;
-      this.userType = this.$route.query.userType;
-      this.handleSubmit(pushHistory=false);
+    fetchData : function(query, pageSize, pageNumber) {
+      return getApiClient()
+        .getUsers(query, this.userType, pageSize, pageNumber);
     }
   });
 
