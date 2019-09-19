@@ -31,7 +31,7 @@ class Authenticator {
 const auth = new Authenticator();
 
 const getApiClient = () => {
-  const identity = auth.tryGetUserIdentity();
+  const identity = auth.tryGetUserIdentity() || {};
   const client = new AnnotateApiClient(
     identity.name, identity.password, cochleaAppSettings.apiHost);
   return client;
@@ -846,12 +846,190 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  const ValidationErrors = Vue.component('validation-errors', {
+    template: '#validation-errors-template',
+    props: ['errors'],
+  });
+
+  const validatedField = (componentName, type, validationRules) => {
+    return Vue.component(componentName, {
+      template: '#validated-field-template',
+      props: [
+        'value',
+        'fieldId',
+        'labelText',
+        'propertyName',
+        'context',
+        'placeHolderText'
+      ],
+      data: function() {
+        return {
+          internalValue: this.value,
+          errors: [],
+          hasBeenValidated: false,
+          type
+        };
+      },
+      computed: {
+        hasErrors: function() {
+          return this.hasBeenValidated && this.errors.length > 0;
+        }
+      },
+      methods: {
+        validate: function(value) {
+          this.hasBeenValidated = true;
+          this.errors = [];
+          for(let rule of validationRules) {
+            rule
+              .rule(value, this.context)
+              .then(result => {
+                if (result) { return; }
+                this.errors.push({
+                  message: rule.message(value)
+                });
+              });
+          }
+        }
+      },
+      watch: {
+        context: function(value) {
+          this.validate(this.internalValue);
+        },
+        errors: function(value) {
+          this.$emit('field-errors', {
+            name: this.propertyName,
+            errors: this.errors.map(x => {
+              return {...x};
+            })
+          })
+        },
+        internalValue: function(value) {
+          this.$emit('field-value-change', {
+            name: this.propertyName,
+            value: value
+          });
+          this.validate(value);
+        }
+      }
+    });
+  };
+
+  function toPromise (func) {
+    function f() {
+      const args = Array.from(arguments);
+      return new Promise(function(resolve, reject) {
+        resolve(func(...args))
+      });
+    }
+    return f;
+  };
+
+  const NameInput = validatedField('user-name-input', 'text', [
+    {
+      rule: (value) => {
+        return fetch('http://flipacoinapi.com/json')
+          .then(resp => resp.json())
+          .then(data => data === 'Heads');
+      },
+      message: (value) => 'You must get heads'
+    },
+    {
+      rule: toPromise(value => value.length > 2),
+      message: (value) => `Name must be greater than two characters but was ${value.length} characters`
+    }
+  ]);
+
+  const EmailInput = validatedField('user-email-input', 'email', [
+    {
+      rule: toPromise(value => {
+        const pattern = /[^@]+@[^@]+\.[^@]+/g;
+        return pattern.test(value);
+      }),
+      message: (value) => 'Please enter a valid email address'
+    }
+  ]);
+
+  const InfoUrl = validatedField('user-info-url', 'url', [
+    {
+      rule: toPromise(value => {
+        const parser = document.createElement('a');
+        parser.href = value;
+        return parser.protocol
+            && parser.hostname
+            && parser.hostname != window.location.hostname;
+      }),
+      message: (value) => 'Please enter a valid URL'
+    }
+  ]);
+
+  const PasswordInput = validatedField('user-password-input', 'password', [
+    {
+      rule: toPromise(value => value.length > 5),
+      message: (value) => 'Please enter a password of at least five characters'
+    }
+  ]);
+
+  const PasswordConfirm = validatedField('user-password-confirm', 'password', [
+    {
+      rule: toPromise((value, context) => value === context),
+      message: (value) => 'Passwords must match'
+    }
+  ]);
+
   const Register = Vue.component('register', {
     template: '#register-template',
     data: function() {
       return {
-
+        name: null,
+        password: null,
+        passwordConfirmation: null,
+        email: null,
+        aboutMe: null,
+        infoUrl: null,
+        errors: {},
+        hasErrors: false
       };
+    },
+    computed: {
+      aboutMeMarkdown: function() {
+        return new showdown.Converter().makeHtml(this.aboutMe);
+      }
+    },
+    methods : {
+      fieldValueChange: function(event) {
+        this[event.name] = event.value;
+      },
+      fieldErrors: function(event) {
+        this.errors[event.name] = event.errors;
+        this.hasErrors = Object.values(this.errors)
+          .map(x => x.length)
+          .reduce((a, b) => a + b) > 0;
+      },
+      submit: function() {
+        if (this.hasErrors) { return; }
+        getApiClient()
+          .createUser(
+            this.name, this.email, this.password, this.infoUrl, this.aboutMe)
+          .then(data => {
+            EventBus.$emit('global-message', {
+              message: 'User Created',
+              type: 'success'
+            });
+            auth
+              .refreshUserIdentity(this.name, this.password)
+              .then(user => {
+                  EventBus.$emit('user-created', {
+                    data: user
+                });
+              });
+          })
+          .catch(error => {
+            EventBus.$emit('global-message', {
+              message: 'Something went wrong!',
+              type: 'error'
+            });
+          });
+      }
     }
   });
 
@@ -991,7 +1169,14 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!this.isAuthenticated()) {
         this.$router.push({ name: 'welcome', params: { user: this.user }});
       }
-      // this.$router.push(this.homeLink());
+
+      EventBus.$on('user-created', event => {
+          this.user.name = event.name;
+          this.user.password = event.password;
+          this.user.data = event.data;
+          this.$router.push({ name: 'menu' });
+      });
+
       EventBus.$on('global-message', (event) => {
         console.log('global message', event);
         this.globalMessage = event;

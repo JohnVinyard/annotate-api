@@ -491,6 +491,18 @@ class AnnotateApiClient {
       ]
     })
   }
+
+  createUser(name, email, password, infoUrl, aboutMe) {
+    const url = this.buildUri('/users');
+    return this.getResource(url, 'POST', {
+      user_name: name,
+      email,
+      password,
+      info_url: infoUrl,
+      about_me: aboutMe,
+      user_type: 'human'
+    });
+  }
 }
 
 

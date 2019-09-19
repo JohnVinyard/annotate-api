@@ -40,7 +40,7 @@
             :to="{ name: 'sign-in', params: { user }}"
             v-if="!user.data">
             sign in</router-link> or <router-link
-            to="/register"
+            :to="{name: 'register'}"
             v-if="!user.data">register</router-link>!
         </p>
       </div>
@@ -111,9 +111,113 @@
     </<section>
   </template>
 
+  <template id="validation-errors-template">
+    <div class="content">
+      <ul>
+        <li v-for="error in errors">
+          <p class="help is-danger">{{ error.message }}</p>
+        </li>
+      </ul
+    </div>
+  </template>
+
+  <template id="validated-field-template">
+    <div class="field">
+      <label class="label" :for="fieldId">{{ labelText }}</label>
+      <div class="control  has-icons-right">
+        <input class="input" :placeholder="placeHolderText" v-bind:class="{
+          'is-success': this.hasBeenValidated && !this.hasErrors,
+          'is-danger': this.hasBeenValidated && this.hasErrors,
+        }" :type="type" :id="fieldId" v-model.lazy="internalValue"/>
+        <span class="icon is-small is-right">
+          <i class="icon" v-bind:class="{
+            'ion-md-checkmark': this.hasBeenValidated && !this.hasErrors,
+            'ion-md-warning': this.hasBeenValidated && this.hasErrors
+          }"></i>
+        </span>
+      </div>
+      <validation-errors :errors="errors"></validation-errors>
+    </div>
+  </template>
+
   <template id="register-template">
-    <section>
-      Register
+    <section class="section">
+      <div class="container">
+        <div class="columns">
+          <div class="column">
+
+            <user-name-input
+              v-on:field-errors="fieldErrors"
+              v-on:field-value-change="fieldValueChange"
+              place-holder-text="e.g. Hal Incandenza"
+              :value="name"
+              property-name="name"
+              field-id="user-name"
+              label-text="User Name"></user-name-input>
+
+            <user-email-input
+              v-on:field-errors="fieldErrors"
+              v-on:field-value-change="fieldValueChange"
+              place-holder-text="e.g. hal@eta.net"
+              :value="email"
+              property-name="email"
+              field-id="email"
+              label-text="Email"></user-email-input>
+
+            <!-- Password -->
+            <user-password-input
+              v-on:field-errors="fieldErrors"
+              v-on:field-value-change="fieldValueChange"
+              :value="password"
+              property-name="password"
+              field-id="password"
+              label-text="Password"></user-password-input>
+
+            <!-- Password Confirm -->
+            <user-password-confirm
+              v-on:field-errors="fieldErrors"
+              v-on:field-value-change="fieldValueChange"
+              :context="password"
+              :value="passwordConfirmation"
+              property-name="passwordConfirmation"
+              field-id="password-confirm"
+              label-text="Confirm Password"></user-password-confirm>
+
+            <!-- Info Url -->
+            <user-info-url
+              v-on:field-errors="fieldErrors"
+              v-on:field-value-change="fieldValueChange"
+              place-holder-text="e.g. https://halation.com"
+              :value="infoUrl"
+              property-name="infoUrl"
+              field-id="info-url"
+              label-text="Info URL"></user-info-url>
+
+            <!-- About Me -->
+            <div class="field">
+              <label class="label" for="about-me">About Me</label>
+              <div class="control">
+                <textarea class="input about-me" type="text" id="about-me" v-model="aboutMe"></textarea>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="field">
+              <div class="control">
+                <button
+                  :disabled="hasErrors"
+                  class="button is-link"
+                  type="submit"
+                  v-on:click="submit">Submit</button>
+              </div>
+            </div>
+          </div>
+          <div class="column">
+            <div class="content" v-html="aboutMeMarkdown"></div>
+          </div>
+        </div>
+
+      </div>
     </<section>
   </template>
 
@@ -288,7 +392,7 @@
         <div class="control">
           <input
             class="input"
-            type="text"
+            type="search"
             :placeholder="placeHolderText"
             id="query"
             v-model="textQuery"
