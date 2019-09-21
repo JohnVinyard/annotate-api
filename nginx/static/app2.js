@@ -37,10 +37,20 @@ const getApiClient = () => {
   return client;
 };
 
-/*
-*
-*
-*/
+const fetchAudioForSound = (sound) => {
+  const audioUrl = sound.low_quality_audio_url || sound.audio_url;
+  return new Promise(function(resolve, reject) {
+    return fetchAudio(audioUrl, context).then(buffer => {
+      resolve({
+        buffer,
+        audioUrl,
+        soundUri: `/sounds/${sound.id}`,
+        sound: sound
+       });
+    });
+  });
+};
+
 const featurePromise =
   (sound, featureDataMapping, feature, startSeconds, durationSeconds=null) => {
 
@@ -56,19 +66,7 @@ const featurePromise =
       // Get sound data from the API
       .getResource(apiClient.buildUri(sound))
       // Fetch audio data from the remote audio url
-      .then(data => {
-        const audioUrl = data.low_quality_audio_url || data.audio_url;
-        return new Promise(function(resolve, reject) {
-          return fetchAudio(audioUrl, context).then(buffer => {
-            resolve({
-              buffer,
-              audioUrl,
-              soundUri: sound,
-              sound: data
-             });
-          });
-        });
-      });
+      .then(fetchAudioForSound);
 
       if(feature.user_name === 'audio') {
         // If the current feature being viewed is audio, we've already fetched
@@ -700,9 +698,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const searchPage = (componentName, options) => {
     options.initialize = options.initialize || (() => {});
     options.transformResults = options.transformResults || ((x) => x);
+    options.props = options.props || [];
 
     return Vue.component(componentName, {
       template: options.template,
+      props: options.props,
       beforeRouteUpdate: function(to, from, next) {
         this.queryParams.forEach(qp => {
           this[qp] = to.query[qp];
@@ -778,6 +778,63 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   };
+
+  const UserSounds = searchPage('user-sounds', {
+    template: '#user-sounds-template',
+    props: ['id'],
+    pageSize: 10,
+    data: function() {
+      return {
+        currentFeature: {
+          user_name: 'audio'
+        },
+        allFeatures: [],
+      }
+    },
+    initialize: function() {
+      this.allFeatures.push(this.currentFeature);
+      getApiClient().getFeatureBots()
+        .then(data => {
+          this.allFeatures = this.allFeatures.concat(data.items);
+        });
+    },
+    fetchData: function() {
+      return getApiClient()
+        .getSoundsByUser(this.id, this.query, this.pageSize, this.pageNumber);
+    },
+    transformResults: function(items) {
+      const sounds = items.map(item => {
+        const uri = `/sounds/${item.id}`;
+        const annotation = {
+          sound: uri,
+          created_by: item.created_by,
+          created_by_user_name: item.created_by_user_name,
+          date_created: item.date_created,
+          start_seconds: 0,
+          duration_seconds: item.duration_seconds,
+          end_seconds: item.duration_seconds,
+          featurePromise: () => {
+            return featurePromise(
+              uri,
+              { uri: fetchAudioForSound(item)},
+              this.currentFeature,
+              0)
+          }
+        };
+        return annotation;
+      });
+      return sounds;
+    },
+    methods: {
+      changeFeature: function() {
+        this.handleSubmit();
+      },
+      setQuery: function(tag) {
+        this.query = tag;
+        this.newSearch();
+      },
+    }
+  });
 
   const Annotations = searchPage('annotations', {
     template: '#annotations-template',
@@ -1112,8 +1169,8 @@ document.addEventListener('DOMContentLoaded', function() {
       { path: routerPath('/annotations'), name: 'annotations', component: Annotations},
 
       // Sounds
-      { path: routerPath('/sounds'), name: 'sounds', component: Sounds },
       { path: routerPath('/sounds/:id'), name: 'sound', component: Sound, props: true},
+      { path: routerPath('/users/:id/sounds'), name: 'user-sounds', component: UserSounds, props: true},
 
       // Users
       { path: routerPath('/users/:id'), name: 'user', component: UserDetail, props: true},

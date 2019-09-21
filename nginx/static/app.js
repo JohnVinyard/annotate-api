@@ -444,6 +444,27 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
+  getSoundsByUser(
+    userId,
+    rawQuery=null,
+    pageSize=100,
+    pageNumber=0,
+    order='desc',
+    withTags=true) {
+
+    let url = this.buildUri(
+      `/users/${userId}/sounds?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
+
+    if (rawQuery) {
+      url += `&tags=${rawQuery}`;
+    }
+    if (withTags) {
+      url += `&with_tags=true`;
+    }
+
+    return this.getResource(url);
+  }
+
   getSound(soundId) {
     const url = this.buildUri(`/sounds/${soundId}`);
     return this.getResource(url);
@@ -507,6 +528,7 @@ class AnnotateApiClient {
 
 
 const fetchBinary = (url) => {
+  url = url.replace('localhost:4569', '192.168.1.184:4569');
   return new Promise(function(resolve, reject) {
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url);

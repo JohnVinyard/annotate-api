@@ -535,7 +535,7 @@
           {{ user.user_name }}
         </h1>
         <p v-if="links.sounds">
-          <router-link :to="`users/${user.id}/sounds`">
+          <router-link :to="{ name: 'user-sounds', params: { id: user.id }}">
             Sounds from this user
           </router-link>
         </p>
@@ -661,6 +661,68 @@
         </div>
       </div>
     </div>
+  </template>
+
+  <template id="user-sounds-template">
+    <section class="section">
+      <div class="container">
+
+        <!-- Text search -->
+        <div class="section">
+          <div class="container">
+            <!-- Feature selection -->
+            <div class="field">
+                <label class="label" for="feature-selection">Feature</label>
+                <div class="control">
+                  <select id="feature-selection" v-model="currentFeature" @change="changeFeature">
+                    <option
+                      v-for="feature in allFeatures"
+                      v-bind:value="feature"
+                      v-bind:key="feature.id">
+                      {{ feature.user_name }}
+                    </option>
+                  </select>
+                </div>
+            </div>
+
+            <text-query
+              label-text="Tags"
+              place-holder-text="e.g. snare, guitar or crunchy"
+              :query="query"
+              v-on:new-search="newSearch"
+              v-on:text-query-change="queryChange"></text-query>
+
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="section">
+          <div class="container">
+            <div class="content has-text-centered" v-if="!items.length">
+              <h2>No Results</h2>
+            </div>
+            <annotation
+              @select-query="setQuery"
+              v-for="annotation in items"
+              :annotation="annotation"
+              v-bind:key="annotation.id" />
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="section">
+          <div class="container">
+            <pagination
+              @change-page="changePage"
+              :total-pages="totalPages"
+              :current-page="pageNumber"
+              :max-display-pages="5"
+              ></pagination>
+          </div>
+        </div>
+
+      </div>
+    </<section>
   </template>
 
 
