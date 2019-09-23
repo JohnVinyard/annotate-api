@@ -295,6 +295,12 @@ class SoundsResource(object):
         else:
             query = Sound.all_query()
 
+        tags = req.get_param_as_list('tags')
+        if tags:
+            additional_params['tags'] = tags
+            for tag in tags:
+                query = query & (Sound.tags == tag)
+
         list_entity(
             req,
             resp,

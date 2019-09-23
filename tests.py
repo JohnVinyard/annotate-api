@@ -857,6 +857,20 @@ class SoundTests(BaseTests, unittest2.TestCase):
         user_uri = f'/users/{user2_id}'
         self.assertTrue(all([item['created_by'] == user_uri for item in items]))
 
+    def test_can_list_sounds_by_tag(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+
+        self._create_sounds_with_user(auth, 5, tags=['test'])
+        self._create_sounds_with_user(auth, 5, tags=['train'])
+
+        resp = requests.get(
+            self.sounds_resource(),
+            params={'page_size': 10, 'tags': 'test'},
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(5, len(items))
+
     def test_can_stream_sounds_by_user_id(self):
         user1, user1_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user1)
