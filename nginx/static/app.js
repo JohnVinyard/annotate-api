@@ -528,7 +528,6 @@ class AnnotateApiClient {
 
 
 const fetchBinary = (url) => {
-  url = url.replace('localhost:4569', '192.168.1.184:4569');
   return new Promise(function(resolve, reject) {
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url);

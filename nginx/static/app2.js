@@ -781,7 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const soundSearchPage = (componentName, options) => {
     return searchPage(componentName, {
-      template: options.template,
+      template: '#sound-results-template',
       props: options.props,
       pageSize: 10,
       data: function() {
@@ -789,7 +789,8 @@ document.addEventListener('DOMContentLoaded', function() {
           currentFeature: {
             user_name: 'audio'
           },
-          allFeatures: []
+          allFeatures: [],
+          placeHolderText: options.placeHolderText
         };
       },
       initialize: function() {
@@ -814,8 +815,8 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   const UserSounds = soundSearchPage('user-sounds', {
-    template: '#user-sounds-template',
     props: ['id'],
+    placeHolderText: 'E.g. train, test or validation',
     fetchData: function() {
       return getApiClient()
         .getSoundsByUser(this.id, this.query, this.pageSize, this.pageNumber);
@@ -847,7 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   const Annotations = soundSearchPage('annotations', {
-    template: '#annotations-template',
+    placeHolderText: 'E.g. snare, kick, or crunchy',
     fetchData: function() {
       return getApiClient()
         .getAnnotations(this.query, this.pageSize, this.pageNumber);
