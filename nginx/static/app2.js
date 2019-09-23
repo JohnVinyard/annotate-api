@@ -813,6 +813,7 @@ document.addEventListener('DOMContentLoaded', function() {
           start_seconds: 0,
           duration_seconds: item.duration_seconds,
           end_seconds: item.duration_seconds,
+          tags: item.tags,
           featurePromise: () => {
             return featurePromise(
               uri,
