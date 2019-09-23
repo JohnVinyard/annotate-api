@@ -780,6 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   const soundSearchPage = (componentName, options) => {
+    options.afterFeatureInit = options.afterFeatureInit || (() => {});
     return searchPage(componentName, {
       template: '#sound-results-template',
       props: options.props,
@@ -798,6 +799,7 @@ document.addEventListener('DOMContentLoaded', function() {
         getApiClient().getFeatureBots()
           .then(data => {
             this.allFeatures = this.allFeatures.concat(data.items);
+            this.afterFeatureInit();
           });
       },
       methods: {
@@ -808,11 +810,37 @@ document.addEventListener('DOMContentLoaded', function() {
           this.query = tag;
           this.newSearch();
         },
+        afterFeatureInit: options.afterFeatureInit
       },
       fetchData: options.fetchData,
       transformResults: options.transformResults
     });
   };
+
+  function transformSoundResults (items) {
+    const sounds = items.map(item => {
+      const uri = `/sounds/${item.id}`;
+      const annotation = {
+        sound: uri,
+        created_by: item.created_by,
+        created_by_user_name: item.created_by_user_name,
+        date_created: item.date_created,
+        start_seconds: 0,
+        duration_seconds: item.duration_seconds,
+        end_seconds: item.duration_seconds,
+        tags: item.tags,
+        featurePromise: () => {
+          return featurePromise(
+            uri,
+            { uri: fetchAudioForSound(item)},
+            this.currentFeature,
+            0)
+        }
+      };
+      return annotation;
+    });
+    return sounds;
+  }
 
   const Sounds = soundSearchPage('sounds', {
     placeHolderText: 'E.g. train, test or validation',
@@ -820,30 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return getApiClient()
         .getSounds(this.query, this.pageSize, this.pageNumber);
     },
-    transformResults: function(items) {
-      const sounds = items.map(item => {
-        const uri = `/sounds/${item.id}`;
-        const annotation = {
-          sound: uri,
-          created_by: item.created_by,
-          created_by_user_name: item.created_by_user_name,
-          date_created: item.date_created,
-          start_seconds: 0,
-          duration_seconds: item.duration_seconds,
-          end_seconds: item.duration_seconds,
-          tags: item.tags,
-          featurePromise: () => {
-            return featurePromise(
-              uri,
-              { uri: fetchAudioForSound(item)},
-              this.currentFeature,
-              0)
-          }
-        };
-        return annotation;
-      });
-      return sounds;
-    }
+    transformResults: transformSoundResults
   });
 
   const UserSounds = soundSearchPage('user-sounds', {
@@ -853,32 +858,39 @@ document.addEventListener('DOMContentLoaded', function() {
       return getApiClient()
         .getSoundsByUser(this.id, this.query, this.pageSize, this.pageNumber);
     },
-    transformResults: function(items) {
-      const sounds = items.map(item => {
-        const uri = `/sounds/${item.id}`;
-        const annotation = {
-          sound: uri,
-          created_by: item.created_by,
-          created_by_user_name: item.created_by_user_name,
-          date_created: item.date_created,
-          start_seconds: 0,
-          duration_seconds: item.duration_seconds,
-          end_seconds: item.duration_seconds,
-          tags: item.tags,
-          featurePromise: () => {
-            return featurePromise(
-              uri,
-              { uri: fetchAudioForSound(item)},
-              this.currentFeature,
-              0)
-          }
-        };
-        return annotation;
-      });
-      return sounds;
-    },
+    transformResults: transformSoundResults
   });
 
+  function tranformAnnotationResults (items) {
+    const annotations = items;
+    const featureDataMapping = {};
+    annotations.forEach(annotation => {
+      const fp = () => featurePromise(
+        annotation.sound,
+        featureDataMapping,
+        this.currentFeature,
+        annotation.start_seconds,
+        annotation.duration_seconds);
+      annotation.featurePromise = fp;
+    });
+    return annotations;
+  }
+
+  const UserAnnotations = soundSearchPage('user-annotations', {
+    props: ['id'],
+    placeHolderText: 'E.g. snare, kick, or crunchy',
+    fetchData: function() {
+      return getApiClient().getAnnotationsByUser(
+        this.id, this.query, this.pageSize, this.pageNumber);
+    },
+    afterFeatureInit: function() {
+      const feature = this.allFeatures.find(x => x.id === this.id);
+      if (feature) {
+        this.currentFeature = feature;
+      }
+    },
+    transformResults: tranformAnnotationResults
+  });
 
 
   const Annotations = soundSearchPage('annotations', {
@@ -1140,8 +1152,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-
-
   const Sound = Vue.component('sound', {
     props: ['id'],
     template: '#sound-template',
@@ -1181,6 +1191,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Annotations
       { path: routerPath('/annotations'), name: 'annotations', component: Annotations},
+      { path: routerPath('/users/:id/annotations'), name: 'user-annotations', component: UserAnnotations, props: true},
 
       { path: routerPath('/'), name: 'root', component: About},
       { path: routerPath('/about'), name: 'about', component: About},

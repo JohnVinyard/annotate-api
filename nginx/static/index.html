@@ -533,7 +533,7 @@
           </router-link>
         </p>
         <p v-if="links.annotations">
-          <router-link :to="`users/${user.id}/annotations`">
+          <router-link :to="{ name: 'user-annotations', params: { id: user.id }}">
             Annotations from this user
           </router-link>
         </p>
