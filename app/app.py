@@ -639,6 +639,18 @@ class SoundAnnotationsResource(object):
             query = query & user_query
             additional_params['created_by'] = created_by
 
+        tags = req.get_param_as_list('tags')
+        with_tags = req.get_param_as_bool('with_tags')
+        if tags:
+            # look for specific tags
+            additional_params['tags'] = tags
+            for tag in tags:
+                query = query & (Annotation.tags == tag)
+        elif with_tags:
+            # only ensure that some tags are present
+            additional_params['with_tags'] = with_tags
+            query = query & (Annotation.tags != [])
+
         list_entity(
             req,
             resp,
@@ -964,6 +976,14 @@ class UsersResource(object):
 
 
 class SoundResource(object):
+
+    @staticmethod
+    def add_links(sound, view):
+        view['links'] = [
+            make_link('annotations', 'annotations', 'GET')
+        ]
+        return view
+
     def get_model_example(self, content_type):
         user = User.create(
             user_name='HalIncandenza',
@@ -982,6 +1002,7 @@ class SoundResource(object):
             duration_seconds=12.3,
             tags=['test'])
         view = snd.view(user)
+        view = self.add_links(snd, view)
         return JSONHandler(AppEntityLinks()) \
             .serialize(view, content_type).decode()
 
@@ -1001,7 +1022,12 @@ class SoundResource(object):
               description: The sound identifier supplied does not exist
         """
 
-        get_entity(resp, session, actor, Sound.id == sound_id)
+        get_entity(
+            resp,
+            session,
+            actor,
+            Sound.id == sound_id,
+            add_links=self.add_links)
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, sound_id, session, actor):

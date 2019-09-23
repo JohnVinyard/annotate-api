@@ -766,6 +766,17 @@ class SoundTests(BaseTests, unittest2.TestCase):
         self.assertEqual(client.OK, sound_resp.status_code)
         self.assertEqual(user1_location, sound_resp.json()['created_by'])
 
+    def test_sound_includes_link_to_annotations(self):
+        user1, user1_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user1)
+        sound_data = self.sound_data()
+        resp = requests.post(self.sounds_resource(), json=sound_data, auth=auth)
+        self.assertEqual(client.CREATED, resp.status_code)
+        sound_location = resp.headers['location']
+        sound_resp = requests.get(self.url(sound_location), auth=auth)
+        links = {link['rel']: link for link in sound_resp.json()['links']}
+        self.assertIn('annotations', links)
+
     def test_can_head_sound(self):
         user1, user1_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user1)
@@ -1420,6 +1431,47 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
             auth=auth)
         self.assertEqual(10, len(resp.json()['items']))
 
+    def test_can_filter_sound_annotations_by_tag(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(10)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+        resp = requests.get(
+            self.sound_annotations_resource(sound_id),
+            params={'tags': 'drums0', 'page_size': 100},
+            auth=auth)
+        self.assertEqual(1, len(resp.json()['items']))
+
+    def test_can_exclude_sound_annotations_without_tags(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+
+        annotation_data = [
+            self.annotation_data(tags=[f'drums{i}']) for i in range(10)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        annotation_data = [
+            self.annotation_data() for _ in range(11)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        resp = requests.get(
+            self.sound_annotations_resource(sound_id),
+            params={'with_tags': True, 'page_size': 100},
+            auth=auth)
+        self.assertEqual(10, len(resp.json()['items']))
+
     def test_can_filter_annotations_for_sound_overlapping_with_range(self):
         user, user_location = self.create_user(user_type='human')
         auth = self._get_auth(user)
@@ -1448,8 +1500,6 @@ class AnnotationTests(BaseTests, unittest2.TestCase):
             params={'time_range': '5-10'},
             auth=auth)
         items = resp.json()['items']
-        import pprint
-        pprint.pprint(items)
         self.assertEqual(4, len(items))
 
     def test_not_found_when_listing_annotations_for_nonexistent_sound(self):
