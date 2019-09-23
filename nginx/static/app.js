@@ -508,11 +508,32 @@ class AnnotateApiClient {
       return this.getResource(url);
   }
 
+  getSoundAnnotations(
+    soundId,
+    rawQuery=null,
+    pageSize=100,
+    pageNumber=0,
+    order='desc',
+    withTags=true) {
+    let url = this.buildUri(
+      `/sounds/${soundId}/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
+    if (rawQuery) {
+      url += `&tags=${rawQuery}`;
+    }
+
+    if (withTags) {
+      url += `&with_tags=true`;
+    }
+    return this.getResource(url);
+  }
+
   getSoundAnnotationsByUser(soundId, userId, pageSize=100) {
     const url = this.buildUri(
       `/sounds/${soundId}/annotations?created_by=${userId}&page_size=${pageSize}`);
     return this.getResource(url);
   }
+
+
 
   getFeatureBots(pageSize=100) {
     const url = this.buildUri(

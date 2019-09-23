@@ -959,6 +959,16 @@ document.addEventListener('DOMContentLoaded', function() {
     transformResults: tranformAnnotationResults
   });
 
+  const SoundAnnotations = soundSearchPage('sound-annotations', {
+    props: ['id'],
+    placeHolderText: 'E.g. snare, kick, or crunchy',
+    fetchData: function() {
+      return getApiClient()
+        .getSoundAnnotations(
+          this.id, this.query, this.pageSize, this.pageNumber);
+    },
+    transformResults: tranformAnnotationResults
+  });
 
   const Annotations = soundSearchPage('annotations', {
     placeHolderText: 'E.g. snare, kick, or crunchy',
@@ -966,20 +976,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return getApiClient()
         .getAnnotations(this.query, this.pageSize, this.pageNumber);
     },
-    transformResults: function(items) {
-      const annotations = items;
-      const featureDataMapping = {};
-      annotations.forEach(annotation => {
-        const fp = () => featurePromise(
-          annotation.sound,
-          featureDataMapping,
-          this.currentFeature,
-          annotation.start_seconds,
-          annotation.duration_seconds);
-        annotation.featurePromise = fp;
-      });
-      return annotations;
-    },
+    transformResults: tranformAnnotationResults
   });
 
   const UserList = searchPage('user-list', {
@@ -1270,6 +1267,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Annotations
       { path: routerPath('/annotations'), name: 'annotations', component: Annotations},
       { path: routerPath('/users/:id/annotations'), name: 'user-annotations', component: UserAnnotations, props: true},
+      { path: routerPath('/sounds/:id/annotations'), name: 'sound-annotations', component: SoundAnnotations, props: true},
 
       { path: routerPath('/'), name: 'root', component: About},
       { path: routerPath('/about'), name: 'about', component: About},

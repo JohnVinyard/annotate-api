@@ -682,7 +682,15 @@
             </router-link> {{ timeago.format(sound.date_created) }}
           </p>
           <p>
-            <a :href="sound.info_url">More Info</a>
+            <a target="_blank" :href="sound.info_url">
+              More info about this sound
+            </a>
+          </p>
+          <p>
+            <router-link
+              :to="{ name: 'sound-annotations', params: { id: sound.id }}">
+              Annotations for this sound
+            </router-link>
           </p>
           <p>
             <creative-commons-attributes :license-uri="sound ? sound.license_type : ''">
@@ -710,10 +718,17 @@
     <div class="container">
       <p>
         This sound is licensed under a Creative Commons
-        <a :href="licenseUri">{{ licenseDisplayName }}</a> license.
+        <a target="_blank" :href="licenseUri">{{ licenseDisplayName }}</a>
+        license.
       </p>
       <p>
-        <img v-for="url in iconUrls" :src="url"></img>
+        <a :href="licenseUri" target="_blank">
+          <img
+            class="cc-attribute"
+            v-for="url in iconUrls"
+            :src="url"
+            width="32" height="32"></img>
+        </a>
       </p>
     </div>
   </template>
