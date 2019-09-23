@@ -779,25 +779,43 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  const UserSounds = searchPage('user-sounds', {
+  const soundSearchPage = (componentName, options) => {
+    return searchPage(componentName, {
+      template: options.template,
+      props: options.props,
+      pageSize: 10,
+      data: function() {
+        return {
+          currentFeature: {
+            user_name: 'audio'
+          },
+          allFeatures: []
+        };
+      },
+      initialize: function() {
+        this.allFeatures.push(this.currentFeature);
+        getApiClient().getFeatureBots()
+          .then(data => {
+            this.allFeatures = this.allFeatures.concat(data.items);
+          });
+      },
+      methods: {
+        changeFeature: function() {
+          this.handleSubmit();
+        },
+        setQuery: function(tag) {
+          this.query = tag;
+          this.newSearch();
+        },
+      },
+      fetchData: options.fetchData,
+      transformResults: options.transformResults
+    });
+  };
+
+  const UserSounds = soundSearchPage('user-sounds', {
     template: '#user-sounds-template',
     props: ['id'],
-    pageSize: 10,
-    data: function() {
-      return {
-        currentFeature: {
-          user_name: 'audio'
-        },
-        allFeatures: [],
-      }
-    },
-    initialize: function() {
-      this.allFeatures.push(this.currentFeature);
-      getApiClient().getFeatureBots()
-        .then(data => {
-          this.allFeatures = this.allFeatures.concat(data.items);
-        });
-    },
     fetchData: function() {
       return getApiClient()
         .getSoundsByUser(this.id, this.query, this.pageSize, this.pageNumber);
@@ -826,35 +844,10 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       return sounds;
     },
-    methods: {
-      changeFeature: function() {
-        this.handleSubmit();
-      },
-      setQuery: function(tag) {
-        this.query = tag;
-        this.newSearch();
-      },
-    }
   });
 
-  const Annotations = searchPage('annotations', {
+  const Annotations = soundSearchPage('annotations', {
     template: '#annotations-template',
-    pageSize: 10,
-    data: function() {
-      return {
-        currentFeature: {
-          user_name: 'audio'
-        },
-        allFeatures: [],
-      }
-    },
-    initialize: function() {
-      this.allFeatures.push(this.currentFeature);
-      getApiClient().getFeatureBots()
-        .then(data => {
-          this.allFeatures = this.allFeatures.concat(data.items);
-        });
-    },
     fetchData: function() {
       return getApiClient()
         .getAnnotations(this.query, this.pageSize, this.pageNumber);
@@ -873,15 +866,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       return annotations;
     },
-    methods: {
-      changeFeature: function() {
-        this.handleSubmit();
-      },
-      setQuery: function(tag) {
-        this.query = tag;
-        this.newSearch();
-      },
-    }
   });
 
   const UserList = searchPage('user-list', {
