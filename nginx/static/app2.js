@@ -51,22 +51,42 @@ const fetchAudioForSound = (sound) => {
   });
 };
 
-const featurePromise =
-  (sound, featureDataMapping, feature, startSeconds, durationSeconds=null) => {
+const featurePromise = (
+  sound,
+  featureDataMapping,
+  feature,
+  startSeconds,
+  durationSeconds=null,
+  soundMapping=null) => {
 
   // Check if we've already fetched features for this sound
   let featureDataPromise = featureDataMapping[sound];
 
-
   if (featureDataPromise === undefined) {
-    const apiClient = getApiClient();
+
+    console.log(soundMapping);
+
+    // check if we've at least pre-fecthed the sound metadata
+    let soundMetadataPromise = null;
+    if (soundMapping && soundMapping[sound]) {
+      soundMetadataPromise = new Promise(function(resolve, reject) {
+        resolve(soundMapping[sound]);
+      });
+    } else {
+      const apiClient = getApiClient();
+      soundMetadataPromise = apiClient.getResource(apiClient.buildUri(sound));
+    }
+
+    // const apiClient = getApiClient();
+
+    featureDataPromise = soundMetadataPromise.then(fetchAudioForSound);
 
     // audio and features have not yet been fetched
-    featureDataPromise = apiClient
-      // Get sound data from the API
-      .getResource(apiClient.buildUri(sound))
-      // Fetch audio data from the remote audio url
-      .then(fetchAudioForSound);
+    // featureDataPromise = apiClient
+    //   // Get sound data from the API
+    //   .getResource(apiClient.buildUri(sound))
+    //   // Fetch audio data from the remote audio url
+    //   .then(fetchAudioForSound);
 
       if(feature.user_name === 'audio') {
         // If the current feature being viewed is audio, we've already fetched
@@ -818,6 +838,14 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   function transformSoundResults (items) {
+    // First, build a mapping from URIs to sound metadata to avoid refetching
+    // each sound in the results list
+    const soundMapping = {};
+    items.forEach(sound => {
+      const uri = `/sounds/${sound.id}`;
+      soundMapping[uri] = sound;
+    });
+
     const sounds = items.map(item => {
       const uri = `/sounds/${item.id}`;
       const annotation = {
@@ -832,9 +860,11 @@ document.addEventListener('DOMContentLoaded', function() {
         featurePromise: () => {
           return featurePromise(
             uri,
-            { uri: fetchAudioForSound(item)},
+            {},
             this.currentFeature,
-            0)
+            0,    // start seconds
+            null, // duration seconds
+            soundMapping)
         }
       };
       return annotation;
