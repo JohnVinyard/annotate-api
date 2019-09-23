@@ -814,6 +814,38 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
+  const Sounds = soundSearchPage('sounds', {
+    placeHolderText: 'E.g. train, test or validation',
+    fetchData: function() {
+      return getApiClient()
+        .getSounds(this.query, this.pageSize, this.pageNumber);
+    },
+    transformResults: function(items) {
+      const sounds = items.map(item => {
+        const uri = `/sounds/${item.id}`;
+        const annotation = {
+          sound: uri,
+          created_by: item.created_by,
+          created_by_user_name: item.created_by_user_name,
+          date_created: item.date_created,
+          start_seconds: 0,
+          duration_seconds: item.duration_seconds,
+          end_seconds: item.duration_seconds,
+          tags: item.tags,
+          featurePromise: () => {
+            return featurePromise(
+              uri,
+              { uri: fetchAudioForSound(item)},
+              this.currentFeature,
+              0)
+          }
+        };
+        return annotation;
+      });
+      return sounds;
+    }
+  });
+
   const UserSounds = soundSearchPage('user-sounds', {
     props: ['id'],
     placeHolderText: 'E.g. train, test or validation',
@@ -846,6 +878,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return sounds;
     },
   });
+
+
 
   const Annotations = soundSearchPage('annotations', {
     placeHolderText: 'E.g. snare, kick, or crunchy',
@@ -1106,9 +1140,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  const Sounds = Vue.component('sounds', {
-    template: '#sounds-template'
-  });
+
 
   const Sound = Vue.component('sound', {
     props: ['id'],
@@ -1155,6 +1187,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Sounds
       { path: routerPath('/sounds/:id'), name: 'sound', component: Sound, props: true},
+      { path: routerPath('/sounds'), name: 'sounds', component: Sounds },
       { path: routerPath('/users/:id/sounds'), name: 'user-sounds', component: UserSounds, props: true},
 
       // Users

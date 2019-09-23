@@ -439,8 +439,12 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
-  getSounds(pageSize=100) {
-    const url = this.buildUri(`/sounds?page_size=${pageSize}`);
+  getSounds(rawQuery=null, pageSize=100, pageNumber=0, order='desc') {
+    let url = this.buildUri(
+      `/sounds?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
+    if (rawQuery) {
+      url += `&tags=${rawQuery}`;
+    }
     return this.getResource(url);
   }
 
@@ -451,17 +455,14 @@ class AnnotateApiClient {
     pageNumber=0,
     order='desc',
     withTags=true) {
-
     let url = this.buildUri(
       `/users/${userId}/sounds?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
-
     if (rawQuery) {
       url += `&tags=${rawQuery}`;
     }
     if (withTags) {
       url += `&with_tags=true`;
     }
-
     return this.getResource(url);
   }
 
