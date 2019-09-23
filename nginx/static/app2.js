@@ -517,6 +517,43 @@ document.addEventListener('DOMContentLoaded', function() {
     },
   });
 
+  const SmallCreativeCommonsLicense = Vue.component(
+    'small-creative-commons-license', {
+      template: '#small-creative-commons-license-template',
+      props: ['licenseUri'],
+      computed: {
+        licenseId: function() {
+          const segments = this.licenseUri.split('/');
+          return segments[segments.length - 2];
+        },
+        iconUrl: function() {
+          return `https://mirrors.creativecommons.org/presskit/buttons/80x15/svg/${this.licenseId}.svg`;
+        }
+      }
+  });
+
+  const CreativeCommonsAttributes = Vue.component(
+    'creative-commons-attributes', {
+      template: '#creative-commons-attributes-template',
+      props: ['licenseUri'],
+      computed: {
+        licenseId: function() {
+          const segments = this.licenseUri.split('/');
+          return segments[segments.length - 2];
+        },
+        licenseSegments: function() {
+          return ['cc'].concat(this.licenseId.split('-'));
+        },
+        iconUrls: function() {
+          return this.licenseSegments.map(x =>
+            `https://mirrors.creativecommons.org/presskit/icons/${x}.svg`);
+        },
+        licenseDisplayName: function() {
+          return this.licenseId.toUpperCase();
+        }
+      }
+  });
+
   const Annotation = Vue.component('annotation', {
     template: '#annotation-template',
     props: ['annotation'],
@@ -1182,15 +1219,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  const Tags = Vue.component('tags', {
+    template: '#tags-template',
+    props: ['tags']
+  });
+
   const Sound = Vue.component('sound', {
     props: ['id'],
     template: '#sound-template',
     data: function() {
       return {
+        timeago: timeAgo,
         featureData: null,
         audioUrl: null,
         sound: null
       };
+    },
+    computed: {
+      createdByUserId: function() {
+        return this.sound.created_by.split('/').pop();
+      }
     },
     mounted: function() {
       const [slicedPromise, audioUrlPromise, soundPromise] =
