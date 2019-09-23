@@ -136,8 +136,8 @@ document.addEventListener('DOMContentLoaded', function() {
     template: '#not-found-template'
   });
 
-  const Menu = Vue.component('main-menu', {
-    template: '#menu-template'
+  const About = Vue.component('about', {
+    template: '#about-template'
   });
 
   const AddAnnotationModal = Vue.component('add-annotation-modal', {
@@ -1091,23 +1091,25 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   const SignIn = Vue.component('sign-in', {
-    props: ['user'],
     template: '#sign-in-template',
     data: function() {
       return {
-        error: false
+        error: false,
+        user: {
+          name: null,
+          password: null,
+          data: null
+        }
       };
     },
     methods: {
       signIn : function(event) {
         this.error = false;
-
         auth
           .refreshUserIdentity(this.user.name, this.user.password)
           .then(data => {
             this.user.data = data;
-            // TODO: The sign-in location should be factored out somewhere
-            this.$router.push({ name: 'menu' });
+            EventBus.$emit('user-signed-in', this.user);
           })
           .catch(error => {
             this.user.name = null;
@@ -1117,8 +1119,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
-
-
 
   const Sounds = Vue.component('sounds', {
     template: '#sounds-template'
@@ -1161,12 +1161,11 @@ document.addEventListener('DOMContentLoaded', function() {
       { path: routerPath('/sign-in'), name: 'sign-in', component: SignIn, props: true },
       { path: routerPath('/register'), name: 'register', component: Register},
 
-      // Main menu for authenticated users
-      { path: routerPath('/menu'), name: 'menu', component: Menu},
-      { path: routerPath('/'), name: 'menu', component: Menu},
-
       // Annotations
       { path: routerPath('/annotations'), name: 'annotations', component: Annotations},
+
+      { path: routerPath('/'), name: 'root', component: About},
+      { path: routerPath('/about'), name: 'about', component: About},
 
       // Sounds
       { path: routerPath('/sounds/:id'), name: 'sound', component: Sound, props: true},
@@ -1217,8 +1216,14 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       homeLink: function() {
         return this.isAuthenticated() ?
-          { name: 'menu' } : { name: 'welcome', params: { user: this.user }};
+          { name: 'annotations' } : { name: 'welcome', params: { user: this.user }};
       },
+      userAuthenticated: function(user) {
+        this.user.name = user.name;
+        this.user.password = user.password;
+        this.user.data = user.data;
+        this.$router.push(this.homeLink());
+      }
 
     },
     mounted: function() {
@@ -1226,14 +1231,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!this.isAuthenticated()) {
         this.$router.push({ name: 'welcome', params: { user: this.user }});
       }
-
-      EventBus.$on('user-created', event => {
-          this.user.name = event.name;
-          this.user.password = event.password;
-          this.user.data = event.data;
-          this.$router.push({ name: 'menu' });
-      });
-
+      EventBus.$on('user-created', this.userAuthenticated);
+      EventBus.$on('user-signed-in', this.userAuthenticated);
       EventBus.$on('global-message', (event) => {
         console.log('global message', event);
         this.globalMessage = event;

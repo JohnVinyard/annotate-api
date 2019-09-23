@@ -55,17 +55,10 @@
     </section>
   </template>
 
-  <template id="menu-template">
+  <template id="about-template">
     <section class="section">
-      <div class="content has-text-centered">
-        <ul>
-          <li>
-            <router-link :to="{ name: 'users' }">Users</router-link>
-          </li>
-          <li>
-            <router-link :to="{ name: 'annotations' }">Annotations</router-link>
-          </li>
-        </ul>
+      <div class="container">
+        TODO: About cochlea...
       </div>
     </section>
   </template>
@@ -746,25 +739,72 @@
     </<section>
   </template>
 
-
   <div id="app">
+
     <!-- Header -->
-    <header class="hero is-light" id="header">
-      <div class="hero-body">
-          <div class="level">
-            <div class="level-left">
-              <router-link :to="homeLink()"><h3>Cochlea</h3></router-link>
-            </div>
-            <div class="level-right" v-if="user.data">
-              <button
-                class="button is-link"
-                type="submit"
-                v-on:click="logOut">Log Out</button>
+    <nav class="navbar" role="navigation">
+      <div class="navbar-brand">
+
+        <router-link class="navbar-item" :to="{ name: 'root' }">
+          <img src="cochlea.svg" width="32" height="32">
+          <h3>Cochlea</h3>
+        </router-link>
+
+        <a
+          role="button"
+          class="navbar-burger burger"
+          aria-label="menu"
+          aria-expanded="false"
+          data-target="navbarBasicExample">
+
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </a>
+      </div>
+
+      <div id="navbarBasicExample" class="navbar-menu">
+        <div v-if="user.data" class="navbar-start">
+          <router-link class="navbar-item ":to="{ name: 'annotations' }">
+            Annotations
+          </router-link>
+          <router-link class="navbar-item ":to="{ name: 'users' }">
+            Users
+          </router-link>
+          <router-link class="navbar-item ":to="{ name: 'sounds' }">
+            Sounds
+          </router-link>
+          <router-link class="navbar-item ":to="{ name: 'about' }">
+            About
+          </router-link>
+        </div>
+
+        <div class="navbar-end">
+          <div class="navbar-item">
+            <div class="buttons">
+              <a class="button" v-if="user.data" v-on:click="logOut">
+                Log Out
+              </a>
+
+              <router-link
+                class="button"
+                v-if="!user.data"
+                :to="{ name: 'sign-in', params: { user }}">
+                Sign In
+              </router-link>
+
+              <router-link
+                class="button"
+                v-if="!user.data"
+                :to="{ name: 'register' }">
+                Register
+              </router-link>
+
             </div>
           </div>
-
+        </div>
       </div>
-    </header>
+    </nav>
 
     <div
       v-if="globalMessage"
