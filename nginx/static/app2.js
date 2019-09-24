@@ -64,8 +64,6 @@ const featurePromise = (
 
   if (featureDataPromise === undefined) {
 
-    console.log(soundMapping);
-
     // check if we've at least pre-fecthed the sound metadata
     let soundMetadataPromise = null;
     if (soundMapping && soundMapping[sound]) {
@@ -77,16 +75,8 @@ const featurePromise = (
       soundMetadataPromise = apiClient.getResource(apiClient.buildUri(sound));
     }
 
-    // const apiClient = getApiClient();
-
     featureDataPromise = soundMetadataPromise.then(fetchAudioForSound);
 
-    // audio and features have not yet been fetched
-    // featureDataPromise = apiClient
-    //   // Get sound data from the API
-    //   .getResource(apiClient.buildUri(sound))
-    //   // Fetch audio data from the remote audio url
-    //   .then(fetchAudioForSound);
 
       if(feature.user_name === 'audio') {
         // If the current feature being viewed is audio, we've already fetched
@@ -208,16 +198,24 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     methods: {
       confirmAnnotation: function(event) {
-        const span = this.span();
         this.$emit('save-annotation', {
-          startSeconds: this.startSeconds + span.startSeconds,
-          durationSeconds: span.durationSeconds,
-          tags: event.tags
+          tags: event.tags,
+          ...this.absoluteSpan()
         });
         this.clearSelection();
       },
+      timeRangeSearch: function() {
+        this.$emit('time-range-search', this.absoluteSpan());
+      },
       clearSelection: function() {
         this.pointA = this.pointB = null;
+      },
+      absoluteSpan: function() {
+        const span = this.span();
+        return {
+          startSeconds: this.startSeconds + span.startSeconds,
+          durationSeconds: span.durationSeconds
+        };
       },
       span: function() {
         const start = Math.min(this.pointA, this.pointB);
@@ -348,6 +346,15 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     methods: {
+      timeRangeSearch: function(event) {
+        const start = event.startSeconds.toFixed(4);
+        const end = (event.startSeconds + event.durationSeconds).toFixed(4);
+        this.$router.push({
+          name: 'sound-annotations',
+          params: { id: this.sound.id },
+          query: { timeRange: `${start}-${end}` }
+        });
+      },
       saveAnnotation: function(event) {
         getApiClient()
           .createAnnotation(
@@ -608,6 +615,11 @@ document.addEventListener('DOMContentLoaded', function() {
     },
   });
 
+  const Icon = Vue.component('icon', {
+    template: '#icon-template',
+    props: ['iconName']
+  });
+
   const UserTypeIcon = Vue.component('user-type-icon', {
     template: '#user-type-icon-template',
     props: ['userType']
@@ -756,13 +768,26 @@ document.addEventListener('DOMContentLoaded', function() {
     options.initialize = options.initialize || (() => {});
     options.transformResults = options.transformResults || ((x) => x);
     options.props = options.props || [];
+    options.computeFromQuery = options.computeFromQuery || {};
+    options.serializeToQuery = options.serializeToQuery || {};
+    options.queryParams =
+      ['query', 'pageNumber', ...(options.queryParams || [])];
+
+    // Ensure that we have a callable function to extract a value from the
+    // route object for each query parameter we'd like to keep track of
+    options.queryParams.forEach(qp => {
+      options.computeFromQuery[qp] =
+        options.computeFromQuery[qp] || ((query) => query[qp]);
+      options.serializeToQuery[qp] =
+        options.serializeToQuery[qp] || (function() { return this[qp]; })
+    });
 
     return Vue.component(componentName, {
       template: options.template,
       props: options.props,
       beforeRouteUpdate: function(to, from, next) {
         this.queryParams.forEach(qp => {
-          this[qp] = to.query[qp];
+          this[qp] = options.computeFromQuery[qp](to.query);
         });
         this.pageNumber = Number.parseInt(to.query.pageNumber) || 0;
         this.handleSubmit(pushHistory=false);
@@ -776,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
           totalResults: 0,
           items: [],
           pageSize: options.pageSize || 5,
-          queryParams: ['query', 'pageNumber', ...(options.queryParams || [])]
+          queryParams: ['query', 'pageNumber', ...options.queryParams]
         };
         return {...base, ...options.data()};
       },
@@ -802,7 +827,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const query = {};
             this.queryParams.forEach(qp => {
                 if (this[qp]) {
-                  query[qp] = this[qp];
+                  query[qp] = options.serializeToQuery[qp].call(this);
                 }
             });
             this.$router.push({
@@ -829,7 +854,7 @@ document.addEventListener('DOMContentLoaded', function() {
           this.initialize();
         }
         this.queryParams.forEach(qp => {
-          this[qp] = this.$route.query[qp];
+          this[qp] = options.computeFromQuery[qp](this.$route.query);
         });
         this.handleSubmit(pushHistory=false);
       }
@@ -842,6 +867,9 @@ document.addEventListener('DOMContentLoaded', function() {
       template: '#sound-results-template',
       props: options.props,
       pageSize: 10,
+      computeFromQuery: options.computeFromQuery,
+      serializeToQuery: options.serializeToQuery,
+      queryParams: options.queryParams,
       data: function() {
         return {
           currentFeature: {
@@ -911,9 +939,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const Sounds = soundSearchPage('sounds', {
     placeHolderText: 'E.g. train, test or validation',
-    fetchData: function() {
+    fetchData: function(query, pageSize, pageNumber) {
       return getApiClient()
-        .getSounds(this.query, this.pageSize, this.pageNumber);
+        .getSounds(query, pageSize, pageNumber);
     },
     transformResults: transformSoundResults
   });
@@ -921,9 +949,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const UserSounds = soundSearchPage('user-sounds', {
     props: ['id'],
     placeHolderText: 'E.g. train, test or validation',
-    fetchData: function() {
+    fetchData: function(query, pageSize, pageNumber) {
       return getApiClient()
-        .getSoundsByUser(this.id, this.query, this.pageSize, this.pageNumber);
+        .getSoundsByUser(this.id, query, pageSize, pageNumber);
     },
     transformResults: transformSoundResults
   });
@@ -946,9 +974,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const UserAnnotations = soundSearchPage('user-annotations', {
     props: ['id'],
     placeHolderText: 'E.g. snare, kick, or crunchy',
-    fetchData: function() {
+    fetchData: function(query, pageSize, pageNumber) {
       return getApiClient().getAnnotationsByUser(
-        this.id, this.query, this.pageSize, this.pageNumber);
+        this.id, query, pageSize, pageNumber);
     },
     afterFeatureInit: function() {
       const feature = this.allFeatures.find(x => x.id === this.id);
@@ -962,10 +990,39 @@ document.addEventListener('DOMContentLoaded', function() {
   const SoundAnnotations = soundSearchPage('sound-annotations', {
     props: ['id'],
     placeHolderText: 'E.g. snare, kick, or crunchy',
-    fetchData: function() {
-      return getApiClient()
-        .getSoundAnnotations(
-          this.id, this.query, this.pageSize, this.pageNumber);
+    queryParams: ['timeRange'],
+    data: function() {
+      return {
+        timeRange: null
+      };
+    },
+    computeFromQuery: {
+      timeRange: function(query) {
+        if (query.timeRange) {
+          const segments = query.timeRange.split('-');
+          return {
+            start: parseFloat(segments[0]),
+            end: parseFloat(segments[1])
+          }
+        }
+        return null;
+      }
+    },
+    serializeToQuery: {
+      timeRange: function() {
+        return `${this.timeRange.start.toFixed(4)}-${this.timeRange.end.toFixed(4)}`;
+      }
+    },
+    fetchData: function(query, pageSize, pageNumber) {
+      return getApiClient().getSoundAnnotations(
+          this.id,
+          query,
+          pageSize,
+          pageNumber,
+          'desc',  // order
+          true,   // with tags
+          this.timeRange // time range
+      );
     },
     transformResults: tranformAnnotationResults
   });

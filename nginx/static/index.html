@@ -302,14 +302,36 @@
           width: handleWidth.toString() + 'px',
           pointerEvents: isSelecting ? 'none' : 'auto',
         }"></div>
+
+      <!-- Create Annotation Icon -->
       <div
         v-if="!(isAdjusting || isSelecting)"
         @click="addAnnotation"
         class="add-annotation"
         v-bind:style="{
-          left: (startPixels() + widthPixels() - 20).toString() + 'px',
-      }">+</div>
+          left: (startPixels() + widthPixels() - 30).toString() + 'px',
+      }">
+        <icon icon-name="add"></icon>
+      </div>
+
+      <!-- Search for Time Range Icon -->
+      <div
+        v-if="!(isAdjusting || isSelecting)"
+        @click="timeRangeSearch"
+        class="search-time-range"
+        v-bind:style="{
+          left: (startPixels() + widthPixels() - 30).toString() + 'px',
+      }">
+        <icon icon-name="search"></icon>
+      </div>
+
     </div>
+  </template>
+
+  <template id="icon-template">
+    <span class="icon">
+      <i :class="`icon ion-md-${iconName}`"></i>
+    </span>
   </template>
 
   <template id="sound-view-template">
@@ -317,6 +339,7 @@
         <div ref="container" class="sound-view-container">
           <selection
               @save-annotation="saveAnnotation"
+              @time-range-search="timeRangeSearch"
               v-if="selectable"
               :feature-data="featureData"
               :audio-url="audioUrl"
@@ -330,8 +353,12 @@
         </div>
 
         <div class="sound-view-controls">
-            <div class="sound-view-zoom-in" v-on:click="zoomIn">+</div>
-            <div class="sound-view-zoom-out" v-on:click="zoomOut">-</div>
+          <div class="sound-view-zoom-in" v-on:click="zoomIn">
+            <icon icon-name="add"></icon>
+          </div>
+          <div class="sound-view-zoom-out" v-on:click="zoomOut">
+            <icon icon-name="remove"></icon>
+          </div>
         </div>
     </div>
   </template>

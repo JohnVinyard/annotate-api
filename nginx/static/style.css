@@ -5,6 +5,7 @@
 #temp-container {
     position:relative;
 }
+
 .sound-view-outer-container {
   position: relative;
 }
@@ -15,18 +16,25 @@
   right:20px;
 }
 
-.add-annotation, .sound-view-controls {
+.add-annotation, .sound-view-controls, .search-time-range {
 	font-weight: bold;
 	font-size: 2em;
 	cursor: pointer;
 }
-.add-annotation {
-	background-color: #00ff00;
-	border-radius: 25px;
-	top: 20px;
+
+.add-annotation, .search-time-range {
 	position: absolute;
 	pointer-events: auto;
 }
+
+.add-annotation {
+	top: 0px;
+}
+
+.search-time-range {
+	top: 30px;
+}
+
 .sound-view-container {
     overflow-x: auto;
     overflow-y: hidden;
@@ -57,7 +65,6 @@
 	background-color: #ff0000;
 	cursor: grab;
 }
-
 .modal {
 	pointer-events: auto;
 }

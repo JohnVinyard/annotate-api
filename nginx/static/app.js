@@ -514,7 +514,9 @@ class AnnotateApiClient {
     pageSize=100,
     pageNumber=0,
     order='desc',
-    withTags=true) {
+    withTags=true,
+    timeRange=null) {
+
     let url = this.buildUri(
       `/sounds/${soundId}/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
     if (rawQuery) {
@@ -523,6 +525,10 @@ class AnnotateApiClient {
 
     if (withTags) {
       url += `&with_tags=true`;
+    }
+
+    if (timeRange) {
+      url += `&time_range=${timeRange.start}-${timeRange.end}`;
     }
     return this.getResource(url);
   }
