@@ -88,16 +88,15 @@ if __name__ == '__main__':
         process('chroma_bot.py'),
         process('fft_bot.py'),
         process('mfcc_bot.py'),
-        # process('onset_bot.py'),
-        # process('spectrogram_bot.py')
+        process('onset_bot.py'),
+        process('spectrogram_bot.py'),
 
         # aggregators
-
-        process('indexer.py', **{
-            '--train': '',
-            '--iterations': str(10000),
-            '--bind': '0.0.0.0:8080',
-            '--index-server-port': '8081'
-        })
+        # process('indexer.py', **{
+        #     '--train': '',
+        #     '--iterations': str(10000),
+        #     '--bind': '0.0.0.0:8080',
+        #     '--index-server-port': '8081'
+        # })
     )
     print(processes.wait())

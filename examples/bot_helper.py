@@ -11,6 +11,43 @@ from zounds.persistence import DimensionEncoder, DimensionDecoder
 import zounds
 
 
+def sound_stream(client, wait_for_new=False, page_size=100):
+    low_id = None
+
+    def fetch(low):
+        resp = client.get_sounds(low_id=low_id, page_size=page_size)
+        items = resp['items']
+        try:
+            return items[-1]['id'], items
+        except IndexError:
+            return low, items
+
+    low_id, items = fetch(low_id)
+    while items or wait_for_new:
+        yield from items
+        low_id, items = fetch(low_id)
+
+
+def annotation_stream(client, user_name, wait_for_new=False, page_size=100):
+    bot = retry(client.get_user, 30)(user_name)
+
+    low_id = None
+
+    def fetch(low):
+        resp = client.get_annotations(
+            bot['id'], low_id=low, page_size=page_size)
+        items = resp['items']
+        try:
+            return items[-1]['id'], items
+        except IndexError:
+            return low, items
+
+    low_id, items = fetch(low_id)
+    while items or wait_for_new:
+        yield from items
+        low_id, items = fetch(low_id)
+
+
 class PersistentValue(object):
     def __init__(self, path):
         self.path = path
@@ -143,7 +180,6 @@ class AnnotationListener(BaseListener):
             s3_client,
             page_size=3,
             logger=None):
-
         self.bot = retry(client.get_user, 30)(subscribed_to)
         logger.info(f'subscribed to user {self.bot}')
         f = lambda low_id, page_size: \
@@ -170,7 +206,6 @@ def main(
         listener_cls,
         page_size=3,
         logger=None):
-
     parser = argparse.ArgumentParser(parents=[DefaultArgumentParser()])
     args = parser.parse_args()
     client = Client(args.annotate_api_endpoint, logger=logger)

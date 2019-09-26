@@ -1309,6 +1309,97 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  const Map = Vue.component('explorer', {
+    template: '#map-template',
+    methods: {
+      degreesToRadians: function(degree) {
+        return degree * (Math.PI / 180);
+      },
+      radiansToDegrees: function(radian) {
+        return radian * (180 / Math.PI);
+      },
+      geoToSpherical: function(coordinate) {
+        const lat = this.degreesToRadians(coordinate.lat());
+        const lng = this.degreesToRadians(coordinate.lng());
+        const r = 1;
+        const x = r * Math.cos(lat) * Math.cos(lng);
+        const y = r * Math.cos(lat) * Math.sin(lng);
+        const z = r * Math.sin(lat);
+        return {x, y, z};
+      },
+      sphericalToGeo: function(coordinate) {
+        const [x, y, z] = coordinate;
+        const lat = this.radiansToDegrees(Math.asin(z));
+        let lng = 0;
+        if (x > 0) {
+          lng = this.radiansToDegrees(Math.atan(y / x));
+        } else if (y > 0) {
+          lng = this.radiansToDegrees(Math.atan(y / x)) + 180;
+        } else {
+          lng = this.radiansToDegrees(Math.atan(y / x)) - 180;
+        }
+        return { lat, lng };
+      }
+    },
+    mounted: function() {
+      const austin = {lat: 29.9, lng: -97.35};
+      let markers = [];
+      var map = new google.maps.Map(this.$refs.container, {
+        zoom: 4,
+        center: austin,
+        restriction: {
+            latLngBounds: {
+                north: 85,
+                south: -85,
+                west: -180,
+                east: 180
+            },
+            strictBounds: true,
+        },
+      });
+      map.addListener('idle', () => {
+
+        // clear all markers
+        markers.forEach(marker => {
+          marker.setMap(null);
+        });
+
+        // get the map center and convert it to a spherical coordinate
+        const center = map.getCenter();
+        const spherical = this.geoToSpherical(center);
+        const {x, y, z} = spherical;
+        const uri =
+          `${cochleaAppSettings.remoteSearchHost}?x=${x}&y=${y}&z=${z}`;
+        fetch(uri)
+          .then(resp => resp.json())
+          .then(data => {
+            data.items.forEach(item => {
+              const point = item.point;
+              const geo = this.sphericalToGeo(item.point);
+              const marker = new google.maps.Marker({
+                position: geo,
+                map: map,
+                data: item
+              });
+              marker.addListener('click', function() {
+                // TODO: Cache audio according to sound URI as well
+                getApiClient()
+                  .getSound(this.data.sound.split('/').pop())
+                  .then(data => {
+                    playAudio(
+                      data.low_quality_audio_url,
+                      context,
+                      item.start_seconds,
+                      item.duration_seconds);
+                  });
+              });
+              markers.push(marker);
+            });
+          });
+      });
+    }
+  });
+
   const routerPath = (path) => cochleaAppSettings.basePath + path;
 
   const router = new VueRouter({
@@ -1316,6 +1407,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Landing Page
       { path: routerPath('/welcome'), name: 'welcome', component: Welcome, props: true },
+
+      // Map
+      { path: routerPath('/map'), name: 'map', component: Map},
 
       // Sign in and register
       { path: routerPath('/sign-in'), name: 'sign-in', component: SignIn, props: true },

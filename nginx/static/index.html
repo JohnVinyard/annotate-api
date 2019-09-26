@@ -8,6 +8,12 @@
     <link rel="shortcut icon" href="/static/cochlea.svg" type="image/svg+xml"/>
 
     <script
+      async
+      defer
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCHDpvtpbudS6M_8RD5s8H1Sd1a5UDewf4"
+      type="text/javascript"></script>
+
+    <script
       src="https://cdnjs.cloudflare.com/ajax/libs/timeago.js/3.0.2/timeago.min.js"
       integrity="sha256-jwCP0NAdCBloaIWTWHmW4i3snUNMHUNO+jr9rYd2iOI="
       crossorigin="anonymous"></script>
@@ -332,6 +338,13 @@
     <span class="icon">
       <i :class="`icon ion-md-${iconName}`"></i>
     </span>
+  </template>
+
+  <template id="map-template">
+    <section class="section">
+      <div ref="container" class="container map">
+      </div>
+    </section>
   </template>
 
   <template id="sound-view-template">
