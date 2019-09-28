@@ -136,8 +136,8 @@ if __name__ == '__main__':
         metadata,
         ['test'])
 
-    # add_sounds(
-    #     os.path.join(args.metadata_path, 'train_data'),
-    #     os.path.join(args.metadata_path, 'train_labels'),
-    #     metadata,
-    #     ['train'])
+    add_sounds(
+        os.path.join(args.metadata_path, 'train_data'),
+        os.path.join(args.metadata_path, 'train_labels'),
+        metadata,
+        ['train'])

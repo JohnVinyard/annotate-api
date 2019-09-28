@@ -84,10 +84,9 @@ if __name__ == '__main__':
             license_type='https://creativecommons.org/licenses/by/4.0',
             title=key,
             duration_seconds=duration_seconds,
-            # TODO: This should depend on which part of the
-            # dataset we're reading, and it might be helpful if this property
-            # is mutable, especially if/when there is overlap between train
-            # and validation sets
+            # TODO: There is overlap between train and validation sets, so
+            # tags for all sounds need to be established up front, before
+            # records are created, as they are immutable
             tags=['validation'])
 
         if status == client.CREATED:

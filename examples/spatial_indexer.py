@@ -15,6 +15,7 @@ from scipy.spatial.distance import cdist
 from spatial_network import EmbeddingNetwork
 from io import BytesIO
 
+
 logger = module_logger(__file__)
 
 logger.info('loading network')
@@ -43,6 +44,7 @@ logger.info('loaded network')
 
 
 def compute_embedding(samples):
+    samples = zounds.soundfile.resample(samples, zounds.SR22050())
     logger.info(samples)
     freq = samples.frequency * 8192
     windowed = samples.sliding_window(
@@ -137,8 +139,12 @@ class Index(threading.Thread):
 
     def search(self, embedding, nresults=100):
         embedding = np.array(embedding)
+        logger.info(f'embedding {embedding.shape}')
+        logger.info(f'index {self.index.shape}')
         dist = cdist(embedding[None, ...], self.index, metric='cosine')[0]
+        logger.info(f'dist {dist.shape}')
         indices = np.argsort(dist)[:nresults]
+        logger.info(f'indices {indices.shape}')
         ids = [
             (self.index[i].astype(np.float64), self.identifiers[i])
             for i in indices
