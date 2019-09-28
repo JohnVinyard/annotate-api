@@ -1077,6 +1077,36 @@ class UserAnnotationTests(BaseTests, unittest2.TestCase):
             self.user_annotations_resource('BAD_USER_ID'), auth=auth)
         self.assertEqual(client.NOT_FOUND, resp.status_code)
 
+    def test_can_filter_user_annotations_by_tag(self):
+        user, user_location = self.create_user(user_type='dataset')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+
+        fb, fb_location = self.create_user(user_type='featurebot')
+        fb_auth = self._get_auth(fb)
+        fb_id = fb_location.split('/')[-1]
+        annotation_data = [
+            self.annotation_data(tags=['drums']) for i in range(3)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=fb_auth)
+
+        annotation_data = [
+            self.annotation_data(tags=['snare']) for i in range(4)]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=fb_auth)
+
+        user_uri = f'/users/{fb_id}'
+        resp = requests.get(
+            self.user_annotations_resource(fb_id),
+            params={'tags':'drums'},
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(3, len(items))
+
     def test_can_list_all_annotations_for_user(self):
         user, user_location = self.create_user(user_type='dataset')
         auth = self._get_auth(user)
