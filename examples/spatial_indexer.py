@@ -32,8 +32,11 @@ class Indexer(object):
             user_uri,
             index_api_endpoint,
             network,
-            index_access_key):
+            index_access_key,
+            reindex):
+
         super().__init__()
+        self.reindex = reindex
         self.index_access_key = index_access_key
         self.network = network
         self.index_api_endpoint = index_api_endpoint
@@ -46,8 +49,10 @@ class Indexer(object):
         feature = compute_embedding(samples, self.network)
         return feature.dimensions[0]
 
-    def _stream_sounds(self):
-        for sound in sound_stream(self.client, wait_for_new=True):
+    def _stream_sounds(self, low_id=None):
+        for sound in sound_stream(
+                self.client, wait_for_new=True, low_id=low_id):
+
             sound_id = sound['id']
             resp = requests.get(sound['audio_url'])
             bio = BytesIO(resp.content)
@@ -61,14 +66,23 @@ class Indexer(object):
         return {'Authorization': self.index_access_key}
 
     def run(self):
-        resp = requests.delete(
-            self.index_api_endpoint,
-            headers=self._auth_headers())
+        if self.reindex:
+            resp = requests.delete(
+                self.index_api_endpoint,
+                headers=self._auth_headers())
 
-        resp.raise_for_status()
-        logger.info(
-            f'Deleted all index data with status code {resp.status_code}')
-        for sound_id, samples in self._stream_sounds():
+            resp.raise_for_status()
+            logger.info(
+                f'Deleted all index data with status code {resp.status_code}')
+            low_id = None
+        else:
+            resp = requests.get(
+                f'{self.index_api_endpoint}/low_id',
+                headers=self._auth_headers())
+            low_id = resp.json()['low_id']
+            logger.info(f'Resuming indexing from low_id {low_id}')
+
+        for sound_id, samples in self._stream_sounds(low_id=low_id):
             embedding = compute_embedding(samples, self.network)
             uri = f'{self.index_api_endpoint}/{sound_id}'
             resp = requests.put(
@@ -86,6 +100,10 @@ if __name__ == '__main__':
         '--index-access-key',
         type=str,
         required=True)
+    parser.add_argument(
+        '--reindex',
+        default=False,
+        action='store_true')
     args = parser.parse_args()
 
     user_name = 'spatial_index'
@@ -109,5 +127,6 @@ if __name__ == '__main__':
         user_uri,
         args.index_endpoint,
         network,
-        args.index_access_key)
+        args.index_access_key,
+        args.reindex)
     indexer.run()

@@ -1,8 +1,13 @@
 import falcon
 from hyperplane_tree import MultiHyperPlaneTree
 import numpy as np
-import time
 import os
+import threading
+import time
+import pickle
+from log import module_logger
+
+logger = module_logger(__file__)
 
 
 class Index(object):
@@ -11,25 +16,36 @@ class Index(object):
         self.user_uri = user_uri
         self.seconds_per_chunk = seconds_per_chunk
         self.tree = None
-        self.reset()
-        self.ids = []
-        self.offsets = []
+        self.ids = None
+        self.offsets = None
         self.current_offset = 0
+        self.low_id = None
+        self.reset()
+
+    def info(self):
+        return {
+            'sounds': len(self.ids),
+            'segments': len(self.tree)
+        }
 
     def reset(self):
         self.tree = MultiHyperPlaneTree(
             data=np.zeros((0, 3), dtype=np.float32),
             smallest_node=1024,
             n_trees=5)
+        self.ids = []
+        self.offsets = []
+        self.current_offset = 0
+        self.low_id = None
 
     def append(self, _id, data):
+        self.low_id = _id
         self.ids.append(_id)
         self.offsets.append(self.current_offset)
         self.current_offset += len(data)
         self.tree.append(data.astype(np.float32))
 
     def search(self, query, n_results):
-
         # get the raw indices from the underlying hyperplane tree along with
         # associated vectors
         indices, vectors = self.tree.search_with_priority_queue(
@@ -62,6 +78,24 @@ class Index(object):
             })
 
         return results
+
+
+class Persistor(threading.Thread):
+    def __init__(self, index, frequency, filename):
+        super().__init__(daemon=True)
+        self.filename = filename
+        self.frequency = frequency
+        self.index = index
+
+    def run(self):
+        while True:
+            time.sleep(self.frequency)
+            with open(self.filename, 'wb') as f:
+                pickle.dump(self.index, f, pickle.HIGHEST_PROTOCOL)
+            info = self.index.info()
+            logger.info(
+                'Persisted index with {sounds} sounds and {segments} segments'
+                .format(**info))
 
 
 class CorsMiddleware(object):
@@ -137,15 +171,40 @@ class CreateResource(object):
         resp.status_code = falcon.HTTP_CREATED
 
 
+class LowIdResource(object):
+    def __init__(self, index):
+        super().__init__()
+        self.index = index
+
+    def on_get(self, req, resp):
+        resp.media = {
+            'low_id': self.index.low_id
+        }
+
+
 class Application(falcon.API):
     def __init__(self, index, access_key):
         super().__init__(
             middleware=[CorsMiddleware(), AuthMiddleware(access_key)])
         self.add_route('/', Resource(index))
         self.add_route('/{sound_id}', CreateResource(index))
+        self.add_route('/low_id', LowIdResource(index))
 
+
+filename = 'index.dat'
+persistor_frequency = 10
 
 access_key = os.environ['ACCESS_KEY']
 user_uri = os.environ['USER_URI']
 seconds_per_chunk = 0.743038541824
-api = application = Application(Index(seconds_per_chunk, user_uri), access_key)
+
+try:
+    with open(filename, 'rb') as f:
+        index = pickle.load(f)
+except IOError:
+    index = Index(seconds_per_chunk, user_uri)
+
+persistor = Persistor(index, persistor_frequency, filename)
+persistor.start()
+
+api = application = Application(index, access_key)

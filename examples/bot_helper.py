@@ -11,9 +11,7 @@ from zounds.persistence import DimensionEncoder, DimensionDecoder
 import zounds
 
 
-def sound_stream(client, wait_for_new=False, page_size=100):
-    low_id = None
-
+def sound_stream(client, wait_for_new=False, page_size=100, low_id=None):
     def fetch(low):
         resp = client.get_sounds(low_id=low_id, page_size=page_size)
         items = resp['items']
@@ -28,10 +26,10 @@ def sound_stream(client, wait_for_new=False, page_size=100):
         low_id, items = fetch(low_id)
 
 
-def annotation_stream(client, user_name, wait_for_new=False, page_size=100):
-    bot = retry(client.get_user, 30)(user_name)
+def annotation_stream(
+        client, user_name, wait_for_new=False, page_size=100, low_id=None):
 
-    low_id = None
+    bot = retry(client.get_user, 30)(user_name)
 
     def fetch(low):
         resp = client.get_annotations(
