@@ -173,14 +173,22 @@ class MultiHyperPlaneTree(object):
         to_consider = n_results * 100
 
         # put the root nodes in the queue
+
         # KLUDGE: Assign arbitrary values to each root node, taking on values
         # larger than the greatest possible cosine distance to ensure that
         # each root node is processed first
-        heap = [(-((i + 1) * 10), root) for i, root in enumerate(self.roots)]
+
+        # KLUDGE: Add a random number in the second position to ensure that
+        # hyperplane nodes are never compared in the event of identical
+        # distances
+        heap = [
+            (-((i + 1) * 10), random.random(), root)
+            for i, root in enumerate(self.roots)
+        ]
 
         # traverse the tree, finding candidate indices
         while heap and (len(indices) < to_consider):
-            current_distance, current_node = heapq.heappop(heap)
+            current_distance, _, current_node = heapq.heappop(heap)
 
             if current_node.is_leaf:
                 indices.update(current_node.data)
@@ -190,11 +198,16 @@ class MultiHyperPlaneTree(object):
             abs_dist = np.abs(dist)
             below_threshold = abs_dist < threshold
 
+            # KLUDGE: Add a random number in the second position to ensure that
+            # hyperplane nodes are never compared in the event of identical
+            # distances
             if dist > 0 or below_threshold:
-                heapq.heappush(heap, (-abs_dist, current_node.left))
+                heapq.heappush(
+                    heap, (-abs_dist, random.random(), current_node.left))
 
             if dist <= 0 or below_threshold:
-                heapq.heappush(heap, (-abs_dist, current_node.right))
+                heapq.heappush(
+                    heap, (-abs_dist, random.random(), current_node.right))
 
         # perform a brute-force distance search over a subset of the data
         indices = np.array(list(indices), dtype=np.uint64)
