@@ -20,7 +20,7 @@ class Mp3Encoder(object):
                     '-y',
                     '-loglevel', 'error',
                     '-f', 's16le',
-                    '-ac', '1',
+                    '-ac', str(f.channels),
                     '-ar', str(f.samplerate),
                     '-i', '-',
                     '-acodec', 'libmp3lame',
