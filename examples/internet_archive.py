@@ -19,7 +19,6 @@ datasets = [
     # Classical
     zounds.InternetArchive('AOC11B'),
     zounds.InternetArchive('CHOPINBallades-NEWTRANSFER'),
-    zounds.InternetArchive('JohnCage'),
     zounds.InternetArchive('beethoven_ingigong_850'),
     zounds.InternetArchive('jamendo-086440'),
     zounds.InternetArchive('The_Four_Seasons_Vivaldi-10361'),
