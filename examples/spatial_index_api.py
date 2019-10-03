@@ -176,6 +176,7 @@ class LowIdResource(object):
         super().__init__()
         self.index = index
 
+    @anonymous
     def on_get(self, req, resp):
         resp.media = {
             'low_id': self.index.low_id
@@ -192,7 +193,7 @@ class Application(falcon.API):
 
 
 filename = 'index.dat'
-persistor_frequency = 10
+persistor_frequency = 60 * 5
 
 access_key = os.environ['ACCESS_KEY']
 user_uri = os.environ['USER_URI']

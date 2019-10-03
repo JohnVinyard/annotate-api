@@ -104,6 +104,10 @@ if __name__ == '__main__':
         '--reindex',
         default=False,
         action='store_true')
+    parser.add_argument(
+        '--only-create-user',
+        default=False,
+        action='store_true')
     args = parser.parse_args()
 
     user_name = 'spatial_index'
@@ -115,6 +119,11 @@ if __name__ == '__main__':
         args.password,
         'I create an index over 3D spatial embeddings',
         'https://example.com')
+
+    logger.info(f'created or updated user {user_uri}')
+
+    if args.only_create_user:
+        exit()
 
     logger.info('loading network')
     network, device = EmbeddingNetwork.load_network('weights3d_2b.dat')
