@@ -1,4 +1,3 @@
-import time
 import boto3
 import os
 from io import BytesIO
@@ -12,113 +11,9 @@ import http
 import urllib
 import urllib.parse
 import argparse
-
-
-class AlwaysUpdateException(Exception):
-    pass
-
-
-class Colors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-    @staticmethod
-    def ok(msg):
-        print(Colors.OKBLUE + msg + Colors.ENDC)
-
-    @staticmethod
-    def success(msg):
-        print(Colors.OKGREEN + msg + Colors.ENDC)
-
-    @staticmethod
-    def bad(msg):
-        print(Colors.FAIL + msg + Colors.ENDC)
-
-    @staticmethod
-    def format(msg, code):
-        return code + msg + Colors.ENDC
-
-
-def retry(tries, delay):
-    def decorator(f):
-        def x(*args, **kwargs):
-            for i in range(tries):
-                try:
-                    return f(*args, **kwargs)
-                except:
-                    instance = args[0]
-                    cls = instance.__class__.__name__
-                    func_name = f.__name__
-                    Colors.bad(
-                        'try {i} of {tries} failed for {cls}.{func_name}()'
-                            .format(**locals()))
-                    if i == tries - 1:
-                        raise
-                    else:
-                        time.sleep(delay)
-
-        return x
-
-    return decorator
-
-
-class Requirement(object):
-    def __init__(self, *dependencies):
-        super(Requirement, self).__init__()
-        self.dependencies = dependencies
-
-    def fulfilled(self):
-        raise NotImplementedError()
-
-    def fulfill(self):
-        raise NotImplementedError()
-
-    def data(self):
-        raise NotImplementedError()
-
-    def _check_n(self, n, delay=1):
-        for _ in range(n):
-            if self.fulfilled():
-                return True
-            time.sleep(delay)
-        return False
-
-    def __call__(self):
-
-        for dependency in self.dependencies:
-            # TODO: remove this None check. this is just for development
-            if dependency is not None:
-                dependency()
-
-        try:
-            if self.fulfilled():
-                Colors.ok('Requirement {cls} already fulfilled!'.format(
-                    cls=self.__class__.__name__))
-                return
-        except AlwaysUpdateException:
-            # this requirement should always re-run
-            pass
-
-        self.fulfill()
-
-        try:
-            if not self._check_n(10, delay=1):
-                msg = 'Requirement {cls} not fulfilled after operation'
-                raise RuntimeError(
-                    (Colors.FAIL + msg + Colors.ENDC)
-                        .format(cls=self.__class__.__name__))
-        except AlwaysUpdateException:
-            pass
-
-        Colors.success(
-            'Requirement {cls} fulfilled after operation'
-                .format(cls=self.__class__.__name__))
+from deploygraph import Requirement, AlwaysUpdateException, retry
+from urllib.parse import urlparse
+import botocore
 
 
 class PackagedPythonApp(Requirement):
@@ -382,7 +277,7 @@ class ApiGateway(Requirement):
             description=self.description,
             version=self.version,
             endpointConfiguration={
-                'types': ['EDGE']
+                'types': ['REGIONAL']
             }
         )
 
@@ -519,7 +414,7 @@ class BaseApiIntegration(Requirement):
         return data
 
 
-class RootResourceInegration(BaseApiIntegration):
+class RootResourceIntegration(BaseApiIntegration):
     def __init__(self, region, api_resource_methd, proxy_role):
         super().__init__(
             region, api_resource_methd, proxy_role, 'root_resource_id')
@@ -545,7 +440,8 @@ class Deployment(Requirement):
         deployments = self.client.get_deployments(
             restApiId=data['api_id']
         )
-        return deployments['items'][0]
+        deployment = deployments['items'][0]
+        return deployment
 
     def fulfilled(self):
         try:
@@ -565,14 +461,169 @@ class Deployment(Requirement):
         deployment = self._get_deployment()
         data = self.proxy_integration.data()
         api_id = data['api_id']
+        host = f'{api_id}.execute-api.{self.region}.amazonaws.com'
         uri = \
-            f'https://{api_id}.execute-api.{self.region}.amazonaws.com/{self.stage_name}/'
+            f'https://{host}/{self.stage_name}/'
+        host = urlparse(uri).netloc
         return {
             'deployment_id': deployment['id'],
             'api_id': data['api_id'],
             'resource_id': data['resource_id'],
             'lambda_function_name': data['lambda_function_name'],
-            'uri': uri
+            'uri': uri,
+            'api_gateway_host': host
+        }
+
+
+class DomainName(Requirement):
+    def __init__(self, domain_name, certificate_arn, types=['REGIONAL']):
+        super().__init__()
+        self.types = types
+        self.certificate_arn = certificate_arn
+        self.domain_name = domain_name
+        self.client = boto3.client('apigateway')
+
+    def _get_domain_name(self):
+        return self.client.get_domain_name(domainName=self.domain_name)
+
+    def fulfilled(self):
+        try:
+            self._get_domain_name()
+            return True
+        except botocore.exceptions.ClientError:
+            return False
+
+    def fulfill(self):
+        self.client.create_domain_name(
+            domainName=self.domain_name,
+            regionalCertificateArn=self.certificate_arn,
+            endpointConfiguration={
+                'types': self.types
+            })
+
+    def data(self):
+        domain_name = self._get_domain_name()
+        return {
+            'zone_id': domain_name['regionalHostedZoneId'],
+            'domain_name': domain_name['regionalDomainName']
+        }
+
+
+class BasePathMapping(Requirement):
+    def __init__(self, rest_api, domain_name):
+        super().__init__(rest_api, domain_name)
+        self.rest_api = rest_api
+        self.domain_name = domain_name
+        self.client = boto3.client('apigateway')
+        self.base_path = '(none)'
+        self.stage = 'test'
+
+    def fulfill(self):
+        api_id = self.rest_api.data()['api_id']
+        self.client.create_base_path_mapping(
+            domainName=self.domain_name.domain_name,
+            basePath=self.base_path,
+            restApiId=api_id,
+            stage=self.stage)
+
+    def _get_mapping(self):
+        return self.client.get_base_path_mapping(
+            domainName=self.domain_name.domain_name,
+            basePath=self.base_path)
+
+    def fulfilled(self):
+        try:
+            self._get_mapping()
+            return True
+        except botocore.exceptions.ClientError:
+            return False
+
+    def data(self):
+        path_mapping = self._get_mapping()
+        return {
+            'base_path': path_mapping['basePath'],
+            'rest_api_id': path_mapping['restApiId'],
+            'stage': path_mapping['stage']
+        }
+
+
+class Alias(Requirement):
+    def __init__(self, domain_name, deployment, path_mapping):
+        super().__init__(domain_name, deployment, path_mapping)
+        self.deployment = deployment
+        self.domain_name = domain_name
+        self.client = boto3.client('route53')
+
+    def _alias_template(self, domain_name, hostname, zone_id):
+        return {
+            'Action': 'UPSERT',
+            'ResourceRecordSet': {
+                'Name': domain_name,
+                'Type': 'A',
+                'AliasTarget': {
+                    'HostedZoneId': zone_id,
+                    'EvaluateTargetHealth': False,
+                    'DNSName': hostname
+                },
+            }
+        }
+
+    def _iter_zones(self):
+        zones = self.client.list_hosted_zones()['HostedZones']
+        zones = filter(lambda z: z['Name'] == 'cochlea.xyz.', zones)
+        yield from zones
+
+    def _fulfilled_predicate(self, record):
+        if record['Name'] != self.domain_name.domain_name + '.':
+            return False
+
+        if record['Type'] != 'A':
+            return False
+
+        if 'AliasTarget' not in record:
+            return False
+
+        return True
+
+    def fulfilled(self):
+        for zone in self._iter_zones():
+            resp = self.client.list_resource_record_sets(
+                HostedZoneId=zone['Id'])
+            records = resp['ResourceRecordSets']
+            if not any(self._fulfilled_predicate(record) for record in records):
+                return False
+
+        return True
+
+    def fulfill(self):
+        domain_name_data = self.domain_name.data()
+        api_gateway_zone = domain_name_data['zone_id']
+        api_domain_name = domain_name_data['domain_name']
+
+        for zone in self._iter_zones():
+            cochlea_hosted_zone = zone['Id']
+            self.client.change_resource_record_sets(
+                HostedZoneId=cochlea_hosted_zone,
+                ChangeBatch={
+                    'Comment': 'Automatic DNS Update',
+                    'Changes': [
+                        self._alias_template(
+                            self.domain_name.domain_name,
+                            api_domain_name,
+                            api_gateway_zone
+                        )
+                    ]
+                }
+            )
+
+    @retry(tries=100, delay=10)
+    def data(self):
+        uri = f'https://{self.domain_name.domain_name}'
+        resp = requests.get(uri)
+        resp.raise_for_status()
+        return {
+            'uri': uri,
+            'resp': resp.json()
         }
 
 
@@ -706,7 +757,8 @@ class Database(BaseAtlasRequirement):
 
     def _get_cluster(self):
         url = os.path.join(
-            self.base_url, f'groups/{self.project_id}/clusters/{self.cluster_name}')
+            self.base_url,
+            f'groups/{self.project_id}/clusters/{self.cluster_name}')
         resp = requests.get(url=url, auth=self.auth)
         resp.raise_for_status()
         return resp
@@ -721,7 +773,8 @@ class Database(BaseAtlasRequirement):
     def fulfill(self):
         # create the cluster
         resp = requests.post(
-            url=os.path.join(self.base_url, f'groups/{self.project_id}/clusters'),
+            url=os.path.join(self.base_url,
+                             f'groups/{self.project_id}/clusters'),
             json={
                 'name': self.cluster_name,
                 'providerSettings': {
@@ -759,8 +812,7 @@ if __name__ == '__main__':
         default=boto3.session.Session().region_name)
     parser.add_argument(
         '--aws-vpc-id',
-        default=boto3.client('ec2').describe_vpcs()['Vpcs'][0]['VpcId']
-    )
+        default=boto3.client('ec2').describe_vpcs()['Vpcs'][0]['VpcId'])
     parser.add_argument(
         '--atlas-api-key',
         required=True)
@@ -784,10 +836,13 @@ if __name__ == '__main__':
         required=True)
     parser.add_argument(
         '--lambda-function-module-name',
-        default='main')
+        default='prod')
     parser.add_argument(
         '--lambda-function-entry-point',
         default='lambda_handler')
+    parser.add_argument(
+        '--ssl-cert-arn',
+        required=True)
     args = parser.parse_args()
 
     # database
@@ -835,23 +890,24 @@ if __name__ == '__main__':
     root_method = RootResourceMethod(api)
     proxy_method = ProxyResourceMethod(proxy_resource)
 
-    root_integration = RootResourceInegration(
+    root_integration = RootResourceIntegration(
         args.aws_region, root_method, proxy_role)
     proxy_integration = ProxyResourceIntegration(
         args.aws_region, proxy_method, proxy_role)
 
     deployment = Deployment(
         args.aws_region, root_integration, proxy_integration)
-    deployment()
+
+    domain_name = DomainName('api.cochlea.xyz', args.ssl_cert_arn)
+    path_mapping = BasePathMapping(api, domain_name)
+    alias = Alias(domain_name, deployment, path_mapping)
+    alias()
 
     # test deployment
-    data = deployment.data()
-    uri = data['uri']
-    print(uri)
+    data = alias.data()
+    print(data)
 
-    resp = requests.get(uri)
-    print(resp.status_code)
-    print(resp.json())
+    uri = data['uri']
 
     user_data = {
         'user_name': 'John',
@@ -865,6 +921,7 @@ if __name__ == '__main__':
     print(resp)
 
     user_uri = resp.headers['location']
-    resp = requests.get(os.path.join(uri, user_uri[1:]), auth=('John', 'password'))
+    resp = requests.get(os.path.join(uri, user_uri[1:]),
+                        auth=('John', 'password'))
     print(resp)
     print(resp.json())
