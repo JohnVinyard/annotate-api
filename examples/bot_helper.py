@@ -9,6 +9,10 @@ from client import Client
 from s3client import ObjectStorageClient
 from zounds.persistence import DimensionEncoder, DimensionDecoder
 import zounds
+from mp3encoder import encode_mp3
+from http import client
+from pathlib import Path
+import soundfile
 
 
 def sound_stream(client, wait_for_new=False, page_size=100, low_id=None):
@@ -194,6 +198,79 @@ class AnnotationListener(BaseListener):
     def _process_resource(self, resource):
         return self._process_annotation(resource)
 
+
+class BotDriver(object):
+    def __init__(self, args, logger, bot):
+        super().__init__()
+        self.bot = bot
+        self.annotate_client = Client(args.annotate_api_endpoint, logger=logger)
+        self.object_storage_client = ObjectStorageClient(
+            endpoint=args.s3_endpoint,
+            region=args.s3_region,
+            access_key=args.aws_access_key_id,
+            secret=args.aws_secret_access_key,
+            bucket=bot.bucket_name)
+        self.object_storage_client.ensure_bucket_exists()
+        self.args = args
+
+    def _about_me(self):
+        try:
+            with open(self.bot.about_me, 'r') as f:
+                return f.read()
+        except IOError:
+            return self.bot.about_me
+
+    def run(self):
+        self.annotate_client.upsert_dataset(
+            user_name=self.bot.user_name,
+            email=self.bot.email,
+            password=self.args.password,
+            about_me=self._about_me(),
+            info_url=self.bot.info_url)
+
+        for name, bio, metadata in self.bot.iter_sounds():
+            try:
+                encoded = encode_mp3(bio)
+            except RuntimeError:
+                self.logger.info(
+                    f'Error decoding audio for {name}. Skipping.')
+                continue
+            path = Path(name)
+
+            low_quality_id = \
+                str(Path('low-quality') / path.with_suffix('.mp3'))
+            low_quality_url = self.object_storage_client.put_object(
+                low_quality_id, encoded, 'audio/mp3')
+            self.logger.info(f'Pushed {low_quality_url} to s3')
+            bio.seek(0)
+
+            _id = str(path)
+            url = self.object_storage_client.put_object(_id, bio, 'audio/wav')
+            self.logger.info(f'Pushed audio data for {url} to s3')
+            bio.seek(0)
+
+            info = soundfile.info(bio)
+
+            status, sound_uri, sound_id = self.annotate_client.create_sound(
+                audio_url=url,
+                low_quality_audio_url=low_quality_url,
+                info_url=self.bot.get_info_url(name, metadata),
+                license_type=self.bot.get_license_type(name, metadata),
+                title=str(path),
+                duration_seconds=info.duration)
+
+            if status == client.CREATED:
+                annotations = self.bot.get_annotations(name, metadata, bio)
+                if annotations:
+                    self.annotate_client.create_annotations(*annotations)
+                    self.logger.info(f'Created annotations for {sound_uri}')
+            elif status == client.CONFLICT:
+                self.logger.warning(
+                    f'Already created sound and annotation for {sound_uri}')
+                # we've already created this sound and annotation
+                pass
+            else:
+                raise RuntimeError(f'Unexpected {status} encountered')
 
 def main(
         user_name,
