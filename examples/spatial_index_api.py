@@ -6,6 +6,7 @@ import threading
 import time
 import pickle
 from log import module_logger
+import datetime
 
 logger = module_logger(__file__)
 
@@ -179,7 +180,8 @@ class LowIdResource(object):
     @anonymous
     def on_get(self, req, resp):
         resp.media = {
-            'low_id': self.index.low_id
+            'low_id': self.index.low_id,
+            'time': str(datetime.datetime.utcnow())
         }
 
 
