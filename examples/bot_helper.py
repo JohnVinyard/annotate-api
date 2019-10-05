@@ -212,6 +212,7 @@ class BotDriver(object):
             bucket=bot.bucket_name)
         self.object_storage_client.ensure_bucket_exists()
         self.args = args
+        self.logger = logger
 
     def _about_me(self):
         try:

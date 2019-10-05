@@ -1,3 +1,4 @@
+import argparse
 import shutil
 import requests
 import re
@@ -5,14 +6,20 @@ import os
 from zipfile import ZipFile
 from http import client
 from pathlib import Path
+from cli import DefaultArgumentParser
 from bot_helper import BotDriver
 from io import BytesIO
+from log import module_logger
+from urllib.parse import urlparse
+
+logger = module_logger(__file__)
 
 
 def get_ids():
     pattern = re.compile('http://www\.archive\.org/details/(?P<_id>[^/"]+)')
     resp = requests.get('http://wiki.laptop.org/go/Free_sound_samples')
-    return set(match.groupdict()['_id'] for match in pattern.finditer(resp.text))
+    return set(
+        match.groupdict()['_id'] for match in pattern.finditer(resp.text))
 
 
 def iter_ids(_ids):
@@ -43,7 +50,7 @@ def iter_sounds():
         download_file(url, path)
         with ZipFile(str(path)) as zf:
             for info in zf.infolist():
-                if info.filename.startswith('__MACOSX'):
+                if info.is_dir() or info.filename.startswith('__MACOSX'):
                     continue
                 yield _id, info.filename, zf.open(info.filename), metadata
         print(f'removing{_id} {url}')
@@ -64,24 +71,26 @@ class OLPCBot(object):
             yield path, BytesIO(f.read()), metadata
 
     def get_info_url(self, name, metadata):
-        return f'https://archive.org/details/{name}'
+        segments = name.split('/')
+        _id = segments[0]
+        return f'https://archive.org/details/{_id}'
 
     def get_license_type(self, name, metadata):
-        return metadata['creativecommons']['license_url'].replace('\\', '')
+        license_type = metadata['creativecommons']['license_url']
+        parsed = urlparse(license_type)
+        path = Path(parsed.path)
+        updated = parsed._replace(
+            scheme='https', path=str(path.with_name('4.0')))
+        return updated.geturl()
 
     def get_annotations(self, name, metadata, bio):
         return []
 
-#
-# def save(base_path, _id, url):
-#     full_path = os.path.join(base_path, _id) + '.zip'
-#     print(f'saving {_id} to {full_path}')
-#     download_file(url, full_path)
-#     with zipfile.ZipFile(full_path) as zf:
-#         zf.extractall(path=base_path)
-#     os.remove(full_path)
-
 
 if __name__ == '__main__':
-    for _id, path, f in iter_sounds():
-        print(_id, path, f)
+    parser = argparse.ArgumentParser(parents=[
+        DefaultArgumentParser()
+    ])
+    args = parser.parse_args()
+    driver = BotDriver(args, logger, OLPCBot())
+    driver.run()
