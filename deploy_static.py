@@ -328,11 +328,11 @@ class Alias(Requirement):
     def data(self):
         dist_data = self.cloud_formation_dist.data()
         uri = f'https://{self.domain_name}'
-        resp = requests.get(uri)
+        resp = requests.get(uri, allow_redirects=False)
         resp.raise_for_status()
         return {
             'uri': uri,
-            'resp': resp.json(),
+            'resp': resp.status_code,
             'cloud_formation_uri': dist_data['domain_name']
         }
 

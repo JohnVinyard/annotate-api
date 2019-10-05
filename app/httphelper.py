@@ -43,7 +43,8 @@ class CorsMiddleware(object):
         resp.set_header('Access-Control-Allow-Origin', '*')
         resp.set_header(
             'Access-Control-Allow-Methods', 'POST, GET, DELETE, PATCH')
-        resp.set_header('Access-Control-Allow-Headers', 'Authorization')
+        resp.set_header(
+            'Access-Control-Allow-Headers', 'Authorization, Content-Type')
 
 
 class SessionMiddleware(object):

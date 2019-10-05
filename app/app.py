@@ -7,6 +7,7 @@ from httphelper import \
 from customjson import JSONHandler
 from errors import \
     PermissionsError, CompositeValidationError, EntityNotFoundError
+import datetime
 
 USER_URI_TEMPLATE = '/users/{user_id}'
 SOUND_URI_TEMPLATE = '/sounds/{sound_id}'
@@ -57,6 +58,7 @@ class RootResource(object):
             'totalSounds': total_sounds,
             'totalAnnotations': total_annotations,
             'totalUsers': total_users,
+            'now': str(datetime.datetime.utcnow())
         }
 
     def get_model_example(self, content_type):

@@ -104,7 +104,8 @@ class CorsMiddleware(object):
         resp.set_header('Access-Control-Allow-Origin', '*')
         resp.set_header(
             'Access-Control-Allow-Methods', 'POST, GET, DELETE, PATCH')
-        resp.set_header('Access-Control-Allow-Headers', 'Authorization')
+        resp.set_header(
+            'Access-Control-Allow-Headers', 'Authorization, Content-Type')
 
 
 class AuthMiddleware(object):
@@ -181,8 +182,7 @@ class LowIdResource(object):
     def on_get(self, req, resp):
         resp.media = {
             'low_id': self.index.low_id,
-            'time': str(datetime.datetime.utcnow())
-        }
+            }
 
 
 class Application(falcon.API):

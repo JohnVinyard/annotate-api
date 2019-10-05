@@ -616,7 +616,7 @@ class Alias(Requirement):
                 }
             )
 
-    @retry(tries=100, delay=10)
+    @retry(tries=100, delay=20)
     def data(self):
         uri = f'https://{self.domain_name.domain_name}'
         resp = requests.get(uri)
@@ -907,21 +907,21 @@ if __name__ == '__main__':
     data = alias.data()
     print(data)
 
-    uri = data['uri']
-
-    user_data = {
-        'user_name': 'John',
-        'password': 'password',
-        'user_type': 'human',
-        'email': 'john.vinyard@gmail.com',
-        'about_me': 'Up and coming tennis star'
-    }
-
-    resp = requests.post(os.path.join(uri, 'users'), json=user_data)
-    print(resp)
-
-    user_uri = resp.headers['location']
-    resp = requests.get(os.path.join(uri, user_uri[1:]),
-                        auth=('John', 'password'))
-    print(resp)
-    print(resp.json())
+    # uri = data['uri']
+    #
+    # user_data = {
+    #     'user_name': 'John',
+    #     'password': 'password',
+    #     'user_type': 'human',
+    #     'email': 'john.vinyard@gmail.com',
+    #     'about_me': 'Up and coming tennis star'
+    # }
+    #
+    # resp = requests.post(os.path.join(uri, 'users'), json=user_data)
+    # print(resp)
+    #
+    # user_uri = resp.headers['location']
+    # resp = requests.get(os.path.join(uri, user_uri[1:]),
+    #                     auth=('John', 'password'))
+    # print(resp)
+    # print(resp.json())
