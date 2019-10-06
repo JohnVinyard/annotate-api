@@ -847,6 +847,13 @@ class UserAnnotationResource(object):
         user = session.find_one(User.id == user_id)
         query = Annotation.created_by == user
 
+        additional_params = {}
+        tags = req.get_param_as_list('tags')
+        if tags:
+            additional_params['tags'] = tags
+            for tag in tags:
+                query = query & (Annotation.tags == tag)
+
         list_entity(
             req,
             resp,
@@ -854,7 +861,8 @@ class UserAnnotationResource(object):
             actor,
             query,
             Annotation,
-            self.link_template(user_id))
+            self.link_template(user_id),
+            additional_params=additional_params)
 
 
 class UsersResource(object):
