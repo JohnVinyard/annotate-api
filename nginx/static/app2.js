@@ -773,6 +773,12 @@ document.addEventListener('DOMContentLoaded', function() {
     options.queryParams =
       ['query', 'pageNumber', ...(options.queryParams || [])];
 
+    // Ensure that page numbers are interpreted as integers if another
+    // page number computation has not been specified
+    options.computeFromQuery.pageNumber =
+      options.computeFromQuery.pageNumber 
+      || ((query) => Number.parseInt(query.pageNumber));
+
     // Ensure that we have a callable function to extract a value from the
     // route object for each query parameter we'd like to keep track of
     options.queryParams.forEach(qp => {
