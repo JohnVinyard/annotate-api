@@ -19,6 +19,7 @@ class Index(object):
         self.tree = None
         self.ids = None
         self.offsets = None
+        self.sound_offsets = None
         self.current_offset = 0
         self.low_id = None
         self.reset()
@@ -36,6 +37,7 @@ class Index(object):
             n_trees=5)
         self.ids = []
         self.offsets = []
+        self.sound_offsets = {}
         self.current_offset = 0
         self.low_id = None
 
@@ -43,8 +45,15 @@ class Index(object):
         self.low_id = _id
         self.ids.append(_id)
         self.offsets.append(self.current_offset)
+        self.sound_offsets[_id] = self.current_offset
         self.current_offset += len(data)
         self.tree.append(data.astype(np.float32))
+
+    def get_embedding(self, sound_id, time):
+        segment = int(time / self.seconds_per_chunk)
+        offset = self.sound_offsets[sound_id]
+        embedding_index = segment + offset
+        return self.tree.data[embedding_index]
 
     def search(self, query, n_results):
         # get the raw indices from the underlying hyperplane tree along with
@@ -96,7 +105,7 @@ class Persistor(threading.Thread):
             info = self.index.info()
             logger.info(
                 'Persisted index with {sounds} sounds and {segments} segments'
-                .format(**info))
+                    .format(**info))
 
 
 class CorsMiddleware(object):
@@ -139,18 +148,37 @@ class Resource(object):
         self.index.reset()
         resp.status_code = falcon.HTTP_NO_CONTENT
 
+    def _get_query(self, req):
+        sound_id = req.get_param('sound_id')
+        time = req.get_param_as_float('time')
+
+        if sound_id is not None:
+            # the query was specified as an existing sound id and time
+            try:
+                point = self.index.get_embedding(sound_id, time)
+            except KeyError:
+                raise falcon.HTTPBadRequest(
+                    f'Unindexed sound id {sound_id} specified')
+        else:
+            # the query was specified as a raw embedding
+            point = [
+                req.get_param_as_float('x'),
+                req.get_param_as_float('y'),
+                req.get_param_as_float('z')
+            ]
+
+        return np.array(point, dtype=np.float32)
+
+    def _get_nresults(self, req):
+        try:
+            return int(req.params['nresults'])
+        except (KeyError, IndexError):
+            return 100
+
     @anonymous
     def on_get(self, req, resp):
-        try:
-            nresults = int(req.params['nresults'])
-        except (KeyError, IndexError):
-            nresults = 100
-        point = [
-            req.get_param_as_float('x'),
-            req.get_param_as_float('y'),
-            req.get_param_as_float('z')
-        ]
-        query = np.array(point, dtype=np.float32)
+        nresults = self._get_nresults(req)
+        query = self._get_query(req)
         start = time.time()
         results = self.index.search(query, n_results=nresults)
         resp.media = {
@@ -182,7 +210,7 @@ class LowIdResource(object):
     def on_get(self, req, resp):
         resp.media = {
             'low_id': self.index.low_id,
-            }
+        }
 
 
 class Application(falcon.API):
