@@ -70,6 +70,7 @@ class OLPCBot(object):
         for _id, path, f, metadata in iter_sounds():
             yield path, BytesIO(f.read()), metadata
 
+
     def get_info_url(self, name, metadata):
         segments = name.split('/')
         _id = segments[0]

@@ -4,6 +4,8 @@ import json
 from io import BytesIO
 import time
 import argparse
+
+import requests
 from cli import DefaultArgumentParser
 from client import Client
 from s3client import ObjectStorageClient
@@ -32,7 +34,6 @@ def sound_stream(client, wait_for_new=False, page_size=100, low_id=None):
 
 def annotation_stream(
         client, user_name, wait_for_new=False, page_size=100, low_id=None):
-
     bot = retry(client.get_user, 30)(user_name)
 
     def fetch(low):
@@ -222,12 +223,13 @@ class BotDriver(object):
             return self.bot.about_me
 
     def run(self):
-        self.annotate_client.upsert_dataset(
+        user_uri = self.annotate_client.upsert_dataset(
             user_name=self.bot.user_name,
             email=self.bot.email,
             password=self.args.password,
             about_me=self._about_me(),
             info_url=self.bot.info_url)
+        self.logger.info(f'Added or updated user {user_uri}')
 
         for name, bio, metadata in self.bot.iter_sounds():
             try:
@@ -252,13 +254,17 @@ class BotDriver(object):
 
             info = soundfile.info(bio)
 
-            status, sound_uri, sound_id = self.annotate_client.create_sound(
-                audio_url=url,
-                low_quality_audio_url=low_quality_url,
-                info_url=self.bot.get_info_url(name, metadata),
-                license_type=self.bot.get_license_type(name, metadata),
-                title=str(path),
-                duration_seconds=info.duration)
+            try:
+                status, sound_uri, sound_id = self.annotate_client.create_sound(
+                    audio_url=url,
+                    low_quality_audio_url=low_quality_url,
+                    info_url=self.bot.get_info_url(name, metadata),
+                    license_type=self.bot.get_license_type(name, metadata),
+                    title=str(path),
+                    duration_seconds=info.duration)
+            except requests.exceptions.HTTPError as e:
+                self.logger.error(e.response.content)
+                raise
 
             if status == client.CREATED:
                 annotations = self.bot.get_annotations(name, metadata, bio)
@@ -272,6 +278,7 @@ class BotDriver(object):
                 pass
             else:
                 raise RuntimeError(f'Unexpected {status} encountered')
+
 
 def main(
         user_name,

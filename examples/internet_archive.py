@@ -1,16 +1,14 @@
 import argparse
 from cli import DefaultArgumentParser
 from client import Client
-from s3client import ObjectStorageClient
 import requests
 import urllib
 from io import BytesIO
-import soundfile
-from http import client
 from log import module_logger
-from mp3encoder import encode_mp3
 from pathlib import Path
 import zounds
+from bot_helper import BotDriver
+from urllib.parse import urlparse
 
 logger = module_logger(__file__)
 
@@ -76,90 +74,61 @@ datasets = [
     zounds.InternetArchive('SuperMarioWorldSNESMusicUndergroundThemeYoshi'),
 ]
 
+
+class InternetArchiveBot(object):
+    def     __init__(self):
+        super().__init__()
+        self.user_name = 'internetarchive'
+        self.bucket_name = 'internet-archive'
+        self.info_url = 'https://archive.org/details/audio?tab=about'
+        self.about_me = 'internet_archive.md'
+        self.email = 'john.vinyard+internet-archive@gmail.com'
+
+    def iter_sounds(self):
+        for dataset in datasets:
+            for item in dataset:
+                session = requests.Session()
+                prepped = item.request.prepare()
+                resp = session.send(prepped)
+                bio = BytesIO(resp.content)
+                logger.info(item)
+                path = Path(urllib.parse.urlparse(item.request.url).path)
+                relative_path = path.relative_to('/download').with_suffix('')
+                meta = requests.get(
+                    self._details_url(relative_path), params={'output': 'json'})
+                yield str(relative_path), bio, meta.json()
+
+    def _details_url(self, name):
+        segments = str(name).split('/')
+        _id = segments[0]
+        return f'https://archive.org/details/{_id}'
+
+    def get_info_url(self, name, metadata):
+        return self._details_url(name)
+
+    def get_license_type(self, name, metadata):
+        try:
+            license_type = metadata['license_url']
+            parsed = urlparse(license_type)
+            path = Path(parsed.path)
+            updated = parsed._replace(
+                scheme='https', path=str(path.with_name('4.0')))
+            return updated.geturl()
+        except KeyError:
+            # If there is no license, assume the most restrictive license
+            return 'https://creativecommons.org/licenses/by-nc-nd/4.0'
+
+    def get_annotations(self, name, metadta, bio):
+        return []
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[
         DefaultArgumentParser()
     ])
     args = parser.parse_args()
     annotate_client = Client(args.annotate_api_endpoint, logger=logger)
+    bot = InternetArchiveBot()
 
-    bucket_name = 'internet-archive'
-    info_url = 'https://archive.org/details/audio?tab=about'
-
-    object_storage_client = ObjectStorageClient(
-        endpoint=args.s3_endpoint,
-        region=args.s3_region,
-        access_key=args.aws_access_key_id,
-        secret=args.aws_secret_access_key,
-        bucket=bucket_name)
-    object_storage_client.ensure_bucket_exists()
-
-    annotate_client.upsert_dataset(
-        user_name='internetarchive',
-        email='john.vinyard+internet-archive-dataset@gmail.com',
-        password=args.password,
-        about_me='I am the internet',
-        info_url=info_url)
-
-    import random
-    random.shuffle(datasets)
-
-    for dataset in datasets:
-        for item in dataset:
-            session = requests.Session()
-            prepped = item.request.prepare()
-            resp = session.send(prepped)
-            bio = BytesIO(resp.content)
-            logger.info(item)
-
-            try:
-                encoded = encode_mp3(bio)
-            except RuntimeError:
-                logger.info(
-                    f'Error decoding audio for {item.request.url}. Skipping.')
-                continue
-
-            path = Path(urllib.parse.urlparse(item.request.url).path)
-            relative_path = path.relative_to('/download').with_suffix('')
-
-            low_quality_id = \
-                str(Path('low-quality') / relative_path.with_suffix('.mp3'))
-            low_quality_url = object_storage_client.put_object(
-                low_quality_id, encoded, 'audio/mp3')
-            logger.info(f'Pushed {low_quality_url} to s3')
-            bio.seek(0)
-
-            _id = str(relative_path.with_suffix('.wav'))
-            url = object_storage_client.put_object(_id, bio, 'audio/wav')
-            logger.info(f'Pushed audio data for {url} to s3')
-            bio.seek(0)
-
-            info = soundfile.info(bio)
-
-            status, sound_uri, sound_id = annotate_client.create_sound(
-                audio_url=url,
-                low_quality_audio_url=low_quality_url,
-                info_url=info_url,
-                # TODO: Get creative commons license from each dataset
-                license_type='https://creativecommons.org/licenses/by-nc-nd/4.0',
-                title=str(relative_path),
-                duration_seconds=info.duration)
-            logger.info(f'Created sound resource {sound_uri}')
-            if status == client.CREATED:
-                if item.tags:
-                    annotate_client.create_annotations(
-                        sound_id,
-                        {
-                            'start_seconds': 0,
-                            'duration_seconds': info.duration,
-                            'tags': item.tags
-                        }
-                    )
-                    logger.info(f'Created annotation with tags {item.tags} for {sound_uri}')
-            elif status == client.CONFLICT:
-                logger.warning(
-                    f'Already created sound and annotation for {sound_uri}')
-                # we've already created this sound and annotation
-                pass
-            else:
-                raise RuntimeError(f'Unexpected {status} encountered')
+    driver = BotDriver(args, logger, bot)
+    driver.run()
