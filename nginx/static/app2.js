@@ -404,6 +404,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const durationSeconds =
           Math.min(2.5, this.featureData.durationSeconds - relativeStartSeconds);
         playAudio(this.audioUrl, context, startSeconds, durationSeconds);
+        this.$emit('play-audio', {
+          audioUrl: this.audioUrl,
+          startSeconds,
+          durationSeconds
+        });
       },
       clear: function() {
         this.drawContext.clearRect(
@@ -585,6 +590,13 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       createdByUserId: function() {
         return this.annotation.created_by.split('/').pop();
+      },
+      audioPlayed: function(event) {
+        const data = {
+          sound: this.sound,
+          ...event
+        }
+        this.$emit('audio-played', data);
       }
     },
     beforeDestroy: function() {
@@ -830,6 +842,9 @@ document.addEventListener('DOMContentLoaded', function() {
           this.handleSubmit();
         },
         handleSubmit: function(pushHistory=true) {
+          if (this.onSubmit) {
+            this.onSubmit();
+          }
           if (pushHistory) {
             const query = {};
             this.queryParams.forEach(qp => {
@@ -883,7 +898,9 @@ document.addEventListener('DOMContentLoaded', function() {
             user_name: 'audio'
           },
           allFeatures: [],
-          placeHolderText: options.placeHolderText
+          placeHolderText: options.placeHolderText,
+          showMap: false,
+          similarityQuery: {}
         };
       },
       initialize: function() {
@@ -895,6 +912,17 @@ document.addEventListener('DOMContentLoaded', function() {
           });
       },
       methods: {
+        onSubmit: function() {
+          this.mapClosed();
+        },
+        mapClosed: function() {
+          this.showMap = false;
+          this.similarityQuery = {};
+        },
+        audioPlayed: function(event) {
+          this.showMap = true;
+          this.similarityQuery = event;
+        },
         changeFeature: function() {
           this.handleSubmit();
         },
@@ -1318,17 +1346,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const Map = Vue.component('explorer', {
     template: '#map-template',
+    props: ['similarityQuery'],
     data: function() {
       return {
         map: null,
         markers: []
       };
     },
+    watch: {
+      similarityQuery: function() {
+        console.log(this.similarityQuery);
+        this.clearMarkers();
+        const soundId = this.similarityQuery.sound.id;
+        const startSeconds = this.similarityQuery.startSeconds;
+        this.similarTo(soundId, startSeconds)
+          .then(data => {
+            const coordinate = this.sphericalToGeo(data.query);
+            this.map.setCenter(coordinate);
+            this.markers = data.items.map(this.transformResult);
+          });
+      }
+    },
     methods: {
+      closed: function() {
+        this.$emit('closed', {});
+      },
       getIcon: function() {
         return {
             path: "M-20,0a20,20 0 1,0 40,0a20,20 0 1,0 -40,0",
-            fillColor: '#aa3300',
+            // TODO: Map sound id to color
+            fillColor: '#' + Math.floor(Math.random()*16777215).toString(16),
             fillOpacity: 0.6,
             anchor: new google.maps.Point(0,0),
             strokeWeight: 0,
@@ -1372,13 +1419,16 @@ document.addEventListener('DOMContentLoaded', function() {
           .then(resp => resp.json());
       },
       similarTo: function(soundId, time) {
-
+        const uri =
+          `${cochleaAppSettings.remoteSearchHost}?sound_id=${soundId}&time=${time}`;
+        return fetch(uri)
+          .then(resp => resp.json());
       },
       clearMarkers: function() {
         this.markers.forEach(marker => marker.setMap(null));
         this.markers = [];
       },
-      transformResult: function(item) {
+      transformResult: function(item, index) {
         const point = item.point;
         const geo = this.sphericalToGeo(item.point);
         const marker = new google.maps.Marker({
