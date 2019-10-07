@@ -1318,6 +1318,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const Map = Vue.component('explorer', {
     template: '#map-template',
+    data: function() {
+      return {
+        map: null,
+        markers: []
+      };
+    },
     methods: {
       getIcon: function() {
         return {
@@ -1356,76 +1362,86 @@ document.addEventListener('DOMContentLoaded', function() {
           lng = this.radiansToDegrees(Math.atan(y / x)) - 180;
         }
         return { lat, lng };
+      },
+      searchNearPoint: function(mapCoordinate) {
+        const spherical = this.geoToSpherical(mapCoordinate);
+        const {x, y, z} = spherical;
+        const uri =
+          `${cochleaAppSettings.remoteSearchHost}?x=${x}&y=${y}&z=${z}`;
+        return fetch(uri)
+          .then(resp => resp.json());
+      },
+      similarTo: function(soundId, time) {
+
+      },
+      clearMarkers: function() {
+        this.markers.forEach(marker => marker.setMap(null));
+        this.markers = [];
+      },
+      transformResult: function(item) {
+        const point = item.point;
+        const geo = this.sphericalToGeo(item.point);
+        const marker = new google.maps.Marker({
+          position: geo,
+          map: this.map,
+          data: item,
+          icon: this.getIcon()
+        });
+        marker.addListener('click', function() {
+          // TODO: Cache audio according to sound URI as well
+          getApiClient()
+            .getSound(this.data.sound.split('/').pop())
+            .then(data => {
+              playAudio(
+                data.low_quality_audio_url,
+                context,
+                item.start_seconds,
+                item.duration_seconds);
+            });
+        });
+        return marker;
+      },
+      setupMap: function(center) {
+        const map = new google.maps.Map(this.$refs.container, {
+          disableDefaultUI: true,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          backgroundColor: '#FFFFFF',
+          zoom: 4,
+          center,
+          restriction: {
+              latLngBounds: {
+                  north: 85,
+                  south: -85,
+                  west: -180,
+                  east: 180
+              },
+              strictBounds: true,
+          },
+        });
+        map.setOptions({
+          styles: [
+              {
+                featureType: "all",
+                stylers: [{ visibility: "off" }]
+              }
+            ]
+        });
+        return map;
+      },
+      onMapMoveComplete: function() {
+        this.clearMarkers();
+        // get the map center and convert it to a spherical coordinate
+        const center = this.map.getCenter();
+        this.searchNearPoint(center)
+          .then(data => {
+            this.markers = data.items.map(this.transformResult);
+          });
       }
     },
     mounted: function() {
       const austin = {lat: 29.9, lng: -97.35};
-      let markers = [];
-      var map = new google.maps.Map(this.$refs.container, {
-        disableDefaultUI: true,
-        mapTypeId: google.maps.MapTypeId.ROADMAP,
-        backgroundColor: '#FFFFFF',
-        zoom: 4,
-        center: austin,
-        restriction: {
-            latLngBounds: {
-                north: 85,
-                south: -85,
-                west: -180,
-                east: 180
-            },
-            strictBounds: true,
-        },
-      });
-      map.setOptions({
-        styles: [
-            {
-              featureType: "all",
-              stylers: [{ visibility: "off" }]
-            }
-          ]
-      });
-      map.addListener('idle', () => {
-
-        // clear all markers
-        markers.forEach(marker => {
-          marker.setMap(null);
-        });
-
-        // get the map center and convert it to a spherical coordinate
-        const center = map.getCenter();
-        const spherical = this.geoToSpherical(center);
-        const {x, y, z} = spherical;
-        const uri =
-          `${cochleaAppSettings.remoteSearchHost}?x=${x}&y=${y}&z=${z}`;
-        fetch(uri)
-          .then(resp => resp.json())
-          .then(data => {
-            data.items.forEach(item => {
-              const point = item.point;
-              const geo = this.sphericalToGeo(item.point);
-              const marker = new google.maps.Marker({
-                position: geo,
-                map: map,
-                data: item,
-                icon: this.getIcon()
-              });
-              marker.addListener('click', function() {
-                // TODO: Cache audio according to sound URI as well
-                getApiClient()
-                  .getSound(this.data.sound.split('/').pop())
-                  .then(data => {
-                    playAudio(
-                      data.low_quality_audio_url,
-                      context,
-                      item.start_seconds,
-                      item.duration_seconds);
-                  });
-              });
-              markers.push(marker);
-            });
-          });
-      });
+      this.map = this.setupMap(austin);
+      this.map.addListener('idle', this.onMapMoveComplete);
     }
   });
 
