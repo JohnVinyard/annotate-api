@@ -182,6 +182,7 @@ class Resource(object):
         start = time.time()
         results = self.index.search(query, n_results=nresults)
         resp.media = {
+            'query': list(query.astype(np.float64)),
             'items': results,
             'total_count': len(results),
             'time': time.time() - start
