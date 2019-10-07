@@ -2,6 +2,10 @@
 	margin-top: 20px
 }
 
+html {
+	scroll-behavior: smooth
+}
+
 #temp-container {
     position:relative;
 }
@@ -88,4 +92,9 @@
 .map {
 	width: 100%;
 	height: 400px;
+}
+.sticky {
+	position: sticky;
+	top: 3.2rem;
+	height: 100vh;
 }
