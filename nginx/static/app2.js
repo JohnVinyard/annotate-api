@@ -775,9 +775,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Ensure that page numbers are interpreted as integers if another
     // page number computation has not been specified
+    const pageNumberFunc = (query) =>
+      query.pageNumber ? Number.parseInt(query.pageNumber) : 0;
     options.computeFromQuery.pageNumber =
-      options.computeFromQuery.pageNumber 
-      || ((query) => Number.parseInt(query.pageNumber));
+      options.computeFromQuery.pageNumber || pageNumberFunc;
 
     // Ensure that we have a callable function to extract a value from the
     // route object for each query parameter we'd like to keep track of
@@ -1318,6 +1319,16 @@ document.addEventListener('DOMContentLoaded', function() {
   const Map = Vue.component('explorer', {
     template: '#map-template',
     methods: {
+      getIcon: function() {
+        return {
+            path: "M-20,0a20,20 0 1,0 40,0a20,20 0 1,0 -40,0",
+            fillColor: '#aa3300',
+            fillOpacity: 0.6,
+            anchor: new google.maps.Point(0,0),
+            strokeWeight: 0,
+            scale: 0.5
+        };
+      },
       degreesToRadians: function(degree) {
         return degree * (Math.PI / 180);
       },
@@ -1351,6 +1362,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const austin = {lat: 29.9, lng: -97.35};
       let markers = [];
       var map = new google.maps.Map(this.$refs.container, {
+        disableDefaultUI: true,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        backgroundColor: '#FFFFFF',
         zoom: 4,
         center: austin,
         restriction: {
@@ -1362,6 +1376,14 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             strictBounds: true,
         },
+      });
+      map.setOptions({
+        styles: [
+            {
+              featureType: "all",
+              stylers: [{ visibility: "off" }]
+            }
+          ]
       });
       map.addListener('idle', () => {
 
@@ -1385,7 +1407,8 @@ document.addEventListener('DOMContentLoaded', function() {
               const marker = new google.maps.Marker({
                 position: geo,
                 map: map,
-                data: item
+                data: item,
+                icon: this.getIcon()
               });
               marker.addListener('click', function() {
                 // TODO: Cache audio according to sound URI as well
