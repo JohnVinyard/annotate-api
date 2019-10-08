@@ -184,7 +184,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const Selection = Vue.component('selection', {
     template: '#selection-template',
-    props: ['width', 'featureData', 'audioUrl', 'startSeconds'],
+    // props: ['width', 'featureData', 'audioUrl', 'startSeconds'],
+    props: {
+      width: Number,
+      featureData: Object,
+      audioUrl: String,
+
+      // The starting point (in seconds) of the enclosing sound view within
+      // the larger/complete sound
+      startSeconds: Number,
+
+      // start seconds for the selection, relative to startSeconds
+      selectionStartSeconds: {
+        type: Number,
+        default: 0
+      },
+      selectionDurationSeconds: {
+        type: Number,
+        default: 0
+      }
+    },
     data: function() {
       return {
         acceptsEvents: false,
@@ -195,6 +214,16 @@ document.addEventListener('DOMContentLoaded', function() {
         isAdjusting: false,
         isAddingAnnotation: false
       };
+    },
+    watch: {
+      featureData: function() {
+        this.pointA =
+          (this.startSeconds + this.selectionStartSeconds)
+          / this.featureData.durationSeconds;
+        this.pointB =
+          (this.startSeconds + this.selectionStartSeconds + this.selectionDurationSeconds)
+          / this.featureData.durationSeconds;
+      }
     },
     methods: {
       playSelection: function() {
@@ -263,7 +292,8 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       endSelection: function(event) {
         this.isSelecting = false;
-        this.$refs.container.removeEventListener('mousemove', this.updatePointB);
+        this.$refs.container.removeEventListener(
+          'mousemove', this.updatePointB);
       },
       startPixels: function() {
         return Math.min(this.pointA, this.pointB) * this.width;
@@ -274,9 +304,12 @@ document.addEventListener('DOMContentLoaded', function() {
       adjustLeft: function(event) {
         this.isAdjusting = true;
         this.acceptsEvents = true;
-        this.$refs.container.removeEventListener('mousemove', this.updateLaterPoint);
-        this.$refs.container.removeEventListener('mousemove', this.updatePointB);
-        this.$refs.container.addEventListener('mousemove', this.updateEarlierPoint);
+        this.$refs.container.removeEventListener(
+          'mousemove', this.updateLaterPoint);
+        this.$refs.container.removeEventListener(
+          'mousemove', this.updatePointB);
+        this.$refs.container.addEventListener(
+          'mousemove', this.updateEarlierPoint);
       },
       updateEarlierPoint: function(event) {
         const pos = this.percentLocation(event);
@@ -289,9 +322,12 @@ document.addEventListener('DOMContentLoaded', function() {
       adjustRight: function(event) {
         this.isAdjusting = true;
         this.acceptsEvents = true;
-        this.$refs.container.removeEventListener('mousemove', this.updateEarlierPoint);
-        this.$refs.container.removeEventListener('mousemove', this.updatePointB);
-        this.$refs.container.addEventListener('mousemove', this.updateLaterPoint);
+        this.$refs.container.removeEventListener(
+          'mousemove', this.updateEarlierPoint);
+        this.$refs.container.removeEventListener(
+          'mousemove', this.updatePointB);
+        this.$refs.container.addEventListener(
+          'mousemove', this.updateLaterPoint);
       },
       updatePointB: function(event) {
         this.pointB = this.percentLocation(event);
@@ -307,13 +343,16 @@ document.addEventListener('DOMContentLoaded', function() {
       endAdjustments: function() {
         this.isAdjusting = false;
         this.acceptsEvents = false;
-        this.$refs.container.removeEventListener('mousemove', this.updateEarlierPoint);
-        this.$refs.container.removeEventListener('mousemove', this.updateLaterPoint);
+        this.$refs.container.removeEventListener(
+          'mousemove', this.updateEarlierPoint);
+        this.$refs.container.removeEventListener(
+          'mousemove', this.updateLaterPoint);
       },
     },
     mounted: function() {
       document.addEventListener('keydown', this.acceptEvents);
       document.addEventListener('keyup', this.rejectEvents);
+
     },
     beforeDestroy: function() {
       document.removeEventListener('keydown', this.acceptEvents);
