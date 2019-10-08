@@ -343,8 +343,18 @@
   <template id="map-template">
     <section class="section">
       <a class="delete is-large is-pulled-right" v-on:click="closed"></a>
+      <div class="content">
+        <h3>Powered by user <router-link
+          :to="{name: 'user', params: {id: spatialIndexUserId}}">spatial_index
+          </router-link>
+        </h3>
+      </div>
       <div ref="container" class="container map">
       </div>
+      <sound-metadata
+        :title-is-link="true"
+        v-if="sound"
+        :sound="sound"></sound-metadata>
     </section>
   </template>
 
@@ -720,11 +730,47 @@
     </section>
   </template>
 
+  <template id="sound-metadata-template">
+    <div class="content">
+
+      <router-link
+        v-if="titleIsLink"
+        :to="{name: 'sound', params: {id: sound.id}}">
+        <h1 class="sound-title">{{ sound.title }}</h1>
+      </router-link>
+      <h1 v-else>{{ sound.title }}</h1>
+
+      <p>
+        Created by
+        <router-link :to="{ name: 'user', params: { id: createdByUserId }}">
+          {{ sound.created_by_user_name }}
+        </router-link> {{ timeago.format(sound.date_created) }}
+      </p>
+      <p>
+        <a target="_blank" :href="sound.info_url">
+          More info about this sound
+        </a>
+      </p>
+      <p>
+        <router-link
+          :to="{ name: 'sound-annotations', params: { id: sound.id }}">
+          Annotations for this sound
+        </router-link>
+      </p>
+      <p>
+        <creative-commons-attributes :license-uri="sound ? sound.license_type : ''">
+        </creative-commons-attributes>
+      </p>
+
+    </div>
+  </template>
+
   <template id="sound-template">
     <section class="section">
       <div class="container">
 
-        <div class="content">
+        <sound-metadata :sound="sound"></sound-metadata>
+        <!-- <div class="content">
           <h1>{{ sound.title }}</h1>
           <p>
             Created by
@@ -748,7 +794,7 @@
             </creative-commons-attributes>
           </p>
 
-        </div>
+        </div> -->
 
         <sound-view
           :sound="sound"

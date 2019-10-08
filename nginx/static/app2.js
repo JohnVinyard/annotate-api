@@ -1313,21 +1313,38 @@ document.addEventListener('DOMContentLoaded', function() {
     props: ['tags']
   });
 
+
+  const SoundMetaData = Vue.component('sound-metadata', {
+      props: {
+        sound: Object,
+        titleIsLink: {
+          type: Boolean,
+          default: false
+        }
+      },
+      // props: ['sound'],
+      template: '#sound-metadata-template',
+      data: function() {
+        return {
+          timeago: timeAgo,
+        };
+      },
+      computed: {
+        createdByUserId: function() {
+          return this.sound.created_by.split('/').pop();
+        }
+      },
+  });
+
   const Sound = Vue.component('sound', {
     props: ['id'],
     template: '#sound-template',
     data: function() {
       return {
-        timeago: timeAgo,
         featureData: null,
         audioUrl: null,
         sound: null
       };
-    },
-    computed: {
-      createdByUserId: function() {
-        return this.sound.created_by.split('/').pop();
-      }
     },
     mounted: function() {
       const [slicedPromise, audioUrlPromise, soundPromise] =
@@ -1350,12 +1367,13 @@ document.addEventListener('DOMContentLoaded', function() {
     data: function() {
       return {
         map: null,
-        markers: []
+        markers: [],
+        spatialIndexUserId: null,
+        sound: null
       };
     },
     watch: {
       similarityQuery: function() {
-        console.log(this.similarityQuery);
         this.clearMarkers();
         const soundId = this.similarityQuery.sound.id;
         const startSeconds = this.similarityQuery.startSeconds;
@@ -1365,6 +1383,9 @@ document.addEventListener('DOMContentLoaded', function() {
             this.map.setCenter(coordinate);
             this.markers = data.items.map(this.transformResult);
           });
+      },
+      sound: function() {
+        console.log('sound changed');
       }
     },
     methods: {
@@ -1378,7 +1399,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fillOpacity: 0.6,
             anchor: new google.maps.Point(0,0),
             strokeWeight: 0,
-            scale: 0.5
+            scale: this.map.getZoom() / 22
         };
       },
       degreesToRadians: function(degree) {
@@ -1436,10 +1457,13 @@ document.addEventListener('DOMContentLoaded', function() {
           data: item,
           icon: this.getIcon(item)
         });
+        const self = this;
+
         marker.addListener('click', function() {
           getApiClient()
             .getSound(this.data.sound.split('/').pop())
             .then(data => {
+              self.sound = data;
               playAudioElement(
                 data.low_quality_audio_url,
                 item.start_seconds,
@@ -1488,6 +1512,11 @@ document.addEventListener('DOMContentLoaded', function() {
     mounted: function() {
       const austin = {lat: 29.9, lng: -97.35};
       this.map = this.setupMap(austin);
+      getApiClient()
+        .getUserByName('spatial_index')
+        .then(data => {
+          this.spatialIndexUserId = data.items[0].id;
+        });
       this.map.addListener('idle', this.onMapMoveComplete);
     }
   });
