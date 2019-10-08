@@ -1438,13 +1438,11 @@ document.addEventListener('DOMContentLoaded', function() {
           icon: this.getIcon()
         });
         marker.addListener('click', function() {
-          // TODO: Cache audio according to sound URI as well
           getApiClient()
             .getSound(this.data.sound.split('/').pop())
             .then(data => {
-              playAudio(
+              playAudioElement(
                 data.low_quality_audio_url,
-                context,
                 item.start_seconds,
                 item.duration_seconds);
             });

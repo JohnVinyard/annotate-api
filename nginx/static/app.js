@@ -621,6 +621,14 @@ const playAudio = (url, context, start, duration) => {
     });
 };
 
+const playAudioElement = (url, start, duration) => {
+  const sound = document.createElement('audio');
+  sound.src = url;
+  sound.currentTime = start;
+  sound.play();
+  setTimeout(() => sound.pause(), duration * 1000);
+};
+
 const promiseContext = (promise, dataFunc) => {
   return new Promise(function(resolve, reject) {
     return promise.then(data => {
