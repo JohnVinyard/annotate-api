@@ -197,6 +197,11 @@ document.addEventListener('DOMContentLoaded', function() {
       };
     },
     methods: {
+      playSelection: function() {
+        const span = this.absoluteSpan();
+        playAudio(
+          this.audioUrl, context, span.startSeconds, span.durationSeconds);
+      },
       confirmAnnotation: function(event) {
         this.$emit('save-annotation', {
           tags: event.tags,

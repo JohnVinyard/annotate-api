@@ -311,24 +311,35 @@
 
       <!-- Create Annotation Icon -->
       <div
-        v-if="!(isAdjusting || isSelecting)"
-        @click="addAnnotation"
-        class="add-annotation"
-        v-bind:style="{
-          left: (startPixels() + widthPixels() - 30).toString() + 'px',
-      }">
+          v-if="!(isAdjusting || isSelecting)"
+          @click="addAnnotation"
+          class="add-annotation"
+          v-bind:style="{
+            left: (startPixels() + widthPixels() - 30).toString() + 'px',
+        }">
         <icon icon-name="add"></icon>
       </div>
 
       <!-- Search for Time Range Icon -->
       <div
-        v-if="!(isAdjusting || isSelecting)"
-        @click="timeRangeSearch"
-        class="search-time-range"
-        v-bind:style="{
-          left: (startPixels() + widthPixels() - 30).toString() + 'px',
-      }">
+          v-if="!(isAdjusting || isSelecting)"
+          @click="timeRangeSearch"
+          class="search-time-range"
+          v-bind:style="{
+            left: (startPixels() + widthPixels() - 30).toString() + 'px',
+        }">
         <icon icon-name="search"></icon>
+      </div>
+
+      <!-- Play Selection Icon -->
+      <div
+          v-if="!(isAdjusting || isSelecting)"
+          @click="playSelection"
+          class="play-time-range"
+          v-bind:style="{
+            left: (startPixels() + widthPixels() - 30).toString() + 'px',
+        }">
+        <icon icon-name="play-circle"></icon>
       </div>
 
     </div>

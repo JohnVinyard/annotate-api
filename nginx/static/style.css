@@ -20,25 +20,25 @@ html {
   right:20px;
 }
 
-.add-annotation, .sound-view-controls, .search-time-range {
+.add-annotation, .sound-view-controls, .search-time-range, .play-time-range {
 	font-weight: bold;
 	font-size: 2em;
 	cursor: pointer;
 }
 
-.add-annotation, .search-time-range {
+.add-annotation, .search-time-range, .play-time-range {
 	position: absolute;
 	pointer-events: auto;
 }
-
 .add-annotation {
 	top: 0px;
 }
-
 .search-time-range {
 	top: 30px;
 }
-
+.play-time-range {
+	top: 60px;
+}
 .sound-view-container {
     overflow-x: auto;
     overflow-y: hidden;
