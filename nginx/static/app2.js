@@ -1364,9 +1364,16 @@ document.addEventListener('DOMContentLoaded', function() {
         titleIsLink: {
           type: Boolean,
           default: false
+        },
+        startSeconds: {
+          type: Number,
+          default: 0
+        },
+        durationSeconds: {
+          type: Number,
+          default: 0
         }
       },
-      // props: ['sound'],
       template: '#sound-metadata-template',
       data: function() {
         return {
@@ -1413,15 +1420,13 @@ document.addEventListener('DOMContentLoaded', function() {
         map: null,
         markers: [],
         spatialIndexUserId: null,
-        sound: null
+        sound: null,
+        currentItem: null
       };
     },
     watch: {
       similarityQuery: function() {
         this.displaySimilar();
-      },
-      sound: function() {
-        console.log('sound changed');
       }
     },
     methods: {
@@ -1452,7 +1457,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const green = this.getHexColor(item.point[1], scale);
         const blue = this.getHexColor(item.point[2], scale);
         const fillColor = `#${red}${green}${blue}`;
-        console.log(fillColor);
         return {
             path: "M-20,0a20,20 0 1,0 40,0a20,20 0 1,0 -40,0",
             fillColor: fillColor,
@@ -1520,12 +1524,12 @@ document.addEventListener('DOMContentLoaded', function() {
           icon: this.getIcon(item)
         });
         const self = this;
-
         marker.addListener('click', function() {
           getApiClient()
             .getSound(this.data.sound.split('/').pop())
             .then(data => {
               self.sound = data;
+              self.currentItem = item;
               playAudioElement(
                 data.low_quality_audio_url,
                 item.start_seconds,
