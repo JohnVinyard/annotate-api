@@ -217,15 +217,18 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     watch: {
       featureData: function() {
+        this.setupPoints();
+      }
+    },
+    methods: {
+      setupPoints: function() {
         this.pointA =
           (this.startSeconds + this.selectionStartSeconds)
           / this.featureData.durationSeconds;
         this.pointB =
           (this.startSeconds + this.selectionStartSeconds + this.selectionDurationSeconds)
           / this.featureData.durationSeconds;
-      }
-    },
-    methods: {
+      },
       playSelection: function() {
         const span = this.absoluteSpan();
         playAudio(
@@ -350,6 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
       },
     },
     mounted: function() {
+      this.setupPoints();
       document.addEventListener('keydown', this.acceptEvents);
       document.addEventListener('keyup', this.rejectEvents);
 
@@ -370,7 +374,15 @@ document.addEventListener('DOMContentLoaded', function() {
         type: Boolean,
         default: true
       },
-      sound: Object
+      sound: Object,
+      selectionStartSeconds: {
+        type: Number,
+        default: 0
+      },
+      selectionDurationSeconds: {
+        type: Number,
+        default: 0
+      }
     },
     data: function() {
       return {
@@ -1388,7 +1400,17 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   const Sound = Vue.component('sound', {
-    props: ['id'],
+    props: {
+      id: String,
+      startSeconds: {
+        type: Number,
+        default: 0
+      },
+      durationSeconds: {
+        type: Number,
+        default: 0
+      }
+    },
     template: '#sound-template',
     data: function() {
       return {
@@ -1613,7 +1635,19 @@ document.addEventListener('DOMContentLoaded', function() {
       { path: routerPath('/about'), name: 'about', component: About},
 
       // Sounds
-      { path: routerPath('/sounds/:id'), name: 'sound', component: Sound, props: true},
+      {
+        path: routerPath('/sounds/:id/'),
+        name: 'sound',
+        component: Sound,
+        props: (route) => {
+          const props = {
+            startSeconds: Number.parseFloat(route.query.startSeconds) || 0,
+            durationSeconds: Number.parseFloat(route.query.durationSeconds) || 0,
+            ...route.params
+          };
+          return props;
+        }
+      },
       { path: routerPath('/sounds'), name: 'sounds', component: Sounds },
       { path: routerPath('/users/:id/sounds'), name: 'user-sounds', component: UserSounds, props: true},
 

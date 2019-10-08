@@ -376,6 +376,8 @@
     <div class="sound-view-outer-container">
         <div ref="container" class="sound-view-container">
           <selection
+              :selection-start-seconds="selectionStartSeconds"
+              :selection-duration-seconds="selectionDurationSeconds"
               @save-annotation="saveAnnotation"
               @time-range-search="timeRangeSearch"
               v-if="selectable"
@@ -736,14 +738,6 @@
     </div>
   </template>
 
-  <!-- <template id="sounds-template">
-    <section class="section">
-      <div class="container">
-        SOUNDS!
-      </div>
-    </section>
-  </template> -->
-
   <template id="sound-metadata-template">
     <div class="content">
 
@@ -787,8 +781,13 @@
     <section class="section">
       <div class="container">
 
-        <sound-metadata :sound="sound"></sound-metadata>
+        <sound-metadata
+          :sound="sound"
+          :start-seconds="startSeconds"
+          :duration-seconds="durationSeconds"></sound-metadata>
         <sound-view
+          :selection-start-seconds="startSeconds"
+          :selection-duration-seconds="durationSeconds"
           :sound="sound"
           :feature-data="featureData"
           :audio-url="audioUrl"
