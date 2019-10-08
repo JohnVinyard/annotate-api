@@ -1374,6 +1374,14 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     watch: {
       similarityQuery: function() {
+        this.displaySimilar();
+      },
+      sound: function() {
+        console.log('sound changed');
+      }
+    },
+    methods: {
+      displaySimilar: function() {
         this.clearMarkers();
         const soundId = this.similarityQuery.sound.id;
         const startSeconds = this.similarityQuery.startSeconds;
@@ -1384,18 +1392,26 @@ document.addEventListener('DOMContentLoaded', function() {
             this.markers = data.items.map(this.transformResult);
           });
       },
-      sound: function() {
-        console.log('sound changed');
-      }
-    },
-    methods: {
       closed: function() {
         this.$emit('closed', {});
       },
+      getHexColor: function(scalar, scale) {
+        let value = (scale + Math.round(scalar * scale)).toString(16);
+        if (value.length === 1) {
+          value = '0' + value;
+        }
+        return value;
+      },
       getIcon: function(item) {
+        const scale = 128;
+        const red = this.getHexColor(item.point[0], scale);
+        const green = this.getHexColor(item.point[1], scale);
+        const blue = this.getHexColor(item.point[2], scale);
+        const fillColor = `#${red}${green}${blue}`;
+        console.log(fillColor);
         return {
             path: "M-20,0a20,20 0 1,0 40,0a20,20 0 1,0 -40,0",
-            fillColor: `#${item.sound.slice(-6)}`,
+            fillColor: fillColor,
             fillOpacity: 0.6,
             anchor: new google.maps.Point(0,0),
             strokeWeight: 0,
@@ -1439,6 +1455,8 @@ document.addEventListener('DOMContentLoaded', function() {
           .then(resp => resp.json());
       },
       similarTo: function(soundId, time) {
+        google.maps.event.clearListeners(this.map, 'idle');
+        this.map.addListener('idle', this.onMapMoveComplete);
         const uri =
           `${cochleaAppSettings.remoteSearchHost}?sound_id=${soundId}&time=${time}`;
         return fetch(uri)
@@ -1477,7 +1495,7 @@ document.addEventListener('DOMContentLoaded', function() {
           disableDefaultUI: true,
           mapTypeId: google.maps.MapTypeId.ROADMAP,
           backgroundColor: '#FFFFFF',
-          zoom: 4,
+          zoom: 7,
           center,
           restriction: {
               latLngBounds: {
@@ -1517,7 +1535,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
           this.spatialIndexUserId = data.items[0].id;
         });
-      this.map.addListener('idle', this.onMapMoveComplete);
+      if (this.similarityQuery) {
+        this.displaySimilar();
+      }
     }
   });
 
