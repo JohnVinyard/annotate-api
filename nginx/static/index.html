@@ -367,7 +367,7 @@
         v-if="sound"
         :sound="sound"
         :start-seconds="currentItem.start_seconds"
-        :duration-seconds="currentItem.start_seconds + currentItem.duration_seconds">
+        :duration-seconds="currentItem.duration_seconds">
       </sound-metadata>
     </section>
   </template>
@@ -743,13 +743,17 @@
 
       <router-link
         v-if="titleIsLink"
-        :to="{name: 'sound', params: {id: sound.id}}">
+        :to="{
+          name: 'sound',
+          params: {id: sound.id},
+          query: {startSeconds, durationSeconds}
+        }">
         <h1 class="sound-title">{{ sound.title }}</h1>
       </router-link>
       <h1 v-else>{{ sound.title }}</h1>
 
       <h2 v-if="durationSeconds">
-        {{startSeconds.toFixed(2)}} - {{durationSeconds.toFixed(2)}} seconds
+        {{startSeconds.toFixed(2)}} - {{(startSeconds + durationSeconds).toFixed(2)}} seconds
       </h2>
 
       <p>
