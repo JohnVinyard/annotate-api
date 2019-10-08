@@ -1371,11 +1371,10 @@ document.addEventListener('DOMContentLoaded', function() {
       closed: function() {
         this.$emit('closed', {});
       },
-      getIcon: function() {
+      getIcon: function(item) {
         return {
             path: "M-20,0a20,20 0 1,0 40,0a20,20 0 1,0 -40,0",
-            // TODO: Map sound id to color
-            fillColor: '#' + Math.floor(Math.random()*16777215).toString(16),
+            fillColor: `#${item.sound.slice(-6)}`,
             fillOpacity: 0.6,
             anchor: new google.maps.Point(0,0),
             strokeWeight: 0,
@@ -1435,7 +1434,7 @@ document.addEventListener('DOMContentLoaded', function() {
           position: geo,
           map: this.map,
           data: item,
-          icon: this.getIcon()
+          icon: this.getIcon(item)
         });
         marker.addListener('click', function() {
           getApiClient()
