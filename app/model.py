@@ -122,6 +122,10 @@ class User(BaseAppEntity):
         return (User.id == user_id) & (User.deleted == False)
 
     @classmethod
+    def active_username_query(cls, user_name):
+        return (User.user_name == user_name) & (User.deleted == False)
+
+    @classmethod
     def exists_query(cls, user_name, email, **kwargs):
         return (User.user_name == user_name) | (User.email == email)
 

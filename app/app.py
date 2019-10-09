@@ -327,6 +327,7 @@ def get_entity(resp, session, actor, query, add_links=None):
     view = view_entity(session, actor, query, add_links=add_links)
     resp.media = view
     resp.status = falcon.HTTP_OK
+    return view
 
 
 def head_entity(resp, session, query):
@@ -986,7 +987,6 @@ class UsersResource(object):
 
 
 class SoundResource(object):
-
     @staticmethod
     def add_links(sound, view):
         view['links'] = [
@@ -1056,7 +1056,6 @@ class SoundResource(object):
 
 
 class UserResource(object):
-
     @staticmethod
     def add_links(user, view):
         links = []
@@ -1102,12 +1101,24 @@ class UserResource(object):
             - status_code: 403
               description: User is not permitted to access this user
         """
-        get_entity(
-            resp,
-            session,
-            actor,
-            User.active_user_query(user_id),
-            add_links=self.add_links)
+        try:
+            user = get_entity(
+                resp,
+                session,
+                actor,
+                User.active_user_query(user_id),
+                add_links=self.add_links)
+        except EntityNotFoundError:
+            # try to fetch by user name
+            user_name = user_id
+            user = get_entity(
+                resp,
+                session,
+                actor,
+                User.active_username_query(user_name),
+                add_links=self.add_links)
+
+        resp.set_header('Location', '/users/{id}'.format(**user))
 
     @falcon.before(basic_auth)
     def on_head(self, req, resp, user_id, session, actor):
@@ -1126,7 +1137,12 @@ class UserResource(object):
             - status_code: 403
               description: User is not permitted to access this user
         """
-        head_entity(resp, session, User.active_user_query(user_id))
+        try:
+            head_entity(resp, session, User.active_user_query(user_id))
+        except falcon.HTTPNotFound:
+            # try to fetch by user name
+            user_name = user_id
+            head_entity(resp, session, User.active_username_query(user_name))
 
     @falcon.before(basic_auth)
     def on_delete(self, req, resp, user_id, session, actor):

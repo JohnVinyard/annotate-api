@@ -260,6 +260,39 @@ class UserTests(BaseTests, unittest2.TestCase):
             user_resp.json()['user_name'], create_data['user_name'])
         self.assertEqual(user_resp.json()['id'], _id)
 
+    def test_can_get_user_by_username(self):
+        user_name = 'HalIncandenza'
+        user1, user1_location = self.create_user(user_name=user_name)
+        user2, user2_location = self.create_user()
+        resp = requests.get(
+            self.users_resource(user_name), auth=self._get_auth(user2))
+        self.assertEqual(client.OK, resp.status_code)
+        self.assertEqual(user1_location, resp.headers['location'])
+
+    def test_can_head_user_by_username(self):
+        user_name = 'HalIncandenza'
+        user1, user1_location = self.create_user(user_name=user_name)
+        user2, user2_location = self.create_user()
+        resp = requests.head(
+            self.users_resource(user_name), auth=self._get_auth(user2))
+        self.assertEqual(client.NO_CONTENT, resp.status_code)
+
+    def test_get_non_existent_username_returns_not_found(self):
+        user_name = 'HalIncandenza'
+        user1, user1_location = self.create_user(user_name=user_name)
+        user2, user2_location = self.create_user()
+        resp = requests.get(
+            self.users_resource(user_name + 'X'), auth=self._get_auth(user2))
+        self.assertEqual(client.NOT_FOUND, resp.status_code)
+
+    def test_head_non_existent_username_returns_not_found(self):
+        user_name = 'HalIncandenza'
+        user1, user1_location = self.create_user(user_name=user_name)
+        user2, user2_location = self.create_user()
+        resp = requests.head(
+            self.users_resource(user_name + 'X'), auth=self._get_auth(user2))
+        self.assertEqual(client.NOT_FOUND, resp.status_code)
+
     def test_can_head_user(self):
         user1, user1_location = self.create_user()
         user2, user2_location = self.create_user()
