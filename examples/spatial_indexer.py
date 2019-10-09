@@ -59,7 +59,8 @@ class Indexer(object):
             try:
                 samples = zounds.AudioSamples.from_file(bio).mono
                 yield sound_id, samples
-            except ValueError:
+            except (ValueError, RuntimeError) as e:
+                logger.error(f'Unable to process {sound_id} due to error {e}')
                 continue
 
     def _auth_headers(self):
