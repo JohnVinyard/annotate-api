@@ -534,8 +534,8 @@
                   <h2>No Results</h2>
                 </div>
                 <annotation
-                  @select-query="setQuery"
                   v-for="annotation in items"
+                  v-on:select-query="setQuery"
                   v-on:similar-sounds-requested="similarSoundsRequested"
                   :annotation="annotation"
                   v-bind:key="annotation.id" />

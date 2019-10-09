@@ -213,7 +213,7 @@ class AnnotateApiClient {
     let url = this.buildUri(
       `/sounds?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
     if (rawQuery) {
-      url += `&tags=${rawQuery}`;
+      url += `&tags=${encodeURIComponent(rawQuery)}`;
     }
     return this.getResource(url);
   }
@@ -228,7 +228,7 @@ class AnnotateApiClient {
     let url = this.buildUri(
       `/users/${userId}/sounds?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
     if (rawQuery) {
-      url += `&tags=${rawQuery}`;
+      url += `&tags=${encodeURIComponent(rawQuery)}`;
     }
     if (withTags) {
       url += `&with_tags=true`;
@@ -251,7 +251,7 @@ class AnnotateApiClient {
     let url = this.buildUri(
       `/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
     if (rawQuery) {
-      url += `&tags=${rawQuery}`;
+      url += `&tags=${encodeURIComponent(rawQuery)}`;
     }
     if (withTags) {
       url += '&with_tags=true';
@@ -270,7 +270,7 @@ class AnnotateApiClient {
       let url = this.buildUri(
         `/users/${userId}/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
       if (rawQuery) {
-        url += `&tags=${rawQuery}`;
+        url += `&tags=${encodeURIComponent(rawQuery)}`;
       }
       if (withTags) {
         url += '&with_tags=true';
@@ -290,7 +290,7 @@ class AnnotateApiClient {
     let url = this.buildUri(
       `/sounds/${soundId}/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
     if (rawQuery) {
-      url += `&tags=${rawQuery}`;
+      url += `&tags=${encodeURIComponent(rawQuery)}`;
     }
 
     if (withTags) {
@@ -308,8 +308,6 @@ class AnnotateApiClient {
       `/sounds/${soundId}/annotations?created_by=${userId}&page_size=${pageSize}`);
     return this.getResource(url);
   }
-
-
 
   getFeatureBots(pageSize=100) {
     const url = this.buildUri(
