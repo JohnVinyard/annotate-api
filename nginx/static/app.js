@@ -1008,19 +1008,22 @@ document.addEventListener('DOMContentLoaded', function() {
           const y = Math.floor((i / stride) / imageData.width);
 
           const timeIndex = Math.floor((container.scrollLeft + x) * timeRatio);
-          // // since the coordinate system goes from top to bottom, we'll need to
-          // // invert the order we draw features in
-          const featureIndex = featureDim - Math.floor(y * featureRatio);
+          // since the coordinate system goes from top to bottom, we'll need to
+          // invert the order we draw features in
+          const featureIndex = featureDim - 1 - Math.floor(y * featureRatio);
 
           // normalize to the range 0-1 based on statistics from the metadata
           const maxValue = this.featureData.metadata.max_value;
-          const value = this.featureData.item([timeIndex, featureIndex]) / maxValue;
-          const imageValue = Math.floor(255 * value);
+          const rawValue = this.featureData.item([timeIndex, featureIndex]);
+          const value =  rawValue / maxValue;
+
+          const colorMapIndex = Math.floor(255 * value);
 
           // Translate the scalar value into color space
-          imageData.data[i] = imageValue;
-          imageData.data[i + 1] = imageValue;
-          imageData.data[i + 2] = imageValue;
+          imageData.data[i] = COLOR_MAP[colorMapIndex][0];
+          imageData.data[i + 1] = COLOR_MAP[colorMapIndex][1];
+          imageData.data[i + 2] = COLOR_MAP[colorMapIndex][2];
+
           imageData.data[i + 3] = 255;
         }
         this.drawContext.putImageData(imageData, container.scrollLeft, 0);
