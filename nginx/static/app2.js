@@ -184,7 +184,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const Selection = Vue.component('selection', {
     template: '#selection-template',
-    // props: ['width', 'featureData', 'audioUrl', 'startSeconds'],
     props: {
       width: Number,
       featureData: Object,
@@ -222,11 +221,13 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     methods: {
       setupPoints: function() {
+        if (!this.featureData) {
+          return;
+        }
         this.pointA =
-          (this.startSeconds + this.selectionStartSeconds)
-          / this.featureData.durationSeconds;
+          this.selectionStartSeconds / this.featureData.durationSeconds;
         this.pointB =
-          (this.startSeconds + this.selectionStartSeconds + this.selectionDurationSeconds)
+          (this.selectionStartSeconds + this.selectionDurationSeconds)
           / this.featureData.durationSeconds;
       },
       playSelection: function() {
@@ -622,6 +623,23 @@ document.addEventListener('DOMContentLoaded', function() {
       }
   });
 
+  const SimilarSoundsLink = Vue.component('similar-sounds-link', {
+    template: '#similar-sounds-link-template',
+    props: {
+      similarityQuery: Object
+    },
+    data: function() {
+      return {
+
+      };
+    },
+    methods: {
+      similarSoundsRequested: function() {
+        this.$emit('similar-sounds-requested', this.similarityQuery);
+      }
+    }
+  });
+
   const Annotation = Vue.component('annotation', {
     template: '#annotation-template',
     props: ['annotation'],
@@ -631,7 +649,8 @@ document.addEventListener('DOMContentLoaded', function() {
         featureData: null,
         audioUrl: null,
         scrollListener: null,
-        sound: null
+        sound: null,
+        similarityQuery: null,
       };
     },
     methods: {
@@ -647,12 +666,14 @@ document.addEventListener('DOMContentLoaded', function() {
       createdByUserId: function() {
         return this.annotation.created_by.split('/').pop();
       },
+      similarSoundsRequested: function() {
+        this.$emit('similar-sounds-requested', this.similarityQuery);
+      },
       audioPlayed: function(event) {
-        const data = {
+        this.similarityQuery = {
           sound: this.sound,
           ...event
-        }
-        this.$emit('audio-played', data);
+        };
       }
     },
     beforeDestroy: function() {
@@ -975,7 +996,7 @@ document.addEventListener('DOMContentLoaded', function() {
           this.showMap = false;
           this.similarityQuery = {};
         },
-        audioPlayed: function(event) {
+        similarSoundsRequested: function(event) {
           this.showMap = true;
           this.similarityQuery = event;
         },

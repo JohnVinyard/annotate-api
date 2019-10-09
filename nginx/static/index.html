@@ -352,10 +352,10 @@
   </template>
 
   <template id="map-template">
-    <section class="section">
-      <a class="delete is-medium is-pulled-right" v-on:click="closed"></a>
+    <div class="container visual-explorer">
+      <a class="delete is-small is-pulled-right" v-on:click="closed"></a>
       <div class="content">
-        <h3>Powered by user <router-link
+        <h3>Visual search powered by user <router-link
           :to="{name: 'user', params: {id: spatialIndexUserId}}">spatial_index
           </router-link>
         </h3>
@@ -369,7 +369,7 @@
         :start-seconds="currentItem.start_seconds"
         :duration-seconds="currentItem.duration_seconds">
       </sound-metadata>
-    </section>
+    </div>
   </template>
 
   <template id="sound-view-template">
@@ -401,6 +401,16 @@
           </div>
         </div>
     </div>
+  </template>
+
+  <template id="similar-sounds-link-template">
+    <button
+      v-on:click="similarSoundsRequested"
+      class="button is-link is-normal similar-sounds-button">
+      <img src="/static/cochlea.svg" width="16" height="16">
+      &nbsp;
+      Similar to this sound at {{ similarityQuery.startSeconds.toFixed(2) }} seconds
+    </button>
   </template>
 
   <template id="annotation-template">
@@ -438,6 +448,11 @@
           :audio-url="audioUrl"
           v-on:play-audio="audioPlayed"
           :start-seconds="offsetSeconds()"></sound-view>
+        <similar-sounds-link
+          v-if="similarityQuery"
+          :similarity-query="similarityQuery"
+          v-on:similar-sounds-requested="similarSoundsRequested">
+        </similar-sounds-link>
         <div class="tags">
           <div
             v-on:click="selectQuery(tag)"
@@ -521,7 +536,7 @@
                 <annotation
                   @select-query="setQuery"
                   v-for="annotation in items"
-                  v-on:audio-played="audioPlayed"
+                  v-on:similar-sounds-requested="similarSoundsRequested"
                   :annotation="annotation"
                   v-bind:key="annotation.id" />
               </div>
