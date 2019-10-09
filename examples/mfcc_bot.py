@@ -59,8 +59,8 @@ class MFCCListener(AnnotationListener):
 
 if __name__ == '__main__':
     main(
-        user_name='mfcc',
-        bucket_name='MFCCBot',
+        user_name='mfcc_bot',
+        bucket_name='mfcc-bot',
         email='john.vinyard+mfcc@gmail.com',
         about_me='I compute MFCCfeatures!',
         info_url='https://en.wikipedia.org/wiki/Mel-frequency_cepstrum',

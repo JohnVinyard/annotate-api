@@ -56,8 +56,8 @@ class OnsetListener(SoundListener):
 
 if __name__ == '__main__':
     main(
-        user_name='onset',
-        bucket_name='OnsetBot',
+        user_name='onset_bot',
+        bucket_name='onset-bot',
         email='john.vinyard+onset@gmail.com',
         about_me='I compute onset times',
         info_url='https://librosa.github.io/librosa/generated/librosa.onset.onset_detect.html',

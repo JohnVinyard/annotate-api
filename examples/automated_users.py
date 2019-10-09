@@ -79,28 +79,21 @@ if __name__ == '__main__':
     processes = ProcessCollection(
 
         # datasets
-        # process('phatdrumloops.py'),
+        process('phatdrumloops.py'),
         process('internet_archive.py'),
-        # process(
-        #     'musicnet_dataset.py',
-        #     **{'--metadata-path': '/hdd/musicnet'}),
-        # process(
-        #     'nsynth_dataset.py',
-        #     **{'--metadata-path': '/hdd/nsynth-valid.jsonwav/nsynth-valid'}),
+        process('one_laptop_per_child.py'),
+        process(
+            'musicnet_dataset.py',
+            **{'--metadata-path': '/hdd/musicnet'}),
+        process(
+            'nsynth_dataset.py',
+            **{'--metadata-path': '/hdd/nsynth-valid.jsonwav/nsynth-valid'}),
 
         # bots
         process('chroma_bot.py'),
-        # process('fft_bot.py'),
-        # process('mfcc_bot.py'),
-        # process('onset_bot.py'),
-        # process('spectrogram_bot.py'),
-
-        # aggregators
-        # process('indexer.py', **{
-        #     '--train': '',
-        #     '--iterations': str(10000),
-        #     '--bind': '0.0.0.0:8080',
-        #     '--index-server-port': '8081'
-        # })
+        process('fft_bot.py'),
+        process('mfcc_bot.py'),
+        process('onset_bot.py'),
+        process('spectrogram_bot.py'),
     )
     print(processes.wait())

@@ -1,3 +1,5 @@
+![One Laptop Per Child](http://wiki.laptop.org/skins/common/images/OLPC_wiki_logo.png)
+
 The One Laptop per Child non-profit develops a low-cost laptop—the "XO Laptop"—to revolutionize how we educate the world's children. Our mission is to provide educational opportunities for the world's most isolated and poorest children by giving each child a rugged, low-cost, low-power, connected laptop; and software tools and content designed for collaborative, joyful, self-empowered learning.
 
 OLPC has produced XO laptops for more than 2 million children around the world, the majority of them in Uruguay, Peru, Rwanda, Haiti, Australia, Mongolia and the United States. These laptops all run Sugar and Fedora Linux, and have customized software and content builds developed by their national deployment teams in collaboration with OLPC staff. We maintain a regular update of deployment information.

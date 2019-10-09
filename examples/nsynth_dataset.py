@@ -39,12 +39,13 @@ if __name__ == '__main__':
     with open('nsynth.md', 'r') as f:
         about_me = f.read()
 
+    info_url = 'https://magenta.tensorflow.org/datasets/nsynth'
     annotate_client.upsert_dataset(
         user_name='nsynth',
         email='john.vinyard+nsynth-dataset@gmail.com',
         password=args.password,
-        about_me=about_me
-    )
+        about_me=about_me,
+        info_url=info_url)
     metadata = get_metadata(os.path.join(args.metadata_path, 'examples.json'))
 
     bucket_name = 'nsynth'

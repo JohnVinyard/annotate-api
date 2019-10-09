@@ -1,3 +1,5 @@
+![Magenta](https://magenta.tensorflow.org/assets/magenta-logo.png)
+
 NSynth is an audio dataset containing 305,979 musical notes, each with a 
 unique pitch, timbre, and envelope. For 1,006 instruments from commercial 
 sample libraries, we generated four second, monophonic 16kHz audio snippets, 
