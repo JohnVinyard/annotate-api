@@ -26,13 +26,7 @@ class SpectrogramListener(SoundListener):
     def __init__(self, client, s3_client, page_size=3, logger=None):
         super().__init__(client, s3_client, page_size, logger)
 
-    def _process_sound(self, sound):
-        # fetch audio
-        resp = requests.get(sound['audio_url'])
-        raw_audio = BytesIO(resp.content)
-
-        # processing pipeline to compute spectrograms
-        samples = zounds.AudioSamples.from_file(raw_audio).mono
+    def _process_samples(self, samples):
         samples = samples.mono
         samples = zounds.soundfile.resample(samples, SAMPLE_RATE)
         windowing_sample_rate = zounds.SampleRate(
@@ -50,6 +44,16 @@ class SpectrogramListener(SoundListener):
         ])
 
         binary_data = BinaryData(spec)
+        return binary_data
+
+    def _process_sound(self, sound):
+        # fetch audio
+        resp = requests.get(sound['audio_url'])
+        raw_audio = BytesIO(resp.content)
+
+        # processing pipeline to compute spectrograms
+        samples = zounds.AudioSamples.from_file(raw_audio).mono
+        binary_data = self._process_samples(samples)
 
         # push output to s3
         data_url = self.s3_client.put_object(
@@ -69,10 +73,10 @@ class SpectrogramListener(SoundListener):
 
 if __name__ == '__main__':
     main(
-        user_name='spectrogram',
-        bucket_name='SpectrogramBot',
+        user_name='spectrogram_bot',
+        bucket_name='spectrogram-bot',
         email='john.vinyard+spectrogram@gmail.com',
-        about_me='I compute spectrograms!',
+        about_me='spectrogram_bot.md',
         info_url='https://en.wikipedia.org/wiki/Spectrogram',
         listener_cls=SpectrogramListener,
         logger=logger)

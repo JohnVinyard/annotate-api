@@ -4,6 +4,7 @@ from io import BytesIO
 from bot_helper import BinaryData, main, SoundListener
 import numpy as np
 from log import module_logger
+import argparse
 
 logger = module_logger(__file__)
 
@@ -15,13 +16,7 @@ class FFTListener(SoundListener):
     def __init__(self, client, s3_client, page_size=3, logger=None):
         super().__init__(client, s3_client, page_size, logger)
 
-    def _process_sound(self, sound):
-        # fetch audio
-        resp = requests.get(sound['audio_url'])
-        raw_audio = BytesIO(resp.content)
-
-        # processing pipeline to compute spectrograms
-        samples = zounds.AudioSamples.from_file(raw_audio)
+    def _process_samples(self, samples):
         samples = samples.mono
         samples = zounds.soundfile.resample(samples, SAMPLE_RATE)
 
@@ -34,6 +29,17 @@ class FFTListener(SoundListener):
         spec = spec.astype(np.float32)
         spec = zounds.ArrayWithUnits(spec, dims)
         binary_data = BinaryData(spec)
+        return binary_data
+
+    def _process_sound(self, sound):
+        # fetch audio
+        resp = requests.get(sound['audio_url'])
+        raw_audio = BytesIO(resp.content)
+
+        # processing pipeline to compute spectrograms
+        samples = zounds.AudioSamples.from_file(raw_audio)
+
+        binary_data = self._process_samples(samples)
 
         # push output to s3
         data_url = self.s3_client.put_object(
@@ -56,7 +62,7 @@ if __name__ == '__main__':
         user_name='stft_bot',
         bucket_name='stft-bot',
         email='john.vinyard+stft@gmail.com',
-        about_me='I compute short-time FFTs!',
+        about_me='stft_bot.md',
         info_url='https://en.wikipedia.org/wiki/Short-time_Fourier_transform',
         listener_cls=FFTListener,
         logger=logger)

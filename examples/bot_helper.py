@@ -72,7 +72,7 @@ class BinaryData(object):
         super().__init__()
         self.arr = arr_with_units
 
-    def packed_format(self):
+    def metadata(self):
         encoder = DimensionEncoder()
         metadata = {
             'type': str(self.arr.dtype),
@@ -81,6 +81,19 @@ class BinaryData(object):
             'max_value': float(self.arr.max()),
             'min_value': float(self.arr.min())
         }
+        return metadata
+
+    def packed_format(self):
+        # encoder = DimensionEncoder()
+        # metadata = {
+        #     'type': str(self.arr.dtype),
+        #     'shape': self.arr.shape,
+        #     'dimensions': list(encoder.encode(self.arr.dimensions)),
+        #     'max_value': float(self.arr.max()),
+        #     'min_value': float(self.arr.min())
+        # }
+
+        metadata = self.metadata()
         metadata_raw = json.dumps(metadata).encode()
         payload = \
             np.uint32(len(metadata_raw)).tostring() \
@@ -280,6 +293,44 @@ class BotDriver(object):
                 raise RuntimeError(f'Unexpected {status} encountered')
 
 
+def about_me_metadata(binary_data):
+    dims = binary_data.arr.dimensions
+    shape = list(binary_data.arr.shape)
+
+    # The first time dimension should be displayed as variable since it depends
+    # on the length of the audio input
+    if isinstance(dims[0], zounds.TimeDimension):
+        shape[0] = 'variable'
+
+    metadata_dims = []
+    for dim in dims:
+        if isinstance(dim, zounds.TimeDimension):
+            metadata_dims.append({
+                'type': 'time',
+                'sample_frequency_seconds': dim.frequency / zounds.Seconds(1),
+                'sample_duration_seconds': dim.duration / zounds.Seconds(1)
+            })
+        elif isinstance(dim, zounds.FrequencyDimension):
+            scale = dim.scale
+            metadata_dims.append({
+                'type': 'frequency',
+                'start_hz': scale.start_hz,
+                'stop_hz': scale.stop_hz,
+                'n_bands': scale.n_bands,
+                'scale_type': scale.__class__.__name__
+            })
+        else:
+            metadata_dims.append({
+                'type': 'identity'
+            })
+
+    return {
+        'type': str(binary_data.arr.dtype),
+        'shape': shape,
+        'dimensions': metadata_dims
+    }
+
+
 def main(
         user_name,
         bucket_name,
@@ -299,6 +350,23 @@ def main(
         access_key=args.aws_access_key_id,
         secret=args.aws_secret_access_key,
         bucket=bucket_name)
+
+    listener = listener_cls(
+        client, object_storage_client, page_size, logger=logger)
+
+    # get metadata describing feature shape and dimensions
+    samples = zounds.AudioSamples.silence(zounds.SR44100(), zounds.Seconds(10))
+    binary_data = listener._process_samples(samples)
+    metadata = about_me_metadata(binary_data)
+
+    try:
+        with open(about_me, 'r') as f:
+            about_me = f.read()
+    except IOError:
+        pass
+
+    about_me = about_me.format(metadata=json.dumps(metadata, indent=4))
+
     object_storage_client.ensure_bucket_exists()
 
     # TODO: Some kind of structured information about transformation pipeline
@@ -310,6 +378,5 @@ def main(
         about_me,
         info_url)
 
-    with listener_cls(
-            client, object_storage_client, page_size, logger=logger).run():
+    with listener.run():
         pass

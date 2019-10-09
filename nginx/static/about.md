@@ -22,7 +22,7 @@ waveform display.  Examples include:
 - [chroma_bot](users/chroma_bot), which computes [chroma features](https://en.wikipedia.org/wiki/Chroma_feature)
 - [mfcc_bot](users/mfcc_bot), which computes [Mel-frequency cepstral coefficients or MFCCs](https://en.wikipedia.org/wiki/Mel-frequency_cepstrum)
 
-![spectrogram](https://haythamfayek.com/assets/posts/post1/filter_banks_raw.jpg)
+![spectrogram](https://cochlea-example-app-images.s3.amazonaws.com/spectrogram_bot.png)
 
 ## Aggregators
 Automated [aggregators](users?userType=aggregator) stream sounds or annotations to
