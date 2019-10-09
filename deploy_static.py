@@ -363,6 +363,11 @@ if __name__ == '__main__':
     svg = StaticResource(
         bucket, 'nginx/static/cochlea.svg', 'image/svg+xml')
 
+    about = StaticResourceWithReplacements(
+        bucket, 'nginx/static/about.md', 'text/plain', {'/static': ''})
+    visual_explorer = StaticResource(
+        bucket, 'nginx/static/visual_explorer.jpg', 'image/jpeg')
+
     settings = SettingsResource(
         bucket, 'nginx/static/settings.js', 'text/javascript', {
             'remoteSearchHost': args.remote_search_host,

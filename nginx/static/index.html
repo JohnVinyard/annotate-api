@@ -62,10 +62,15 @@
     </section>
   </template>
 
+  <template id="markdown-template">
+    <div class="content" v-html="markdown">
+    </div>
+  </template>
+
   <template id="about-template">
     <section class="section">
       <div class="container">
-        TODO: About cochlea...
+        <markdown remote-url="/static/about.md"></markdown>
       </div>
     </section>
   </template>

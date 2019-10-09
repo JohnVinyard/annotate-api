@@ -1269,6 +1269,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+
+  const MarkDown = Vue.component('markdown', {
+    props: {
+      remoteUrl: String
+    },
+    data : function() {
+      return {
+        markdown: null
+      };
+    },
+    template: '#markdown-template',
+    beforeMount: function() {
+      fetch(this.remoteUrl)
+        .then(resp => resp.text())
+        .then(text => {
+          this.markdown = new showdown.Converter().makeHtml(text);
+        })
+    }
+  });
+
   const UserDetail = Vue.component('user', {
     props: ['id'],
     template: '#user-detail-template',
@@ -2096,9 +2116,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
       // Landing Page
       { path: routerPath('/welcome'), name: 'welcome', component: Welcome, props: true },
-
-      // Map
-      { path: routerPath('/map'), name: 'map', component: Map},
 
       // Sign in and register
       { path: routerPath('/sign-in'), name: 'sign-in', component: SignIn, props: true },
