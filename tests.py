@@ -1102,7 +1102,7 @@ class UserAnnotationTests(BaseTests, unittest2.TestCase):
         user_uri = f'/users/{fb_id}'
         resp = requests.get(
             self.user_annotations_resource(fb_id),
-            params={'tags':'drums'},
+            params={'tags': 'drums'},
             auth=auth)
         items = resp.json()['items']
         self.assertEqual(3, len(items))
@@ -1212,6 +1212,26 @@ class AnnotationsTests(BaseTests, unittest2.TestCase):
             auth=auth)
         items = resp.json()['items']
         self.assertEqual(2, len(items))
+
+    def test_can_search_for_annotations_by_tag_with_pound_sign(self):
+        user, user_location = self.create_user(user_type='human')
+        auth = self._get_auth(user)
+        sound_id = self._create_sound_with_user(auth)
+        annotation_data = [
+            self.annotation_data(tags=['drums']),
+            self.annotation_data(tags=['musical_note:A#4'])
+        ]
+        requests.post(
+            self.sound_annotations_resource(sound_id),
+            json={'annotations': annotation_data},
+            auth=auth)
+
+        resp = requests.get(
+            self.annotations_resource(),
+            params={'page_size': 100, 'tags': ['musical_note:A#4']},
+            auth=auth)
+        items = resp.json()['items']
+        self.assertEqual(1, len(items))
 
     def test_can_search_across_sounds_by_tag(self):
         user, user_location = self.create_user(user_type='human')
