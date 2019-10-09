@@ -104,6 +104,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[
         DatasetArgumentParser()
     ])
+    parser.add_argument(
+        '--train-only',
+        action='store_true',
+        default=False)
     args = parser.parse_args()
     annotate_client = Client(args.annotate_api_endpoint, logger=logger)
 
@@ -130,11 +134,12 @@ if __name__ == '__main__':
 
     metadata = get_metadata(args.metadata_path)
 
-    add_sounds(
-        os.path.join(args.metadata_path, 'test_data'),
-        os.path.join(args.metadata_path, 'test_labels'),
-        metadata,
-        ['test'])
+    if not args.train_only:
+        add_sounds(
+            os.path.join(args.metadata_path, 'test_data'),
+            os.path.join(args.metadata_path, 'test_labels'),
+            metadata,
+            ['test'])
 
     add_sounds(
         os.path.join(args.metadata_path, 'train_data'),
