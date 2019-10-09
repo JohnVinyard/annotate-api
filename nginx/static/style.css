@@ -1,9 +1,9 @@
 .card+.card {
-	margin-top: 20px
+	margin-top: 20px;
 }
 
 html {
-	scroll-behavior: smooth
+	scroll-behavior: smooth;
 }
 
 #temp-container {
