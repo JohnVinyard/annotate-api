@@ -5,6 +5,8 @@ from data import build_repositories
 import os
 
 connection_string = os.environ['connection_string']
+email_whitelist = os.environ['email_whitelist']
+
 users_repo, sounds_repo, annotations_repo = \
     build_repositories(connection_string)
 
@@ -12,7 +14,8 @@ api = Application(
     users_repo,
     sounds_repo,
     annotations_repo,
-    is_dev_environment=False)
+    is_dev_environment=False,
+    email_whitelist=email_whitelist)
 
 
 logger.setup_lambda_logger(logging.DEBUG)

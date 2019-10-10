@@ -166,9 +166,11 @@ class LambdaApi(Requirement):
             execution_role,
             db,
             function_module_name='main',
-            entry_point_name='lambda_handler'):
+            entry_point_name='lambda_handler',
+            email_whitelist=''):
 
         super().__init__(packaged_app, execution_role, db)
+        self.email_whitelist = email_whitelist
         self.entry_point_name = entry_point_name
         self.function_module_name = function_module_name
         self.db = db
@@ -185,7 +187,8 @@ class LambdaApi(Requirement):
 
     def _environment_variables(self):
         return {
-            'connection_string': db.data()['connection_string']
+            'connection_string': db.data()['connection_string'],
+            'email_whitelist': self.email_whitelist
         }
 
     @retry(tries=10, delay=2)
@@ -199,7 +202,7 @@ class LambdaApi(Requirement):
                 'ZipFile': zip_data
             },
             Environment={
-                'Variables': self._environment_variables()
+                'Variables': self._environment_variables(),
             }
         )
 
@@ -843,6 +846,10 @@ if __name__ == '__main__':
     parser.add_argument(
         '--ssl-cert-arn',
         required=True)
+    parser.add_argument(
+        '--email-whitelist',
+        default='',
+        required=False)
     args = parser.parse_args()
 
     # database
@@ -876,7 +883,8 @@ if __name__ == '__main__':
         execution_role,
         db,
         args.lambda_function_module_name,
-        args.lambda_function_entry_point)
+        args.lambda_function_entry_point,
+        email_whitelist=args.email_whitelist)
 
     # api gateway
     api = ApiGateway(

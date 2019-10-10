@@ -867,6 +867,16 @@ class UserAnnotationResource(object):
 
 
 class UsersResource(object):
+    def __init__(self, email_whitelist):
+        super().__init__()
+        if email_whitelist is None:
+            self.email_whitelist = []
+        else:
+            segments = email_whitelist.split(',')
+            trimmed = map(lambda x: x.strip(), segments)
+            filtered = filter(lambda x: x, trimmed)
+            self.email_whitelist = set(filtered)
+
     def get_example_post_body(self):
         return {
             'user_name': 'HalIncandenza',
@@ -889,7 +899,13 @@ class UsersResource(object):
             - status_code: 400
               description: Input model validation error
         """
-        user = User.create(**req.media)
+        data = req.media
+
+        if self.email_whitelist and data['email'] not in self.email_whitelist:
+            raise falcon.HTTPBadRequest(
+                'Cochlea is in an alpha stage and is currently invite-only')
+
+        user = User.create(**data)
         resp.set_header('Location', f'/users/{user.id}')
         resp.status = falcon.HTTP_CREATED
 
@@ -1253,7 +1269,8 @@ class Application(falcon.API):
             users_repo,
             sounds_repo,
             annotations_repo,
-            is_dev_environment):
+            is_dev_environment,
+            email_whitelist):
         super().__init__(middleware=[
             CorsMiddleware(),
             SessionMiddleware(
@@ -1268,7 +1285,7 @@ class Application(falcon.API):
         })
         self.add_route('/', RootResource(
             users_repo, sounds_repo, annotations_repo, is_dev_environment))
-        self.add_route('/users', UsersResource())
+        self.add_route('/users', UsersResource(email_whitelist))
         self.add_route(USER_URI_TEMPLATE, UserResource())
         self.add_route('/sounds', SoundsResource())
         self.add_route(SOUND_URI_TEMPLATE, SoundResource())

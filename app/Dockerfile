@@ -19,4 +19,4 @@ COPY *.py remote/
 CMD gunicorn dev:application \
     --bind 0.0.0.0:8000 --workers 4 --max-requests 1000 \
     --max-requests-jitter 150 --reload --chdir remote/ \
-    --env connection_string=mongo
+    --env connection_string=mongo --env email_whitelist=,
