@@ -4,12 +4,15 @@ from io import BytesIO
 from bot_helper import BinaryData, main, SoundListener
 import numpy as np
 from log import module_logger
-import argparse
 
 logger = module_logger(__file__)
 
 SAMPLE_RATE = zounds.SR11025()
 FILTER_BANK_KERNEL_SIZE = 512
+
+windowing_sample_rate = zounds.SampleRate(
+    frequency=(FILTER_BANK_KERNEL_SIZE // 2) * SAMPLE_RATE.frequency,
+    duration=FILTER_BANK_KERNEL_SIZE * SAMPLE_RATE.frequency)
 
 
 class FFTListener(SoundListener):
@@ -20,9 +23,6 @@ class FFTListener(SoundListener):
         samples = samples.mono
         samples = zounds.soundfile.resample(samples, SAMPLE_RATE)
 
-        windowing_sample_rate = zounds.SampleRate(
-            frequency=(FILTER_BANK_KERNEL_SIZE // 2) * SAMPLE_RATE.frequency,
-            duration=FILTER_BANK_KERNEL_SIZE * SAMPLE_RATE.frequency)
         spec = zounds.spectral.stft(samples, windowing_sample_rate)
         dims = spec.dimensions
         spec = np.abs(spec)

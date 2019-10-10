@@ -4,6 +4,7 @@ import numpy as np
 from bot_helper import BinaryData, main, AnnotationListener
 from scipy.fftpack import dct
 from log import module_logger
+from stft_bot import windowing_sample_rate
 
 logger = module_logger(__file__)
 
@@ -15,7 +16,27 @@ scale = zounds.MelScale(frequency_band, N_FREQUENCY_BANDS)
 
 class MFCCListener(AnnotationListener):
     def __init__(self, client, s3_client, page_size=3, logger=None):
-        super().__init__('fft', client, s3_client, page_size, logger=logger)
+        super().__init__(
+            'stft_bot', client, s3_client, page_size, logger=logger)
+        self.dtype = np.float32().dtype
+
+    def get_metadata(self):
+        return {
+            'type': str(self.dtype),
+            'shape': ('variable', 13),
+            'dimensions': [
+                {
+                    'type': 'time',
+                    'sample_frequency_seconds':
+                        windowing_sample_rate.frequency / zounds.Seconds(1),
+                    'sample_duration_seconds':
+                        windowing_sample_rate.duration / zounds.Seconds(1)
+                },
+                {
+                    'type': 'identity'
+                }
+            ]
+        }
 
     def _process_annotation(self, annotation):
         # fetch the fft data
@@ -61,8 +82,8 @@ if __name__ == '__main__':
     main(
         user_name='mfcc_bot',
         bucket_name='mfcc-bot',
-        email='john.vinyard+mfcc@gmail.com',
-        about_me='I compute MFCCfeatures!',
+        email='john.vinyard+mfcc_bot@gmail.com',
+        about_me='mfcc_bot.md',
         info_url='https://en.wikipedia.org/wiki/Mel-frequency_cepstrum',
         listener_cls=MFCCListener,
         logger=logger)

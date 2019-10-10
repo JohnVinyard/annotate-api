@@ -84,15 +84,6 @@ class BinaryData(object):
         return metadata
 
     def packed_format(self):
-        # encoder = DimensionEncoder()
-        # metadata = {
-        #     'type': str(self.arr.dtype),
-        #     'shape': self.arr.shape,
-        #     'dimensions': list(encoder.encode(self.arr.dimensions)),
-        #     'max_value': float(self.arr.max()),
-        #     'min_value': float(self.arr.min())
-        # }
-
         metadata = self.metadata()
         metadata_raw = json.dumps(metadata).encode()
         payload = \
@@ -196,12 +187,21 @@ class AnnotationListener(BaseListener):
             s3_client,
             page_size=3,
             logger=None):
-        self.bot = retry(client.get_user, 30)(subscribed_to)
-        logger.info(f'subscribed to user {self.bot}')
-        f = lambda low_id, page_size: \
-            client.get_annotations(self.bot['id'], low_id, page_size)
+        self.subscribed_to = subscribed_to
         self.client = client
-        super().__init__(f, s3_client, page_size, logger)
+        self.bot = None
+        super().__init__(None, s3_client, page_size, logger)
+
+    def run(self):
+        self.bot = retry(self.client.get_user, 30)(self.subscribed_to)
+        self.logger.info(f'subscribed to user {self.bot}')
+
+        def f(low_id, page_size):
+            return self.client.get_annotations(
+                self.bot['id'], low_id, page_size)
+
+        self.get_resources_func = f
+        return super().run()
 
     def _sound_id_from_uri(self, sound_uri):
         return os.path.split(sound_uri)[-1]
@@ -355,9 +355,16 @@ def main(
         client, object_storage_client, page_size, logger=logger)
 
     # get metadata describing feature shape and dimensions
-    samples = zounds.AudioSamples.silence(zounds.SR44100(), zounds.Seconds(10))
-    binary_data = listener._process_samples(samples)
-    metadata = about_me_metadata(binary_data)
+    try:
+        metadata = listener.get_metadata()
+    except AttributeError:
+        # the listener does not provide metadata explicitly, but in the case
+        # of listeners that accept audio samples directly, we can infer the
+        # metadata
+        samples = zounds.AudioSamples.silence(
+            zounds.SR44100(), zounds.Seconds(10))
+        binary_data = listener._process_samples(samples)
+        metadata = about_me_metadata(binary_data)
 
     try:
         with open(about_me, 'r') as f:
