@@ -136,7 +136,13 @@ class BaseListener(object, metaclass=MetaListener):
     def _run(self):
         for resource in self._iter_resources():
             self.logger.info(resource['id'])
-            self._process_resource(resource)
+            try:
+                self._process_resource(resource)
+            except RuntimeError as e:
+                # typically this is caused by audio in a bad format
+                self.logger.error(
+                    f'Encountered error for {resource["id"]}: {e}')
+                pass
             self.low_id = resource['id']
 
     def run(self):

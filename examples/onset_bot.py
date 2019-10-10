@@ -19,6 +19,9 @@ class OnsetListener(SoundListener):
     def __init__(self, client, s3_client, page_size=3, logger=None):
         super().__init__(client, s3_client, page_size, logger)
 
+    def get_metadata(self):
+        return {}
+
     def _process_sound(self, sound):
         # fetch audio
         resp = requests.get(sound['audio_url'])
@@ -51,6 +54,10 @@ class OnsetListener(SoundListener):
                 'tags': ['onset']
             })
         logger.info(f'Created {len(annotations)} onsets for {sound["id"]}')
+
+        if not annotations:
+            return
+
         self.client.create_annotations(sound['id'], *annotations)
 
 
@@ -58,8 +65,8 @@ if __name__ == '__main__':
     main(
         user_name='onset_bot',
         bucket_name='onset-bot',
-        email='john.vinyard+onset@gmail.com',
-        about_me='I compute onset times',
+        email='john.vinyard+onset_bot@gmail.com',
+        about_me='onset_bot.md',
         info_url='https://librosa.github.io/librosa/generated/librosa.onset.onset_detect.html',
         listener_cls=OnsetListener,
         logger=logger)

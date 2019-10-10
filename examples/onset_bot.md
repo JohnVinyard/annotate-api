@@ -1,0 +1,1 @@
+This `featurebot` computes onset times using [`librosa`'s onset detector](https://librosa.github.io/librosa/generated/librosa.onset.onset_detect.html#librosa-onset-onset-detect).  Each onset is add as an annotation with the tag "onset".
