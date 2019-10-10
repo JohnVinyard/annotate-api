@@ -1,5 +1,5 @@
 # Cochlea Example Application
-This is an example web application built atop the [cochlea API](https://github.com/JohnVinyard/annotate-api), which allows users, both automated and human, to annotate audio from the internet using textual tags or arbitrary numerical data.
+This is an example, alpha-stage web application built atop the [cochlea API](https://github.com/JohnVinyard/annotate-api), which allows users, both automated and human, to annotate audio from the internet using textual tags or arbitrary numerical data.
 
 The application provides a browse-able interface that closely mirrors the
 structure of the cochlea API  and leverages annotations or features from various
@@ -33,3 +33,7 @@ of similar sounds via a Google Maps-like interface.  Read a [blog post](http://j
 technique or check out the [paper](https://arxiv.org/abs/1711.02209) that inspired it.
 
 ![visual explorer](/static/visual_explorer.jpg)
+
+## Interested?
+If you're interested in giving the app a spin,
+[get in touch](mailto:john.vinyard@gmail.com) to request access!

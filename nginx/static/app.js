@@ -1728,14 +1728,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const NameInput = validatedField('user-name-input', 'text', [
     {
-      rule: (value) => {
-        return fetch('http://flipacoinapi.com/json')
-          .then(resp => resp.json())
-          .then(data => data === 'Heads');
-      },
-      message: (value) => 'You must get heads'
-    },
-    {
       rule: toPromise(value => value.length > 2),
       message: (value) => `Name must be greater than two characters but was ${value.length} characters`
     }
@@ -2190,31 +2182,41 @@ document.addEventListener('DOMContentLoaded', function() {
           password: null,
           data: null
         };
-        this.$router.push({ name: 'welcome', params: { user: this.user } });
+        this.$router.push({ name: 'about' });
       },
       homeLink: function() {
-        return this.isAuthenticated() ?
-          { name: 'annotations' } : { name: 'welcome', params: { user: this.user }};
+        return { name: 'about' };
       },
       userAuthenticated: function(user) {
         this.user.name = user.name;
         this.user.password = user.password;
         this.user.data = user.data;
         this.$router.push(this.homeLink());
+      },
+      viewingAuthScreen: function() {
+        return ['sign-in', 'register'].includes(this.$route.name);
       }
-
     },
     mounted: function() {
       this.initializeCredentials();
-      if (!this.isAuthenticated()) {
-        this.$router.push({ name: 'welcome', params: { user: this.user }});
+      const authed = this.isAuthenticated();
+      const attemptingAuth = this.viewingAuthScreen();
+
+      // If the user is alreay authorized and they are attempting to
+      // authorize again, OR if they are not authed and are attempting to view
+      // an authorized-only page, redirect to the home link
+      if ((authed && attemptingAuth) || (!authed && !attemptingAuth)) {
+        this.$router.push(this.homeLink());
       }
+
+      const globalMessageDuration = 5 * 1000;
+
       EventBus.$on('user-created', this.userAuthenticated);
       EventBus.$on('user-signed-in', this.userAuthenticated);
       EventBus.$on('global-message', (event) => {
         console.log('global message', event);
         this.globalMessage = event;
-        setTimeout(() => this.globalMessage = null, 10 * 1000);
+        setTimeout(() => this.globalMessage = null, globalMessageDuration);
       });
     },
   }).$mount('#app');
