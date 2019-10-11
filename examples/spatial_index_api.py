@@ -53,15 +53,6 @@ class Index(object):
         self.current_offset += len(data)
         self.tree.append(data.astype(np.float32))
 
-        if (self.current_offset - self.last_save) > 1000:
-            with open(filename, 'wb') as f:
-                pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
-            info = self.info()
-            logger.info(
-                'Persisted index with {sounds} sounds and {segments} segments'
-                    .format(**info))
-            self.last_save = self.current_offset
-
     def get_embedding(self, sound_id, time):
         segment = int(time / self.seconds_per_chunk)
         offset = self.sound_offsets[sound_id]
@@ -212,6 +203,16 @@ class CreateResource(object):
             req.bounded_stream.read(),
             dtype=np.float32).reshape((-1, 3))
         self.index.append(sound_id, data)
+
+        if (self.index.current_offset - self.index.last_save) > 1000:
+            with open(filename, 'wb') as f:
+                pickle.dump(self.index, f, pickle.HIGHEST_PROTOCOL)
+            info = self.index.info()
+            logger.info(
+                'Persisted index with {sounds} sounds and {segments} segments'
+                    .format(**info))
+            self.index.last_save = self.index.current_offset
+
         resp.status_code = falcon.HTTP_CREATED
 
 
@@ -224,6 +225,8 @@ class LowIdResource(object):
     def on_get(self, req, resp):
         resp.media = {
             'low_id': self.index.low_id,
+            'n_sounds': len(self.index.ids),
+            'n_segments': self.index.current_offset,
         }
 
 
