@@ -356,10 +356,9 @@ if __name__ == '__main__':
         bucket, 'nginx/static/index.html', 'text/html', {'/static': ''})
     css = StaticResource(bucket, 'nginx/static/style.css', 'text/css')
 
-    javascript1 = StaticResource(
+    javascript = StaticResource(
         bucket, 'nginx/static/app.js', 'text/javascript')
-    javascript2 = StaticResource(
-        bucket, 'nginx/static/app2.js', 'text/javascript')
+    colors = StaticResource(bucket, 'nginx/static/colormap.js', 'text/javascript')
     svg = StaticResource(
         bucket, 'nginx/static/cochlea.svg', 'image/svg+xml')
 
@@ -375,7 +374,16 @@ if __name__ == '__main__':
             'basePath': ''
         })
     static_app = StaticApp(
-        bucket, cors, html, css, javascript1, javascript2, svg, settings)
+        bucket,
+        cors,
+        html,
+        css,
+        javascript,
+        colors,
+        svg,
+        settings,
+        about,
+        visual_explorer)
     distribution = CloudFrontDistribution(static_app, args.ssl_cert_arn)
     alias = Alias('exampleapp.cochlea.xyz', distribution)
     alias()

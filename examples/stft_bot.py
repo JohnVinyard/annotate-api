@@ -61,7 +61,7 @@ if __name__ == '__main__':
     main(
         user_name='stft_bot',
         bucket_name='stft-bot',
-        email='john.vinyard+stft@gmail.com',
+        email='john.vinyard+stft_bot@gmail.com',
         about_me='stft_bot.md',
         info_url='https://en.wikipedia.org/wiki/Short-time_Fourier_transform',
         listener_cls=FFTListener,

@@ -54,7 +54,11 @@ class Indexer(object):
                 self.client, wait_for_new=True, low_id=low_id):
 
             sound_id = sound['id']
-            resp = requests.get(sound['audio_url'])
+            try:
+                resp = requests.get(sound['audio_url'])
+            except requests.exceptions.ChunkedEncodingError as e:
+                logger.info(f'Unable to process {sound_id} due to error {e}')
+                continue
             bio = BytesIO(resp.content)
             try:
                 samples = zounds.AudioSamples.from_file(bio).mono
@@ -89,6 +93,7 @@ class Indexer(object):
             resp = requests.put(
                 uri, data=embedding.tostring(), headers=self._auth_headers())
             logger.info(f'{uri} {resp.status_code}')
+            resp.raise_for_status()
 
 
 if __name__ == '__main__':

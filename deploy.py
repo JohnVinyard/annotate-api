@@ -178,6 +178,7 @@ class LambdaApi(Requirement):
         self.execution_role = execution_role
         self.packaged_app = packaged_app
         self.client = boto3.client('lambda')
+        self.timeout_seconds = 6
 
     def _fetch_function(self):
         return self.client.get_function(FunctionName=self.function_name)
@@ -203,7 +204,8 @@ class LambdaApi(Requirement):
             },
             Environment={
                 'Variables': self._environment_variables(),
-            }
+            },
+            Timeout=self.timeout_seconds
         )
 
     def fulfill(self):
@@ -219,7 +221,8 @@ class LambdaApi(Requirement):
                 Handler=f'{self.function_module_name}.{self.entry_point_name}',
                 Environment={
                     'Variables': self._environment_variables()
-                }
+                },
+                Timeout=self.timeout_seconds
             )
             print('updated function')
         except self.client.exceptions.ResourceNotFoundException:
@@ -848,8 +851,8 @@ if __name__ == '__main__':
         required=True)
     parser.add_argument(
         '--email-whitelist',
-        default='',
-        required=False)
+        type=str,
+        required=True)
     args = parser.parse_args()
 
     # database

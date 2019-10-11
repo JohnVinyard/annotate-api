@@ -124,6 +124,7 @@ class BaseListener(object, metaclass=MetaListener):
         self.page_size = page_size
 
     def _iter_resources(self):
+        self.logger.info(f'Resuming from {self.low_id}')
         while True:
             time.sleep(1)
             data = self.get_resources_func(self.low_id, self.page_size)
@@ -138,7 +139,7 @@ class BaseListener(object, metaclass=MetaListener):
             self.logger.info(resource['id'])
             try:
                 self._process_resource(resource)
-            except RuntimeError as e:
+            except (ValueError, RuntimeError) as e:
                 # typically this is caused by audio in a bad format
                 self.logger.error(
                     f'Encountered error for {resource["id"]}: {e}')
@@ -344,7 +345,7 @@ def main(
         about_me,
         info_url,
         listener_cls,
-        page_size=3,
+        page_size=100,
         logger=None):
     parser = argparse.ArgumentParser(parents=[DefaultArgumentParser()])
     args = parser.parse_args()
