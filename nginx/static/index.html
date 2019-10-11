@@ -287,7 +287,9 @@
       ref="container"
       class="selection-container"
       @mousedown.ctrl="startSelection"
+      @mousedown.meta="startSelection"
       @mouseup.ctrl="endSelection"
+      @mouseup.meta="endSelection"
       @mouseup="endAdjustments"
       v-bind:style="{
         width: width.toString() + 'px',

@@ -222,6 +222,9 @@ class Query(object):
         return eval(compile(tree, filename='<ast>', mode='eval'))
 
 
+import time
+
+
 class QueryResult(object):
     def __init__(self, results, page_number, page_size, total_count=None):
         self.results = results
@@ -234,6 +237,11 @@ class QueryResult(object):
             current_pos = (page_number * page_size) + len(results)
             self.next_page = \
                 page_number + 1 if current_pos < total_count else None
+        self.query_time = None
+        self.result_transform_time = None
+        self.query = None
+        self.inner_query = None
+        self.sort = None
 
     def __iter__(self):
         return iter(self.results)
@@ -265,17 +273,23 @@ class Session(object):
             total_count=True):
 
         repo = self._repositories[query.entity_class]
+        start = time.time()
         query_result = repo.filter(
             query,
             page_size=page_size,
             page_number=page_number,
             sort=sort,
             total_count=total_count)
+        query_result.query_time = time.time() - start
+
+        start = time.time()
         transformed_results = []
         for result in query_result.results:
             result = repo.mapper.from_storage(result)
             result = self.__entities[result.storage_key]
             transformed_results.append(result)
+        query_result.result_transform_time = time.time() - start
+
         query_result.results = transformed_results
         return query_result
 

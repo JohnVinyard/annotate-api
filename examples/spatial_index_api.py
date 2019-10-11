@@ -10,6 +10,9 @@ import datetime
 
 logger = module_logger(__file__)
 
+filename = 'index.dat'
+persistor_frequency = 60 * 5
+
 
 class Index(object):
     def __init__(self, seconds_per_chunk, user_uri):
@@ -23,6 +26,7 @@ class Index(object):
         self.current_offset = 0
         self.low_id = None
         self.reset()
+        self.last_save = 0
 
     def info(self):
         return {
@@ -48,6 +52,15 @@ class Index(object):
         self.sound_offsets[_id] = self.current_offset
         self.current_offset += len(data)
         self.tree.append(data.astype(np.float32))
+
+        if (self.current_offset - self.last_save) > 1000:
+            with open(filename, 'wb') as f:
+                pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+            info = self.info()
+            logger.info(
+                'Persisted index with {sounds} sounds and {segments} segments'
+                    .format(**info))
+            self.last_save = self.current_offset
 
     def get_embedding(self, sound_id, time):
         segment = int(time / self.seconds_per_chunk)
@@ -90,22 +103,22 @@ class Index(object):
         return results
 
 
-class Persistor(threading.Thread):
-    def __init__(self, index, frequency, filename):
-        super().__init__(daemon=True)
-        self.filename = filename
-        self.frequency = frequency
-        self.index = index
-
-    def run(self):
-        while True:
-            time.sleep(self.frequency)
-            with open(self.filename, 'wb') as f:
-                pickle.dump(self.index, f, pickle.HIGHEST_PROTOCOL)
-            info = self.index.info()
-            logger.info(
-                'Persisted index with {sounds} sounds and {segments} segments'
-                    .format(**info))
+# class Persistor(threading.Thread):
+#     def __init__(self, index, frequency, filename):
+#         super().__init__(daemon=True)
+#         self.filename = filename
+#         self.frequency = frequency
+#         self.index = index
+#
+#     def run(self):
+#         while True:
+#             time.sleep(self.frequency)
+#             with open(self.filename, 'wb') as f:
+#                 pickle.dump(self.index, f, pickle.HIGHEST_PROTOCOL)
+#             info = self.index.info()
+#             logger.info(
+#                 'Persisted index with {sounds} sounds and {segments} segments'
+#                     .format(**info))
 
 
 class CorsMiddleware(object):
@@ -223,9 +236,6 @@ class Application(falcon.API):
         self.add_route('/low_id', LowIdResource(index))
 
 
-filename = 'index.dat'
-persistor_frequency = 60 * 5
-
 access_key = os.environ['ACCESS_KEY']
 user_uri = os.environ['USER_URI']
 seconds_per_chunk = 0.743038541824
@@ -236,7 +246,7 @@ try:
 except IOError:
     index = Index(seconds_per_chunk, user_uri)
 
-persistor = Persistor(index, persistor_frequency, filename)
-persistor.start()
+# persistor = Persistor(index, persistor_frequency, filename)
+# persistor.start()
 
 api = application = Application(index, access_key)

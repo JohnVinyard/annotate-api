@@ -6,7 +6,7 @@ from scratch import \
 from model import User, UserType, Sound, Annotation
 from errors import DuplicateEntityException
 from mapping import UserMapper, SoundMapper, AnnotationMapper
-
+import time
 
 # TODO: Does BaseRepository need cls and mapper arguments anymore?
 class MongoRepository(BaseRepository):
@@ -106,13 +106,22 @@ class MongoRepository(BaseRepository):
 
         mongo_query = self._transform_query(query)
         sort = self._transform_sort(sort)
-        total_count = self._count(mongo_query) if total_count else None
+        # total_count = self._count(mongo_query) if total_count else None
+        start = time.time()
+
         results = self.collection \
             .find(mongo_query, sort=sort) \
             .skip(page_number * page_size) \
             .limit(page_size)
+        total_count = results.count() if total_count else None
         results = list(results)
-        return QueryResult(results, page_number, page_size, total_count)
+
+        stop = time.time() - start
+        result = QueryResult(results, page_number, page_size, total_count)
+        result.inner_query = stop
+        result.sort = sort
+        result.query = mongo_query
+        return result
 
     def _count(self, mongo_query):
         return self.collection.count_documents(mongo_query)

@@ -175,6 +175,12 @@ def list_entity(
         page_number=query_result.next_page,
         **additional_params)
 
+    results['query_time'] = query_result.query_time
+    results['transform_time'] = query_result.result_transform_time
+    results['query'] = query_result.query
+    results['inner_query'] = query_result.inner_query
+    results['sort'] = query_result.sort
+
     resp.media = results
     resp.status = falcon.HTTP_OK
 
