@@ -150,14 +150,14 @@ def list_entity(
     # exclusive
     order = req.get_param('order')
     orders = {
-        'asc': entity_type.date_created.ascending(),
-        'desc': entity_type.date_created.descending()
+        'asc': entity_type.id.ascending(),
+        'desc': entity_type.id.descending()
     }
     try:
         result_order = additional_params['order'] = orders[order]
     except KeyError:
         result_order = \
-            default_result_order or entity_type.date_created.ascending()
+            default_result_order or entity_type.id.ascending()
 
     query_result = session.filter(
         query,
