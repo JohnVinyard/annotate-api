@@ -65,6 +65,13 @@ class HyperPlaneNode(object):
         self.left = None
         self.right = None
 
+    def __eq__(self, other):
+        return \
+            np.all(self.data == other.data) \
+            and np.all(self.plane == other.plane) \
+            and self.left == other.left \
+            and self.right == other.right
+
     def __len__(self):
         return len(self.data)
 
@@ -117,6 +124,51 @@ class MultiHyperPlaneTree(object):
             else:
                 node.create_children(self.data)
                 build_queue.extend(node.children)
+
+    def __setstate__(self, state):
+        mhpt = MultiHyperPlaneTree(
+            state['data'], state['smallest_node'], state['n_trees'])
+        graph = state['graph']
+
+    def __getstate__(self):
+        def node_state(node):
+            return node.plane, node.data
+
+        graph = dict()
+        queue = [root for root in self.roots]
+        while queue:
+            next_node = queue.pop()
+            item = []
+            left = next_node.left
+            right = next_node.right
+
+            if left:
+                queue.append(left)
+                item.append(node_state(left))
+            else:
+                item.append(None)
+
+            if right:
+                queue.append(right)
+                item.append(node_state(right))
+            else:
+                item.append(None)
+
+            # TODO: What should the key be here?
+            graph[next_node] = item
+
+        roots = [node_state(r) for r in self.roots]
+        return {
+            # TODO: roots should just be the node keys
+            'roots': roots,
+            'graph': graph,
+            'smallest_node': self.smallest_node,
+            'n_trees': len(roots),
+            'data': self.data
+        }
+
+    def __eq__(self, other):
+        return all(s == r for (s, r) in zip(self.roots, other.roots))
 
     def __len__(self):
         return len(self.data)
@@ -225,3 +277,22 @@ class MultiHyperPlaneTree(object):
             return final_indices, dist[sorted_indices]
         else:
             return final_indices
+
+
+import pickle
+import sys
+
+if __name__ == '__main__':
+    sys.setrecursionlimit(100)
+
+    tree = MultiHyperPlaneTree(
+        data=np.zeros((0, 3), dtype=np.float32),
+        smallest_node=1024,
+        n_trees=5)
+
+    while True:
+        samples = unit_vectors(1000, 3)
+        tree.append(samples)
+        s = pickle.dumps(tree)
+        recovered = pickle.loads(s)
+        print(tree.data.shape, tree == recovered)
