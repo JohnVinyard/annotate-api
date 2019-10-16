@@ -1,8 +1,9 @@
-from __future__ import division, print_function
 from scipy.spatial.distance import cdist
 import heapq
 import numpy as np
 import random
+from hashlib import sha1
+from itertools import zip_longest
 
 
 def batch_unit_norm(b, epsilon=1e-8):
@@ -51,13 +52,23 @@ def random_projection(plane_vectors, data, pack=True, binarize=True):
     return output
 
 
+def traversal(roots, pop_from=0):
+    build_queue = list(roots)
+    while build_queue:
+        next_node = build_queue.pop(pop_from)
+        yield build_queue, next_node
+
+
 class HyperPlaneNode(object):
-    def __init__(self, shape, data=None):
+    def __init__(self, shape, data=None, plane=None):
         super(HyperPlaneNode, self).__init__()
         self.dimensions = shape
 
         # choose one plane, at random, for this node
-        self.plane = hyperplanes(1, shape)
+        if plane is None:
+            self.plane = hyperplanes(1, shape)
+        else:
+            self.plane = plane
 
         self.data = \
             data if data is not None else np.zeros((0,), dtype=np.uint64)
@@ -65,15 +76,38 @@ class HyperPlaneNode(object):
         self.left = None
         self.right = None
 
+    def __hash__(self):
+        return hash(sha1(self.plane).hexdigest())
+
+    def traverse(self):
+        for queue, node in traversal([self], pop_from=0):
+            yield node
+            if node.left:
+                queue.append(node.left)
+            if node.right:
+                queue.append(node.right)
+
     def __eq__(self, other):
-        return \
-            np.all(self.data == other.data) \
-            and np.all(self.plane == other.plane) \
-            and self.left == other.left \
-            and self.right == other.right
+        st = self.traverse()
+        try:
+            ot = other.traverse()
+        except AttributeError:
+            return False
+        for a, b in zip_longest(st, ot):
+            if np.any(a.data != b.data):
+                return False
+            if np.any(a.plane != b.plane):
+                return False
+        return True
 
     def __len__(self):
         return len(self.data)
+
+    def __repr__(self):
+        return f'Node(hash={hash(self)})'
+
+    def __str__(self):
+        return self.__repr__()
 
     @property
     def is_leaf(self):
@@ -107,7 +141,6 @@ class HyperPlaneNode(object):
 class MultiHyperPlaneTree(object):
     def __init__(self, data, smallest_node, n_trees=10):
         super(MultiHyperPlaneTree, self).__init__()
-        self.dimensions = data.shape[1]
         self.data = data
         indices = np.arange(0, len(data), dtype=np.uint64)
         self.smallest_node = smallest_node
@@ -125,19 +158,49 @@ class MultiHyperPlaneTree(object):
                 node.create_children(self.data)
                 build_queue.extend(node.children)
 
+    @property
+    def dimensions(self):
+        return self.data.shape[1]
+
+    def check(self):
+        output = []
+        for queue, node in traversal(list(self.roots), pop_from=0):
+            output.append(str(node))
+            if node.left:
+                queue.append(node.left)
+            if node.right:
+                queue.append(node.right)
+        return output
+
     def __setstate__(self, state):
-        mhpt = MultiHyperPlaneTree(
-            state['data'], state['smallest_node'], state['n_trees'])
+
+        def build_node(_, plane, data):
+            return HyperPlaneNode(state['shape'], data, plane)
+
+        roots = [build_node(*data) for data in state['roots']]
+        self.roots = roots
+        self.data = state['data']
+        self.smallest_node = state['smallest_node']
         graph = state['graph']
 
+        for queue, next_node in traversal(roots, pop_from=0):
+            left, right = graph[hash(next_node)]
+            if left:
+                left = build_node(*left)
+                next_node.left = left
+                queue.append(left)
+            if right:
+                right = build_node(*right)
+                next_node.right = right
+                queue.append(right)
+
     def __getstate__(self):
+
         def node_state(node):
-            return node.plane, node.data
+            return hash(node), node.plane, node.data
 
         graph = dict()
-        queue = [root for root in self.roots]
-        while queue:
-            next_node = queue.pop()
+        for queue, next_node in traversal(list(self.roots), pop_from=0):
             item = []
             left = next_node.left
             right = next_node.right
@@ -154,12 +217,11 @@ class MultiHyperPlaneTree(object):
             else:
                 item.append(None)
 
-            # TODO: What should the key be here?
-            graph[next_node] = item
+            graph[hash(next_node)] = item
 
         roots = [node_state(r) for r in self.roots]
         return {
-            # TODO: roots should just be the node keys
+            'shape': self.roots[0].dimensions,
             'roots': roots,
             'graph': graph,
             'smallest_node': self.smallest_node,
@@ -236,7 +298,7 @@ class MultiHyperPlaneTree(object):
         heap = [
             (-((i + 1) * 10), random.random(), root)
             for i, root in enumerate(self.roots)
-        ]
+            ]
 
         # traverse the tree, finding candidate indices
         while heap and (len(indices) < to_consider):
@@ -277,22 +339,3 @@ class MultiHyperPlaneTree(object):
             return final_indices, dist[sorted_indices]
         else:
             return final_indices
-
-
-import pickle
-import sys
-
-if __name__ == '__main__':
-    sys.setrecursionlimit(100)
-
-    tree = MultiHyperPlaneTree(
-        data=np.zeros((0, 3), dtype=np.float32),
-        smallest_node=1024,
-        n_trees=5)
-
-    while True:
-        samples = unit_vectors(1000, 3)
-        tree.append(samples)
-        s = pickle.dumps(tree)
-        recovered = pickle.loads(s)
-        print(tree.data.shape, tree == recovered)

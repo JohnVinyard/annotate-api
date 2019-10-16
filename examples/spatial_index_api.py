@@ -11,7 +11,9 @@ import datetime
 logger = module_logger(__file__)
 
 filename = 'index.dat'
+temp_index_filename = 'index_temp.dat'
 persistor_frequency = 60 * 5
+seconds_per_chunk = 0.743038541824
 
 
 class Index(object):
@@ -26,7 +28,6 @@ class Index(object):
         self.current_offset = 0
         self.low_id = None
         self.reset()
-        self.last_save = 0
 
     def info(self):
         return {
@@ -94,22 +95,31 @@ class Index(object):
         return results
 
 
-# class Persistor(threading.Thread):
-#     def __init__(self, index, frequency, filename):
-#         super().__init__(daemon=True)
-#         self.filename = filename
-#         self.frequency = frequency
-#         self.index = index
-#
-#     def run(self):
-#         while True:
-#             time.sleep(self.frequency)
-#             with open(self.filename, 'wb') as f:
-#                 pickle.dump(self.index, f, pickle.HIGHEST_PROTOCOL)
-#             info = self.index.info()
-#             logger.info(
-#                 'Persisted index with {sounds} sounds and {segments} segments'
-#                     .format(**info))
+class Persistor(threading.Thread):
+    def __init__(self, index, frequency, filename, temp_filename):
+        super().__init__(daemon=True)
+        self.temp_filename = temp_filename
+        self.filename = filename
+        self.frequency = frequency
+        self.index = index
+
+    def run(self):
+        while True:
+            time.sleep(self.frequency)
+            try:
+                with open(self.temp_filename, 'wb') as f:
+                    pickle.dump(self.index, f, pickle.HIGHEST_PROTOCOL)
+                os.rename(self.temp_filename, self.filename)
+                info = self.index.info()
+                logger.info(
+                    'Persisted index with {sounds} sounds and {segments} segments'
+                        .format(**info))
+            except Exception as e:
+                try:
+                    os.remove(self.temp_filename)
+                except FileNotFoundError:
+                    pass
+                logger.error(f'Encountered error pickling index {e}')
 
 
 class CorsMiddleware(object):
@@ -203,16 +213,6 @@ class CreateResource(object):
             req.bounded_stream.read(),
             dtype=np.float32).reshape((-1, 3))
         self.index.append(sound_id, data)
-
-        if (self.index.current_offset - self.index.last_save) > 1000:
-            with open(filename, 'wb') as f:
-                pickle.dump(self.index, f, pickle.HIGHEST_PROTOCOL)
-            info = self.index.info()
-            logger.info(
-                'Persisted index with {sounds} sounds and {segments} segments'
-                    .format(**info))
-            self.index.last_save = self.index.current_offset
-
         resp.status_code = falcon.HTTP_CREATED
 
 
@@ -227,6 +227,7 @@ class LowIdResource(object):
             'low_id': self.index.low_id,
             'n_sounds': len(self.index.ids),
             'n_segments': self.index.current_offset,
+            'n_hours': seconds_per_chunk * self.index.current_offset
         }
 
 
@@ -241,7 +242,6 @@ class Application(falcon.API):
 
 access_key = os.environ['ACCESS_KEY']
 user_uri = os.environ['USER_URI']
-seconds_per_chunk = 0.743038541824
 
 try:
     with open(filename, 'rb') as f:
@@ -249,7 +249,8 @@ try:
 except IOError:
     index = Index(seconds_per_chunk, user_uri)
 
-# persistor = Persistor(index, persistor_frequency, filename)
-# persistor.start()
+persistor = Persistor(
+    index, persistor_frequency, filename, temp_index_filename)
+persistor.start()
 
 api = application = Application(index, access_key)
