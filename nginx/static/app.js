@@ -191,49 +191,31 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
-  getUsers(
-    userName=null,
-    userType=null,
-    pageSize=100,
-    pageNumber=0,
-    order='desc') {
-
-    let url = this.buildUri(
-      `/users?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
-    if (userName) {
-      url += `&user_name=${userName}`;
-    }
-    if (userType) {
-      url += `&user_type=${userType}`;
-    }
-    return this.getResource(url);
+  queryString(obj) {
+    return '?' + Object.entries(obj)
+      .map(item => {
+        let [key, value] = item;
+        return `${key}=${encodeURIComponent(value)}`
+      })
+      .join('&');
   }
 
-  getSounds(rawQuery=null, pageSize=100, pageNumber=0, order='desc') {
-    let url = this.buildUri(
-      `/sounds?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
-    if (rawQuery) {
-      url += `&tags=${encodeURIComponent(rawQuery)}`;
-    }
-    return this.getResource(url);
+  buildUriAndQueryString(path, queryParams) {
+    const queryString = this.queryString(queryParams);
+    return this.getResource(this.buildUri(`${path}${queryString}`));
   }
 
-  getSoundsByUser(
-    userId,
-    rawQuery=null,
-    pageSize=100,
-    pageNumber=0,
-    order='desc',
-    withTags=true) {
-    let url = this.buildUri(
-      `/users/${userId}/sounds?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
-    if (rawQuery) {
-      url += `&tags=${encodeURIComponent(rawQuery)}`;
-    }
-    if (withTags) {
-      url += `&with_tags=true`;
-    }
-    return this.getResource(url);
+  getUsers(queryParams) {
+    return this.buildUriAndQueryString('/users', queryParams);
+  }
+
+  getSounds(queryParams) {
+    return this.buildUriAndQueryString('/sounds', queryParams);
+  }
+
+  getSoundsByUser(userId, queryParams) {
+    return this.buildUriAndQueryString(`/users/${userId}/sounds`, queryParams);
+
   }
 
   getSound(soundId) {
@@ -241,72 +223,23 @@ class AnnotateApiClient {
     return this.getResource(url);
   }
 
-  getAnnotations(
-    rawQuery=null,
-    pageSize=100,
-    pageNumber=0,
-    order='desc',
-    withTags=true) {
-
-    let url = this.buildUri(
-      `/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
-    if (rawQuery) {
-      url += `&tags=${encodeURIComponent(rawQuery)}`;
-    }
-    if (withTags) {
-      url += '&with_tags=true';
-    }
-    return this.getResource(url);
+  getAnnotations(queryParams) {
+    return this.buildUriAndQueryString('/annotations', queryParams);
   }
 
-  getAnnotationsByUser(
-    userId,
-    rawQuery=null,
-    pageSize=100,
-    pageNumber=0,
-    order='desc',
-    withTags=true) {
-
-      let url = this.buildUri(
-        `/users/${userId}/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
-      if (rawQuery) {
-        url += `&tags=${encodeURIComponent(rawQuery)}`;
-      }
-      if (withTags) {
-        url += '&with_tags=true';
-      }
-      return this.getResource(url);
+  getAnnotationsByUser(userId, queryParams) {
+    return this.buildUriAndQueryString(
+      `/users/${userId}/annotations`, queryParams);
   }
 
-  getSoundAnnotations(
-    soundId,
-    rawQuery=null,
-    pageSize=100,
-    pageNumber=0,
-    order='desc',
-    withTags=true,
-    timeRange=null) {
-
-    let url = this.buildUri(
-      `/sounds/${soundId}/annotations?page_size=${pageSize}&page_number=${pageNumber}&order=${order}`);
-    if (rawQuery) {
-      url += `&tags=${encodeURIComponent(rawQuery)}`;
-    }
-
-    if (withTags) {
-      url += `&with_tags=true`;
-    }
-
-    if (timeRange) {
-      url += `&time_range=${timeRange.start}-${timeRange.end}`;
-    }
-    return this.getResource(url);
+  getSoundAnnotations(soundId, queryParams) {
+    return this.buildUriAndQueryString(
+      `/sounds/${soundId}/annotations`, queryParams);
   }
-
-  getSoundAnnotationsByUser(soundId, userId, pageSize=100) {
-    const url = this.buildUri(
-      `/sounds/${soundId}/annotations?created_by=${userId}&page_size=${pageSize}`);
-    return this.getResource(url);
+  getSoundAnnotationsByUser(soundId, userId, queryParams) {
+    queryParams.created_by = userId;
+    return this.buildUriAndQueryString(
+      `/sounds/${soundId}/annotations`, queryParams);
   }
 
   getFeatureBots(pageSize=100) {
@@ -552,9 +485,8 @@ const featurePromise = (
         featureDataPromise = featureDataPromise
           .then(data => {
             const {buffer, audioUrl, soundUri, sound} = data;
-
             const promise = getApiClient().getSoundAnnotationsByUser(
-              sound.id, feature.id);
+              sound.id, feature.id, {});
             return promiseContext(promise, r => ({audioUrl, sound}));
           })
           .then(result => {
@@ -1390,15 +1322,18 @@ document.addEventListener('DOMContentLoaded', function() {
         queryChange: function(value) {
           this.query = value;
         },
-        changePage: function(event) {
-          this.pageNumber = event.pageNumber;
-          this.handleSubmit();
+        // changePage: function(event) {
+        //   this.pageNumber = event.pageNumber;
+        //   this.handleSubmit();
+        // },
+        loadMore: function() {
+          this.handleSubmit(true, true);
         },
         newSearch: function() {
           this.pageNumber = 0;
           this.handleSubmit();
         },
-        handleSubmit: function(pushHistory=true) {
+        handleSubmit: function(pushHistory=true, append=false) {
           if (this.onSubmit) {
             this.onSubmit();
           }
@@ -1414,15 +1349,27 @@ document.addEventListener('DOMContentLoaded', function() {
               query
             });
           }
-          this.items = [];
+
+          if (!append) {
+            this.items = [];
+          }
+
           this
             .fetchData(this.query, this.pageSize, this.pageNumber)
             .then(data => {
-                if (this.transformResults) {
-                  this.items = this.transformResults(data.items);
+                let newItems = this.transformResults ?
+                  this.transformResults(data.items) : data.items;
+                if (append) {
+                  this.items = this.items.concat(newItems);
                 } else {
-                  this.items = data.items;
+                  this.items = newItems;
                 }
+
+                // if (this.transformResults) {
+                //   this.items = this.items.concat(this.transformResults(data.items));
+                // } else {
+                //   this.items = this.items.concat(data.items);
+                // }
                 this.totalResults = data.total_count;
                 this.totalPages = Math.ceil(data.total_count / this.pageSize);
             });
@@ -1506,6 +1453,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const sounds = items.map(item => {
       const uri = `/sounds/${item.id}`;
       const annotation = {
+        id: item.id,
         sound: uri,
         created_by: item.created_by,
         created_by_user_name: item.created_by_user_name,
@@ -1532,8 +1480,16 @@ document.addEventListener('DOMContentLoaded', function() {
   const Sounds = soundSearchPage('sounds', {
     placeHolderText: 'E.g. train, test or validation',
     fetchData: function(query, pageSize, pageNumber) {
+      const queryParams = { page_size: pageSize, order: 'desc' };
+      if (query) {
+        queryParams.tags = query;
+      }
+      if (this.items.length) {
+        const lastItem = this.items[this.items.length - 1];
+        queryParams.high_id = lastItem.id;
+      }
       return getApiClient()
-        .getSounds(query, pageSize, pageNumber);
+        .getSounds(queryParams);
     },
     transformResults: transformSoundResults
   });
@@ -1542,8 +1498,17 @@ document.addEventListener('DOMContentLoaded', function() {
     props: ['id'],
     placeHolderText: 'E.g. train, test or validation',
     fetchData: function(query, pageSize, pageNumber) {
+      const queryParams = {page_size: pageSize, with_tags: true, order: 'desc'};
+      if (query) {
+        queryParams.tags = query;
+      }
+
+      if (this.items.length) {
+        queryParams.high_id = this.items[this.items.length - 1].id;
+      }
+
       return getApiClient()
-        .getSoundsByUser(this.id, query, pageSize, pageNumber);
+          .getSoundsByUser(this.id, queryParams);
     },
     transformResults: transformSoundResults
   });
@@ -1567,8 +1532,17 @@ document.addEventListener('DOMContentLoaded', function() {
     props: ['id'],
     placeHolderText: 'E.g. snare, kick, or crunchy',
     fetchData: function(query, pageSize, pageNumber) {
-      return getApiClient().getAnnotationsByUser(
-        this.id, query, pageSize, pageNumber);
+      const queryParams = {page_size: pageSize, order: 'desc', with_tags: true};
+      if (query) {
+        queryParams.tags = query;
+      }
+
+      if (this.items.length) {
+        queryParams.high_id = this.items[this.items.length - 1].id;
+      }
+
+      return getApiClient()
+          .getAnnotationsByUser(this.id, queryParams);
     },
     afterFeatureInit: function() {
       const feature = this.allFeatures.find(x => x.id === this.id);
@@ -1606,24 +1580,40 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     fetchData: function(query, pageSize, pageNumber) {
-      return getApiClient().getSoundAnnotations(
-          this.id,
-          query,
-          pageSize,
-          pageNumber,
-          'desc',  // order
-          true,   // with tags
-          this.timeRange // time range
-      );
+      const queryParams = {page_size: pageSize, order: 'desc', with_tags: true};
+
+      if (query) {
+        queryParams.tags = query;
+      }
+
+      if (this.items.length) {
+        queryParams.high_id = this.items[this.items.length - 1].id;
+      }
+
+      if (this.timeRange) {
+        queryParams.time_range =
+          `${this.timeRange.start}-${this.timeRange.end}`;
+      }
+
+      return getApiClient()
+        .getSoundAnnotations(this.id, queryParams);
     },
     transformResults: tranformAnnotationResults
   });
 
   const Annotations = soundSearchPage('annotations', {
     placeHolderText: 'E.g. snare, kick, or crunchy',
-    fetchData: function() {
+    fetchData: function(query, pageSize, pageNumber) {
+      const queryParams = {page_size: pageSize, order: 'desc', with_tags: true};
+      if (query) {
+        queryParams.tags = query;
+      }
+
+      if (this.items.length) {
+        queryParams.high_id = this.items[this.items.length - 1].id;
+      }
       return getApiClient()
-        .getAnnotations(this.query, this.pageSize, this.pageNumber);
+        .getAnnotations(queryParams);
     },
     transformResults: tranformAnnotationResults
   });
@@ -1643,8 +1633,21 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
     fetchData : function(query, pageSize, pageNumber) {
+      const queryParams = {page_size: pageSize, order: 'desc'};
+      if (query) {
+        queryParams.user_name = query;
+      }
+
+      if (this.userType) {
+        queryParams.user_type = this.userType;
+      }
+
+      if (this.items.length) {
+        queryParams.high_id = this.items[this.items.length - 1].id;
+      }
+
       return getApiClient()
-        .getUsers(query, this.userType, pageSize, pageNumber);
+        .getUsers(queryParams);
     }
   });
 

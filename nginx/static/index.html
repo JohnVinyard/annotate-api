@@ -553,7 +553,7 @@
             </div>
 
             <!-- Pagination -->
-            <div class="section">
+            <!-- <div class="section">
               <div class="container">
                 <pagination
                   @change-page="changePage"
@@ -562,7 +562,9 @@
                   :max-display-pages="5"
                   ></pagination>
               </div>
-            </div>
+            </div> -->
+            <div v-on:click="loadMore">LOAD MORE</div>
+
           </div>
           <div v-if="showMap" class="column is-half sticky">
             <explorer
@@ -750,7 +752,7 @@
       </div>
 
       <!-- Pagination -->
-      <div class="section">
+      <!-- <div class="section">
         <div class="container">
           <pagination
             @change-page="changePage"
@@ -759,7 +761,9 @@
             :max-display-pages="5"
             ></pagination>
         </div>
-      </div>
+      </div> -->
+
+      <div v-on:click="loadMore">LOAD MORE</div>
     </div>
   </template>
 

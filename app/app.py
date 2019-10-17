@@ -128,7 +128,8 @@ def list_entity(
         entity_type,
         link_template,
         additional_params=None,
-        default_result_order=None):
+        default_result_order=None,
+        total_count=True):
     page_size = req.get_param_as_int('page_size') or 100
     page_number = req.get_param_as_int('page_number') or 0
 
@@ -142,28 +143,38 @@ def list_entity(
 
     additional_params = additional_params or {}
     low_id = req.get_param('low_id')
-    if low_id is not None:
-        query = query & (query.entity_class.id > low_id)
-        additional_params['low_id'] = low_id
-
-    # KLUDGE: The use of low_id and desc order should really be mutually
-    # exclusive
+    high_id = req.get_param('high_id')
     order = req.get_param('order')
+    result_order = default_result_order
+
     orders = {
         'asc': entity_type.id.ascending(),
         'desc': entity_type.id.descending()
     }
-    try:
-        result_order = additional_params['order'] = orders[order]
-    except KeyError:
-        result_order = \
-            default_result_order or entity_type.id.ascending()
+
+    if low_id is not None:
+        query = query & (query.entity_class.id > low_id)
+        additional_params['low_id'] = low_id
+        result_order = entity_type.id.ascending()
+        total_count = False
+    elif high_id is not None:
+        query = query & (query.entity_class.id < high_id)
+        additional_params['high_id'] = high_id
+        result_order = entity_type.id.descending()
+        total_count = False
+    elif order:
+        try:
+            result_order = additional_params['order'] = orders[order]
+        except KeyError:
+            result_order = \
+                default_result_order or entity_type.id.ascending()
 
     query_result = session.filter(
         query,
         page_size,
         page_number,
-        result_order)
+        result_order,
+        total_count=total_count)
 
     results = build_list_response(
         actor=actor,
