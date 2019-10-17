@@ -1129,82 +1129,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  const Pagination = Vue.component('pagination', {
-    template: '#pagination-template',
-    props: {
-      currentPage: {
-          type: Number,
-          default: 0
-      },
-      totalPages: Number,
-      maxDisplayPages : {
-        type: Number,
-        default: 10
-      }
-    },
-    computed: {
-      displayPages: function() {
-        const display = [this.currentPage];
-        if (this.totalPages === 0) {
-          return display;
-        }
-
-        while (display.length <= this.maxDisplayPages) {
-          const startLength = display.length;
-
-          const nextItem = display[display.length - 1] + 1;
-          if (nextItem <= this.lastPage) {
-            display.push(nextItem);
-          }
-          const previousItem = display[0] - 1;
-          if(previousItem >= 0) {
-            display.unshift(previousItem);
-          }
-
-          if (display.length === startLength) {
-            break;
-          }
-        }
-        return display;
-      },
-      needsFirstPageLink: function() {
-        return !this.displayPages.includes(0);
-      },
-      needsLastPageLink: function() {
-        return !this.displayPages.includes(this.lastPage);
-      },
-      lastPage: function() {
-        return Math.max(0, this.totalPages - 1);
-      },
-      isFirstPage: function() {
-        return this.currentPage === 0;
-      },
-      isLastPage: function() {
-        return this.currentPage === this.lastPage;
-      }
-    },
-    methods: {
-      visitFirstPage: function() {
-        this.visit(0);
-      },
-      visitLastPage: function() {
-        this.visit(this.totalPages - 1);
-      },
-      visitPreviousPage: function() {
-        if (this.isFirstPage) { return; }
-        this.visit(this.currentPage - 1);
-      },
-      visitNextPage: function() {
-        if (this.isLastPage) { return; }
-        this.visit(this.currentPage + 1);
-      },
-      visit: function(page) {
-        this.$emit('change-page', { pageNumber: page });
-      }
-    }
-  });
-
-
   const MarkDown = Vue.component('markdown', {
     props: {
       remoteUrl: String
@@ -1322,10 +1246,6 @@ document.addEventListener('DOMContentLoaded', function() {
         queryChange: function(value) {
           this.query = value;
         },
-        // changePage: function(event) {
-        //   this.pageNumber = event.pageNumber;
-        //   this.handleSubmit();
-        // },
         loadMore: function() {
           this.handleSubmit(true, true);
         },
@@ -1364,12 +1284,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                   this.items = newItems;
                 }
-
-                // if (this.transformResults) {
-                //   this.items = this.items.concat(this.transformResults(data.items));
-                // } else {
-                //   this.items = this.items.concat(data.items);
-                // }
                 this.totalResults = data.total_count;
                 this.totalPages = Math.ceil(data.total_count / this.pageSize);
             });
